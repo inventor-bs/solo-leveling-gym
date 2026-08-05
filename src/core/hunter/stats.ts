@@ -12,7 +12,7 @@ export interface Stats {
 /**
  * Input for deriving stats. EVERYTHING here comes from real training logs.
  * There is no field for buffs, items, or manual point allocation —
- * that's deliberate (spec §1.3: stats are Measured numbers).
+ * that's deliberate: stats are derived, never assigned.
  */
 export interface StatInput {
   readonly mainLiftE1rms: ReadonlyMap<string, Kg>;

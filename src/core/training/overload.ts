@@ -1,7 +1,7 @@
 import { kg, reps as makeReps, type Kg, type Reps } from "@/core/shared/units";
 import type { RepRange, LoggedSet } from "./types";
 
-/** Balance constants — spec §5.3. Tune here, not scattered through the logic. */
+/** Balance constants. Tune here, not scattered through the logic. */
 export const DELOAD_FACTOR = 0.9;
 export const DELOAD_AFTER_CONSECUTIVE_FAILURES = 2;
 export const WEIGHT_ROUNDING_KG = 0.5;
@@ -38,7 +38,7 @@ function anySetBelowMin(p: ExercisePerformance, range: RepRange): boolean {
 }
 
 /**
- * Double progression (spec §5.3):
+ * Double progression:
  *   • ALL sets hit the top of the range   → weight up, reps back to the bottom
  *   • Not all sets hit the top yet        → hold weight, aim for 1 more rep
  *   • 2 CONSECUTIVE sessions below the bottom of the range → deload 10%

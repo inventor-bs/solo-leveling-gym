@@ -2,7 +2,7 @@ import type { Kg, Reps, Epoch } from "@/core/shared/units";
 import type { TrainingDay } from "@/core/shared/training-day";
 
 /**
- * Eight muscle groups, mapped 1-1 to the eight shadows (spec §7.1).
+ * Eight muscle groups, mapped 1-1 to the eight shadow soldiers.
  * "posterior" = posterior chain (glutes/hamstrings) — Beru's group.
  */
 export type MuscleGroup =
@@ -37,7 +37,7 @@ export interface ExerciseDef {
   readonly kind: ExerciseKind;
   /** One of the 5 main lifts feeding STR: bench, squat, deadlift, OHP, row. */
   readonly isMainLift: boolean;
-  /** Weight increment applied on reaching the top of the rep range (spec §5.3). */
+  /** Weight increment applied on reaching the top of the rep range. */
   readonly incrementKg: Kg;
 }
 

@@ -4,9 +4,8 @@ A single-user training tracker wrapped in the game system from the manhwa
 _Solo Leveling_. Real workout data drives every number on screen — nothing is
 mocked, and nothing can be bought.
 
-> **Status:** Phase 0 complete (foundation). The training engine, quest system,
-> and shadow army land in Phases 1–3. See [`docs/superpowers/`](docs/superpowers/)
-> for the full design spec and per-phase implementation plans.
+> **Status:** Foundation and the core training engine are done (stats, e1RM,
+> progressive overload, fatigue). Persistence, UI, and the quest system are next.
 
 ## The one rule
 

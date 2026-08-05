@@ -1,7 +1,7 @@
 /**
- * Fatigue is the LIMITING stat (spec §5.5) — the one stat that should
- * not go up. It's the only mechanic in the app that rewards resting,
- * and it's what caps overtraining.
+ * Fatigue is the LIMITING stat — the one stat that should not go up.
+ * It's the only mechanic in the app that rewards resting, and it's
+ * what caps overtraining.
  */
 export type FatigueLevel = "normal" | "warning" | "critical";
 
@@ -50,7 +50,7 @@ export function fatigueLevel(value: number): FatigueLevel {
   return "normal";
 }
 
-/** Critical fatigue halves EXP earned — spec §5.5. */
+/** Critical fatigue halves EXP earned. */
 export function expMultiplierForFatigue(value: number): number {
   return fatigueLevel(value) === "critical"
     ? FATIGUE_TUNING.criticalExpMultiplier

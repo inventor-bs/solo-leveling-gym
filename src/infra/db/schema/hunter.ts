@@ -4,7 +4,7 @@ import { sqliteTable, integer, text, real } from "drizzle-orm/sqlite-core";
  * A single-row table. id is always 1.
  * The app serves exactly one hunter by design.
  *
- * The six stats are MEASURED numbers (spec §1.3): they always store the
+ * The six stats are MEASURED numbers: they always store the
  * raw value derived from set_log. Every modifier (penalty -15%, buffs)
  * is applied at the read layer and must NEVER overwrite these columns.
  */

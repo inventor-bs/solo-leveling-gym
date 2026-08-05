@@ -3,9 +3,9 @@ import { exp as makeExp, type Exp } from "@/core/shared/units";
 export type Rank = "E" | "D" | "C" | "B" | "A" | "S" | "National" | "Monarch";
 
 /**
- * Balance constants — spec §11.4 says the E→D threshold is tuned so a
- * consistent trainee reaches it around day 12–16. Adjust here when
- * real usage data comes in.
+ * Balance constants. The E→D threshold is tuned so a consistent
+ * trainee reaches it around day 12–16. Adjust here when real usage
+ * data comes in.
  */
 export const EXP_BASE = 100;
 export const EXP_EXPONENT = 1.35;
@@ -30,7 +30,7 @@ export function expToNextLevel(level: number): Exp {
 /**
  * Applies gained EXP and resolves every level-up it triggers.
  * Negative EXP (Penalty Zone) subtracts from the current pool but
- * NEVER drops a level — spec §6.3.
+ * NEVER drops a level.
  */
 export function applyExp(
   currentLevel: number,

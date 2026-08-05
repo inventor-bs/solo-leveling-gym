@@ -1,6 +1,6 @@
 /**
  * A session's rank is derived from its planned volume relative to
- * recent average volume (spec §5.6). It is never set by hand.
+ * recent average volume. It is never set by hand.
  *
  * Deliberate consequence: as the hunter gets stronger, a session that
  * used to be B-Rank naturally drops to C-Rank — matching how it feels

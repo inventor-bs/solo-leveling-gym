@@ -9,7 +9,7 @@ function round1(n: number): number {
 }
 
 /**
- * Estimates 1RM using the Epley formula (spec §5.4).
+ * Estimates 1RM using the Epley formula.
  * 1 rep is a special case: exactly that weight, not multiplied.
  */
 export function estimateOneRepMax(weight: Kg, repsDone: Reps): Kg {
