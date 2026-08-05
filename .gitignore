@@ -9,3 +9,4 @@ node_modules
 /src/infra/db/local.db
 coverage
 .DS_Store
+*.tsbuildinfo
