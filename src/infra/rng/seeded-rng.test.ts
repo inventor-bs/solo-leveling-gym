@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { seededRng } from "./seeded-rng";
 
 describe("seededRng", () => {
-  it("cùng seed cho cùng chuỗi số", () => {
+  it("produces the same sequence for the same seed", () => {
     const a = seededRng(1234);
     const b = seededRng(1234);
     const seqA = [a.next(), a.next(), a.next()];
@@ -10,13 +10,13 @@ describe("seededRng", () => {
     expect(seqA).toEqual(seqB);
   });
 
-  it("seed khác cho chuỗi khác", () => {
+  it("produces different sequences for different seeds", () => {
     const a = seededRng(1);
     const b = seededRng(2);
     expect(a.next()).not.toBe(b.next());
   });
 
-  it("next() luôn nằm trong [0, 1)", () => {
+  it("next() always stays within [0, 1)", () => {
     const rng = seededRng(99);
     for (let i = 0; i < 1000; i++) {
       const v = rng.next();
@@ -25,7 +25,7 @@ describe("seededRng", () => {
     }
   });
 
-  it("int() luôn nằm trong [min, max)", () => {
+  it("int() always stays within [min, max)", () => {
     const rng = seededRng(7);
     for (let i = 0; i < 1000; i++) {
       const v = rng.int(5, 10);
@@ -35,9 +35,9 @@ describe("seededRng", () => {
     }
   });
 
-  it("int() ném lỗi khi max <= min", () => {
+  it("int() throws when max <= min", () => {
     const rng = seededRng(1);
-    expect(() => rng.int(10, 10)).toThrow(/phải lớn hơn/);
-    expect(() => rng.int(10, 5)).toThrow(/phải lớn hơn/);
+    expect(() => rng.int(10, 10)).toThrow(/must be greater than/);
+    expect(() => rng.int(10, 5)).toThrow(/must be greater than/);
   });
 });

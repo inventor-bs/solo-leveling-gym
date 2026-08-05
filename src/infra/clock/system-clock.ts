@@ -5,11 +5,11 @@ export const systemClock: ClockPort = {
   now: () => epoch(Date.now()),
 };
 
-/** Clock đứng yên, dùng cho test. */
+/** A clock frozen at a fixed instant, for tests. */
 export function fixedClock(iso: string): ClockPort {
   const parsed = Date.parse(iso);
   if (Number.isNaN(parsed)) {
-    throw new Error(`fixedClock: chuỗi ISO không hợp lệ: ${iso}`);
+    throw new Error(`fixedClock: invalid ISO string: ${iso}`);
   }
   const at = epoch(parsed);
   return { now: () => at };

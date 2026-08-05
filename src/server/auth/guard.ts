@@ -4,14 +4,14 @@ import { SESSION_COOKIE, verifySession } from "./session";
 
 export class UnauthorizedError extends Error {
   constructor() {
-    super("Cần PIN để ghi dữ liệu.");
+    super("A PIN is required to write data.");
     this.name = "UnauthorizedError";
   }
 }
 
 /**
- * Gọi ở ĐẦU mọi server action có ghi dữ liệu.
- * Đọc dữ liệu là công khai — guard này chỉ chặn ghi.
+ * Call this at the START of every server action that writes data.
+ * Reads are public — this guard only blocks writes.
  */
 export async function requireWriteAccess(): Promise<void> {
   const store = await cookies();
@@ -21,7 +21,7 @@ export async function requireWriteAccess(): Promise<void> {
   }
 }
 
-/** Đọc trạng thái đăng nhập để render UI. Không ném lỗi. */
+/** Reads login state for UI rendering. Never throws. */
 export async function hasWriteAccess(): Promise<boolean> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;

@@ -5,7 +5,7 @@ import { makeTestDb } from "@/infra/db/testing/make-test-db";
 import { buildContainer } from "./container";
 
 describe("buildContainer", () => {
-  it("ráp đủ các phụ thuộc từ một db", async () => {
+  it("wires up every dependency from a single db", async () => {
     const db = await makeTestDb();
     const c = buildContainer({ db, tzOffsetMinutes: 420 });
     expect(c.hunters).toBeDefined();
@@ -13,7 +13,7 @@ describe("buildContainer", () => {
     expect(c.tzOffsetMinutes).toBe(420);
   });
 
-  it("cho phép thay clock và rng để test", async () => {
+  it("allows swapping the clock and rng for testing", async () => {
     const db = await makeTestDb();
     const c = buildContainer({
       db,
@@ -25,14 +25,14 @@ describe("buildContainer", () => {
     expect(c.rng.next()).toBe(seededRng(42).next());
   });
 
-  it("repo dùng đúng db được truyền vào", async () => {
+  it("repositories use the db that was passed in", async () => {
     const db = await makeTestDb();
     const c = buildContainer({ db, tzOffsetMinutes: 420 });
     await c.hunters.create({ name: "Jin-Woo", createdAt: 1754400000000 });
     expect((await c.hunters.get())?.name).toBe("Jin-Woo");
   });
 
-  it("hai container trên hai db khác nhau không dùng chung dữ liệu", async () => {
+  it("two containers on two different dbs don't share data", async () => {
     const a = buildContainer({ db: await makeTestDb(), tzOffsetMinutes: 420 });
     const b = buildContainer({ db: await makeTestDb(), tzOffsetMinutes: 420 });
     await a.hunters.create({ name: "Jin-Woo", createdAt: 1 });

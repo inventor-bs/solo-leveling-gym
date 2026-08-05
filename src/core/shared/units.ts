@@ -2,13 +2,13 @@ declare const brand: unique symbol;
 
 type Brand<T, B extends string> = T & { readonly [brand]: B };
 
-/** Khối lượng tạ, kilogram. */
+/** Barbell load, in kilograms. */
 export type Kg = Brand<number, "Kg">;
-/** Số lần lặp trong một set. */
+/** Reps performed in a single set. */
 export type Reps = Brand<number, "Reps">;
-/** Điểm kinh nghiệm. */
+/** Experience points. */
 export type Exp = Brand<number, "Exp">;
-/** Tiền tệ trong game. */
+/** In-game currency. */
 export type Gold = Brand<number, "Gold">;
 /** UTC epoch milliseconds. */
 export type Epoch = Brand<number, "Epoch">;

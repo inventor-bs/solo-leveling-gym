@@ -1,8 +1,8 @@
 import type { RngPort } from "@/ports/rng.port";
 
 /**
- * mulberry32 — PRNG 32-bit, nhanh, phân phối đủ tốt cho loot/quest.
- * Không dùng cho mục đích mật mã.
+ * mulberry32 — a 32-bit PRNG, fast, with distribution good enough
+ * for loot/quest rolls. Not for cryptographic use.
  */
 export function seededRng(seed: number): RngPort {
   let state = seed >>> 0;
@@ -20,7 +20,7 @@ export function seededRng(seed: number): RngPort {
     int: (minInclusive: number, maxExclusive: number): number => {
       if (maxExclusive <= minInclusive) {
         throw new Error(
-          `seededRng.int: max (${maxExclusive}) phải lớn hơn min (${minInclusive})`,
+          `seededRng.int: max (${maxExclusive}) must be greater than min (${minInclusive})`,
         );
       }
       return minInclusive + Math.floor(next() * (maxExclusive - minInclusive));

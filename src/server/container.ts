@@ -24,11 +24,11 @@ type ContainerSeed = {
 };
 
 /**
- * Nơi DUY NHẤT ráp phụ thuộc. Không dùng DI framework —
- * app một người dùng không cần thứ đó.
+ * The ONLY place dependencies are wired together. No DI framework —
+ * a single-user app doesn't need one.
  *
- * Test truyền db/clock/rng/tzOffsetMinutes vào để không chạm env.
- * Production gọi không tham số và lấy tất cả từ env.
+ * Tests pass in db/clock/rng/tzOffsetMinutes so they never touch env.
+ * Production calls this with no arguments and pulls everything from env.
  */
 export function buildContainer(seed: ContainerSeed = {}): Container {
   const db = seed.db ?? getDb();
@@ -45,7 +45,7 @@ export function buildContainer(seed: ContainerSeed = {}): Container {
 
 let cached: Container | null = null;
 
-/** Container production. Lười khởi tạo, giống getEnv()/getDb(). */
+/** Production container. Lazily initialized, same pattern as getEnv()/getDb(). */
 export function getContainer(): Container {
   if (cached === null) {
     cached = buildContainer();

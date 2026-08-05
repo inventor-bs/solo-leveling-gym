@@ -12,8 +12,8 @@ const schema = z.object({
 export type Env = z.infer<typeof schema>;
 
 /**
- * Hàm thuần để test được. Ném lỗi có tên biến cụ thể
- * thay vì để app chết ở một chỗ ngẫu nhiên sau này.
+ * A pure function so it stays testable. Throws with the specific
+ * variable name instead of letting the app die somewhere unrelated later.
  */
 export function parseEnv(source: Record<string, string | undefined>): Env {
   const result = schema.safeParse(source);
@@ -21,7 +21,7 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
     const details = result.error.issues
       .map((i) => `  ${i.path.join(".")}: ${i.message}`)
       .join("\n");
-    throw new Error(`Biến môi trường không hợp lệ:\n${details}`);
+    throw new Error(`Invalid environment variables:\n${details}`);
   }
   return result.data;
 }
@@ -29,12 +29,12 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
 let cached: Env | null = null;
 
 /**
- * Đọc env một lần rồi nhớ lại.
+ * Reads env once and memoizes it.
  *
- * Cố ý LƯỜI thay vì chạy lúc import: nếu validate ngay ở top level thì
- * mọi file test lỡ import module này sẽ chết, kể cả khi nó chỉ cần
- * `parseEnv`. Fail-fast vẫn được giữ — chỉ là ở lần dùng thật đầu tiên
- * (khi Next khởi động hoặc build), không phải lúc nạp module.
+ * Deliberately LAZY instead of running at import time: validating eagerly
+ * at the top level would kill any test file that happens to import this
+ * module, even when it only needs `parseEnv`. Fail-fast is still preserved —
+ * just deferred to first real use (Next startup or build), not module load.
  */
 export function getEnv(): Env {
   if (cached === null) {
@@ -43,7 +43,7 @@ export function getEnv(): Env {
   return cached;
 }
 
-/** Chỉ dùng trong test. */
+/** Test-only. */
 export function resetEnvCache(): void {
   cached = null;
 }

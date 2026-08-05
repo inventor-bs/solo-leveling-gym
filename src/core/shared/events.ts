@@ -1,11 +1,11 @@
 import type { Exp, Gold } from "./units";
 
 /**
- * Domain event = kết quả trả về của core, KHÔNG phải hạ tầng.
- * app-services nhận mảng này, ghi DB trong một transaction,
- * rồi đẩy sang UI để chạy animation.
+ * A domain event is a return value from core, NOT an infrastructure concept.
+ * app-services collects these, persists them in a single transaction,
+ * then forwards them to the UI to drive animations.
  *
- * Mỗi phase sau sẽ thêm biến thể mới vào union này.
+ * Later phases will add more variants to this union.
  */
 export type DomainEvent =
   | { type: "ExpGained"; amount: Exp; source: string }

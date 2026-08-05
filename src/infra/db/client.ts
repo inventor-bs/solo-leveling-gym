@@ -13,8 +13,8 @@ export type Db = ReturnType<typeof createDb>;
 let cached: Db | null = null;
 
 /**
- * DB production. Lười khởi tạo cùng lý do như getEnv():
- * import module không được kéo theo việc phải có env hợp lệ.
+ * Production DB. Lazily initialized for the same reason as getEnv():
+ * importing the module must not require a valid env to already exist.
  */
 export function getDb(): Db {
   if (cached === null) {

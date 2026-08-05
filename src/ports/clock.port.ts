@@ -1,10 +1,10 @@
 import type { Epoch } from "@/core/shared/units";
 
 /**
- * Lý do port này tồn tại: app đầy logic phụ thuộc thời gian
- * (reset quest 00:00, quest hết hạn, Penalty Zone, shadow suy yếu).
- * Nếu core gọi thẳng Date.now() thì không thể test "23:59 vs 00:01"
- * mà không đổi giờ hệ thống.
+ * Why this port exists: the app is full of time-dependent logic
+ * (quest reset at 00:00, quest expiry, Penalty Zone, shadow decay).
+ * If core called Date.now() directly, "23:59 vs 00:01" could never
+ * be tested without changing the system clock.
  */
 export interface ClockPort {
   now(): Epoch;

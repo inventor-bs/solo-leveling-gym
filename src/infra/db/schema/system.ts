@@ -1,11 +1,11 @@
 import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
 
 /**
- * Chống xử lý trùng. Sóng phòng gym yếu → người dùng tap lại
- * → không được cộng EXP hai lần.
+ * Guards against duplicate processing. Gym wifi is flaky, the user taps
+ * again — EXP must not be granted twice.
  *
- * Client sinh clientActionId (UUID) cho mỗi mutation.
- * Lần gọi thứ hai với cùng id trả lại kết quả lần đầu.
+ * The client generates a clientActionId (UUID) for every mutation.
+ * A second call with the same id returns the first call's result.
  */
 export const processedAction = sqliteTable("processed_action", {
   id: text("id").primaryKey(),

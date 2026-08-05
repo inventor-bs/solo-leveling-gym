@@ -12,11 +12,11 @@ beforeEach(async () => {
 });
 
 describe("HunterRepo", () => {
-  it("get() trả null khi chưa có hunter", async () => {
+  it("get() returns null when no hunter exists yet", async () => {
     expect(await repo.get()).toBeNull();
   });
 
-  it("create() rồi get() trả về đúng hunter", async () => {
+  it("create() then get() returns the same hunter", async () => {
     await repo.create({ name: "Jin-Woo", createdAt: 1754400000000 });
     const h = await repo.get();
     expect(h?.name).toBe("Jin-Woo");
@@ -26,7 +26,7 @@ describe("HunterRepo", () => {
     expect(h?.tzOffsetMinutes).toBe(420);
   });
 
-  it("update() sửa được các trường được chỉ định", async () => {
+  it("update() changes the specified fields", async () => {
     await repo.create({ name: "Jin-Woo", createdAt: 1754400000000 });
     await repo.update({ level: 5, exp: 1200, strength: 41.5 });
     const h = await repo.get();
@@ -36,16 +36,16 @@ describe("HunterRepo", () => {
     expect(h?.name).toBe("Jin-Woo");
   });
 
-  it("update() với patch rỗng không đổi gì", async () => {
+  it("update() with an empty patch changes nothing", async () => {
     await repo.create({ name: "Jin-Woo", createdAt: 1754400000000 });
     await repo.update({});
     expect((await repo.get())?.name).toBe("Jin-Woo");
   });
 
-  it("create() lần hai ném lỗi — chỉ có đúng một hunter", async () => {
+  it("a second create() throws — there can only ever be one hunter", async () => {
     await repo.create({ name: "Jin-Woo", createdAt: 1754400000000 });
     await expect(
-      repo.create({ name: "Khác", createdAt: 1754400000000 }),
+      repo.create({ name: "Someone Else", createdAt: 1754400000000 }),
     ).rejects.toThrow();
   });
 });

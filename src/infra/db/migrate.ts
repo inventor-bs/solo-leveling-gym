@@ -4,7 +4,7 @@ import { getDb } from "./client";
 
 async function main() {
   await migrate(getDb(), { migrationsFolder: "./src/infra/db/migrations" });
-  console.log("Migration hoàn tất.");
+  console.log("Migration complete.");
 }
 
 main().catch((e) => {

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { systemClock, fixedClock } from "./system-clock";
 
 describe("systemClock", () => {
-  it("trả về thời điểm gần với Date.now()", () => {
+  it("returns a time close to Date.now()", () => {
     const before = Date.now();
     const t = systemClock.now();
     const after = Date.now();
@@ -12,13 +12,13 @@ describe("systemClock", () => {
 });
 
 describe("fixedClock", () => {
-  it("luôn trả về đúng một thời điểm", () => {
+  it("always returns the same instant", () => {
     const clock = fixedClock("2026-08-05T16:59:00Z");
     expect(clock.now()).toBe(Date.parse("2026-08-05T16:59:00Z"));
     expect(clock.now()).toBe(clock.now());
   });
 
-  it("ném lỗi khi chuỗi ISO không hợp lệ", () => {
-    expect(() => fixedClock("khong-phai-ngay")).toThrow(/không hợp lệ/);
+  it("throws on an invalid ISO string", () => {
+    expect(() => fixedClock("not-a-date")).toThrow(/invalid ISO string/);
   });
 });

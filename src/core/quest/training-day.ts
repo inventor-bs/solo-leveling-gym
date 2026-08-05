@@ -3,15 +3,15 @@ import { epoch, type Epoch } from "@/core/shared/units";
 declare const trainingDayBrand: unique symbol;
 
 /**
- * Ngày lịch địa phương của hunter, dạng "YYYY-MM-DD".
+ * The hunter's local calendar day, formatted as "YYYY-MM-DD".
  *
- * ĐÂY LÀ NƠI DUY NHẤT trong toàn codebase được phép suy ra "ngày"
- * từ một thời điểm. Không nơi nào khác được gọi getDate()/getMonth().
+ * THIS IS THE ONLY PLACE in the entire codebase allowed to derive a
+ * "day" from an instant. No other code may call getDate()/getMonth().
  *
- * DB luôn lưu UTC epoch. Kiểu này chỉ tồn tại ở tầng logic.
+ * The DB always stores UTC epoch. This type exists only at the logic layer.
  *
- * Dùng offset cố định (phút) thay vì tzdata: Việt Nam không có DST
- * nên UTC+7 luôn đúng, và tránh được cả một thư viện phụ thuộc.
+ * A fixed offset (minutes) is used instead of tzdata: Vietnam has no DST,
+ * so UTC+7 is always correct, and this avoids pulling in a whole library.
  */
 export type TrainingDay = string & {
   readonly [trainingDayBrand]: "TrainingDay";
@@ -30,14 +30,14 @@ function formatUtcParts(d: Date): TrainingDay {
   )}` as TrainingDay;
 }
 
-/** Quy một thời điểm về ngày lịch địa phương của hunter. */
+/** Reduces an instant to the hunter's local calendar day. */
 export function toTrainingDay(at: Epoch, tzOffsetMinutes: number): TrainingDay {
-  // Dịch thời điểm sang "giờ địa phương biểu diễn dưới dạng UTC",
-  // rồi đọc các thành phần UTC. Cách này tránh hoàn toàn múi giờ của máy chủ.
+  // Shift the instant to "local time expressed as UTC", then read its
+  // UTC components. This sidesteps the server's own timezone entirely.
   return formatUtcParts(new Date(at + tzOffsetMinutes * MS_PER_MINUTE));
 }
 
-/** Thời điểm 00:00:00.000 giờ địa phương của ngày đó. */
+/** The instant at 00:00:00.000 local time on that day. */
 export function trainingDayStart(
   day: TrainingDay,
   tzOffsetMinutes: number,
@@ -46,7 +46,7 @@ export function trainingDayStart(
   return epoch(Date.UTC(y, m - 1, d) - tzOffsetMinutes * MS_PER_MINUTE);
 }
 
-/** Thời điểm 23:59:59.999 giờ địa phương của ngày đó. */
+/** The instant at 23:59:59.999 local time on that day. */
 export function trainingDayEnd(
   day: TrainingDay,
   tzOffsetMinutes: number,
@@ -54,13 +54,13 @@ export function trainingDayEnd(
   return epoch(trainingDayStart(day, tzOffsetMinutes) + MS_PER_DAY - 1);
 }
 
-/** Cộng (hoặc trừ, khi n âm) số ngày lịch. */
+/** Adds (or subtracts, when n is negative) a number of calendar days. */
 export function addDays(day: TrainingDay, n: number): TrainingDay {
   const [y, m, d] = day.split("-").map(Number);
   return formatUtcParts(new Date(Date.UTC(y, m - 1, d) + n * MS_PER_DAY));
 }
 
-/** Số ngày lịch từ `from` đến `to`. Âm nếu `to` trước `from`. */
+/** Number of calendar days from `from` to `to`. Negative if `to` precedes `from`. */
 export function daysBetween(from: TrainingDay, to: TrainingDay): number {
   const [fy, fm, fd] = from.split("-").map(Number);
   const [ty, tm, td] = to.split("-").map(Number);

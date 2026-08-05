@@ -16,7 +16,7 @@ function safeEqualHex(a: string, b: string): boolean {
   }
 }
 
-/** Token dạng "<expiresAt>.<hmac>". */
+/** Token shaped as "<expiresAt>.<hmac>". */
 export function signSession(expiresAt: number, secret: string): string {
   return `${expiresAt}.${hmac(String(expiresAt), secret)}`;
 }
@@ -33,13 +33,13 @@ export function verifySession(
   const expiresAt = Number(expiresAtRaw);
   if (!Number.isFinite(expiresAt)) return false;
 
-  // Kiểm chữ ký TRƯỚC khi tin vào expiresAt.
+  // Verify the signature BEFORE trusting expiresAt.
   if (!safeEqualHex(signature, hmac(expiresAtRaw, secret))) return false;
 
   return now < expiresAt;
 }
 
-/** So khớp PIN. So sánh an toàn về thời gian để không rò rỉ độ dài khớp. */
+/** Compares a PIN in constant time so matched length is never leaked. */
 export function checkPin(input: string, expected: string): boolean {
   const a = Buffer.from(input, "utf8");
   const b = Buffer.from(expected, "utf8");

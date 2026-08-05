@@ -5,8 +5,8 @@ import * as schema from "../schema";
 import type { Db } from "../client";
 
 /**
- * DB SQLite in-memory, đã chạy migration. Mỗi test một instance riêng
- * nên không có trạng thái rò rỉ giữa các test.
+ * An in-memory SQLite DB with migrations already applied. Each test gets
+ * its own instance, so no state leaks between tests.
  */
 export async function makeTestDb(): Promise<Db> {
   const client = createClient({ url: ":memory:" });

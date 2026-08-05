@@ -17,8 +17,8 @@ export class IdempotencyRepo {
   }
 
   /**
-   * Ghi kết quả lần đầu. Lần gọi sau với cùng id KHÔNG ghi đè —
-   * kết quả lần đầu là kết quả duy nhất đúng.
+   * Stores the first result. A later call with the same id does NOT
+   * overwrite it — the first result is the only correct one.
    */
   async remember<T>(id: string, result: T, at: Epoch): Promise<void> {
     await this.db

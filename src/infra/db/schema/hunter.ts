@@ -1,12 +1,12 @@
 import { sqliteTable, integer, text, real } from "drizzle-orm/sqlite-core";
 
 /**
- * Bảng một dòng. id luôn bằng 1.
- * App phục vụ đúng một hunter theo thiết kế.
+ * A single-row table. id is always 1.
+ * The app serves exactly one hunter by design.
  *
- * 6 stat là số ĐO LƯỜNG (spec §1.3): luôn lưu giá trị gốc suy ra
- * từ set_log. Mọi modifier (penalty -15%, buff) áp ở tầng đọc,
- * KHÔNG bao giờ ghi đè các cột này.
+ * The six stats are MEASURED numbers (spec §1.3): they always store the
+ * raw value derived from set_log. Every modifier (penalty -15%, buffs)
+ * is applied at the read layer and must NEVER overwrite these columns.
  */
 export const hunter = sqliteTable("hunter", {
   id: integer("id").primaryKey(),

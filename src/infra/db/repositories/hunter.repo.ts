@@ -31,7 +31,7 @@ export class HunterRepo {
     });
     const created = await this.get();
     if (!created) {
-      throw new Error("HunterRepo.create: không đọc lại được sau khi ghi");
+      throw new Error("HunterRepo.create: failed to read back after insert");
     }
     return created;
   }
