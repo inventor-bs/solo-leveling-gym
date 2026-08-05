@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { ClockPort } from "@/ports/clock.port";
 import type { RngPort } from "@/ports/rng.port";
 import { systemClock } from "@/infra/clock/system-clock";
@@ -5,14 +6,21 @@ import { seededRng } from "@/infra/rng/seeded-rng";
 import { getDb, type Db } from "@/infra/db/client";
 import { HunterRepo } from "@/infra/db/repositories/hunter.repo";
 import { IdempotencyRepo } from "@/infra/db/repositories/idempotency.repo";
+import { ExerciseRepo } from "@/infra/db/repositories/exercise.repo";
+import { ProgramRepo } from "@/infra/db/repositories/program.repo";
+import { TrainingRepo } from "@/infra/db/repositories/training.repo";
 import { getEnv } from "@/infra/config/env";
 
 export type Container = {
   db: Db;
   clock: ClockPort;
   rng: RngPort;
+  newId: () => string;
   hunters: HunterRepo;
   idempotency: IdempotencyRepo;
+  exercises: ExerciseRepo;
+  programs: ProgramRepo;
+  training: TrainingRepo;
   tzOffsetMinutes: number;
 };
 
@@ -20,6 +28,7 @@ type ContainerSeed = {
   db?: Db;
   clock?: ClockPort;
   rng?: RngPort;
+  newId?: () => string;
   tzOffsetMinutes?: number;
 };
 
@@ -36,8 +45,12 @@ export function buildContainer(seed: ContainerSeed = {}): Container {
     db,
     clock: seed.clock ?? systemClock,
     rng: seed.rng ?? seededRng(Date.now() >>> 0),
+    newId: seed.newId ?? (() => randomUUID()),
     hunters: new HunterRepo(db),
     idempotency: new IdempotencyRepo(db),
+    exercises: new ExerciseRepo(db),
+    programs: new ProgramRepo(db),
+    training: new TrainingRepo(db),
     tzOffsetMinutes: seed.tzOffsetMinutes ?? getEnv().HUNTER_TZ_OFFSET_MINUTES,
   };
 }
