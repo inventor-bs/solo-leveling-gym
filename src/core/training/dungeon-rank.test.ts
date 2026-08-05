@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { dungeonRankFor, goldForDungeonRank } from "./dungeon-rank";
+import {
+  dungeonRankFor,
+  goldForDungeonRank,
+  expForDungeonRank,
+} from "./dungeon-rank";
 
 describe("dungeonRankFor", () => {
   it("below 0.5x the average is E", () => {
@@ -44,5 +48,21 @@ describe("goldForDungeonRank", () => {
     expect(goldForDungeonRank("C")).toBe(70);
     expect(goldForDungeonRank("B")).toBe(95);
     expect(goldForDungeonRank("A")).toBe(120);
+  });
+});
+
+describe("expForDungeonRank", () => {
+  it("EXP increases with rank, same ordering as gold", () => {
+    expect(expForDungeonRank("E")).toBe(150);
+    expect(expForDungeonRank("D")).toBe(250);
+    expect(expForDungeonRank("C")).toBe(350);
+    expect(expForDungeonRank("B")).toBe(475);
+    expect(expForDungeonRank("A")).toBe(600);
+  });
+
+  it("every rank's EXP is a multiple of its gold value's ratio (5x)", () => {
+    for (const rank of ["E", "D", "C", "B", "A"] as const) {
+      expect(expForDungeonRank(rank)).toBe(goldForDungeonRank(rank) * 5);
+    }
   });
 });

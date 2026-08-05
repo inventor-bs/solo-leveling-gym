@@ -1,3 +1,5 @@
+import { exp, type Exp } from "@/core/shared/units";
+
 /**
  * A session's rank is derived from its planned volume relative to
  * recent average volume. It is never set by hand.
@@ -17,6 +19,10 @@ export const DUNGEON_RANK_TUNING = {
     { rank: "E" as const, minRatio: 0 },
   ],
   gold: { E: 30, D: 50, C: 70, B: 95, A: 120 },
+  // 5x gold. A level-1 hunter needs 100 EXP to level up, so a single
+  // E-rank dungeon very nearly levels them — matches the fast early
+  // pacing of the source material. Revisit once real sessions exist.
+  exp: { E: 150, D: 250, C: 350, B: 475, A: 600 },
 } as const;
 
 export function dungeonRankFor(
@@ -33,4 +39,8 @@ export function dungeonRankFor(
 
 export function goldForDungeonRank(rank: DungeonRank): number {
   return DUNGEON_RANK_TUNING.gold[rank];
+}
+
+export function expForDungeonRank(rank: DungeonRank): Exp {
+  return exp(DUNGEON_RANK_TUNING.exp[rank]);
 }
