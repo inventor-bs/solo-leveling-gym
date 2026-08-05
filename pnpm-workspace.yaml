@@ -1,0 +1,7 @@
+allowBuilds:
+  # Native image optimisation dùng bởi next/image.
+  sharp: true
+  # Native resolver của eslint-plugin-import.
+  unrs-resolver: true
+  # Bundler nền của vitest, tsx và drizzle-kit.
+  esbuild: true
