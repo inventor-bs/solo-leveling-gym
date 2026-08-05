@@ -1,4 +1,4 @@
-import type { Exp, Gold } from "./units";
+import type { Exp, Gold, Kg } from "./units";
 
 /**
  * A domain event is a return value from core, NOT an infrastructure concept.
@@ -10,7 +10,17 @@ import type { Exp, Gold } from "./units";
 export type DomainEvent =
   | { type: "ExpGained"; amount: Exp; source: string }
   | { type: "GoldGained"; amount: Gold; source: string }
-  | { type: "LevelUp"; from: number; to: number };
+  | { type: "LevelUp"; from: number; to: number }
+  | { type: "SetLogged"; exerciseId: string; setIndex: number }
+  | { type: "PrAchieved"; exerciseId: string; newE1rm: Kg; previousE1rm: Kg }
+  | {
+      type: "SessionCompleted";
+      sessionId: string;
+      rank: "E" | "D" | "C" | "B" | "A";
+      goldAwarded: Gold;
+      expAwarded: Exp;
+    }
+  | { type: "RunLogged"; distanceKm: number; durationSec: number };
 
 export type DomainEventOfType<T extends DomainEvent["type"]> = Extract<
   DomainEvent,
