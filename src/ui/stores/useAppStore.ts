@@ -29,7 +29,12 @@ export interface Quest {
   title: string;
   description: string;
   systemMessage?: string;
-  requirements: { label: string; current: number; total: number; unit: string }[];
+  requirements: {
+    label: string;
+    current: number;
+    total: number;
+    unit: string;
+  }[];
   reward: { exp: number; gold: number; stat?: string };
   expiresIn: number; // hours
   completed: boolean;
@@ -92,27 +97,124 @@ interface AppState {
   };
 
   // Notifications
-  notifications: { id: string; message: string; type: "info" | "warning" | "danger" | "success" }[];
+  notifications: {
+    id: string;
+    message: string;
+    type: "info" | "warning" | "danger" | "success";
+  }[];
 
   // Actions
   completeQuest: (questId: string) => void;
   toggleSet: (exerciseId: string, setIndex: number) => void;
   startDungeon: () => void;
   completeDungeon: () => void;
-  addNotification: (message: string, type: "info" | "warning" | "danger" | "success") => void;
+  addNotification: (
+    message: string,
+    type: "info" | "warning" | "danger" | "success",
+  ) => void;
   removeNotification: (id: string) => void;
 }
 
 const SHADOW_ARMY: ShadowSoldier[] = [
-  { id: "igris", name: "Igris", grade: "Elite Knight", muscleGroup: "Chest", level: 7, maxLevel: 20, lastTrained: "2024-01-04", unlocked: true, icon: "⚔️" },
-  { id: "iron", name: "Iron", grade: "Elite Warrior", muscleGroup: "Legs", level: 5, maxLevel: 20, lastTrained: "2024-01-03", unlocked: true, icon: "🦵" },
-  { id: "tank", name: "Tank", grade: "Elite Guardian", muscleGroup: "Back", level: 6, maxLevel: 20, lastTrained: "2024-01-02", unlocked: true, icon: "🛡️" },
-  { id: "beru", name: "Beru", grade: "Elite Assassin", muscleGroup: "Shoulders", level: 4, maxLevel: 20, lastTrained: "2024-01-01", unlocked: true, icon: "💪" },
-  { id: "tusk", name: "Tusk", grade: "Elite Berserker", muscleGroup: "Arms", level: 3, maxLevel: 20, lastTrained: "2023-12-30", unlocked: true, icon: "💥" },
-  { id: "greed", name: "Greed", grade: "Shadow Mage", muscleGroup: "Core", level: 2, maxLevel: 20, lastTrained: "2023-12-28", unlocked: true, icon: "🔥" },
-  { id: "kaisel", name: "Kaisel", grade: "Shadow Dragon", muscleGroup: "Cardio", level: 1, maxLevel: 20, lastTrained: null, unlocked: true, icon: "🐉" },
-  { id: "unknown1", name: "???", grade: "Unknown", muscleGroup: "Calves", level: 0, maxLevel: 20, lastTrained: null, unlocked: false, icon: "❓" },
-  { id: "unknown2", name: "???", grade: "Unknown", muscleGroup: "Glutes", level: 0, maxLevel: 20, lastTrained: null, unlocked: false, icon: "❓" },
+  {
+    id: "igris",
+    name: "Igris",
+    grade: "Elite Knight",
+    muscleGroup: "Chest",
+    level: 7,
+    maxLevel: 20,
+    lastTrained: "2024-01-04",
+    unlocked: true,
+    icon: "⚔️",
+  },
+  {
+    id: "iron",
+    name: "Iron",
+    grade: "Elite Warrior",
+    muscleGroup: "Legs",
+    level: 5,
+    maxLevel: 20,
+    lastTrained: "2024-01-03",
+    unlocked: true,
+    icon: "🦵",
+  },
+  {
+    id: "tank",
+    name: "Tank",
+    grade: "Elite Guardian",
+    muscleGroup: "Back",
+    level: 6,
+    maxLevel: 20,
+    lastTrained: "2024-01-02",
+    unlocked: true,
+    icon: "🛡️",
+  },
+  {
+    id: "beru",
+    name: "Beru",
+    grade: "Elite Assassin",
+    muscleGroup: "Shoulders",
+    level: 4,
+    maxLevel: 20,
+    lastTrained: "2024-01-01",
+    unlocked: true,
+    icon: "💪",
+  },
+  {
+    id: "tusk",
+    name: "Tusk",
+    grade: "Elite Berserker",
+    muscleGroup: "Arms",
+    level: 3,
+    maxLevel: 20,
+    lastTrained: "2023-12-30",
+    unlocked: true,
+    icon: "💥",
+  },
+  {
+    id: "greed",
+    name: "Greed",
+    grade: "Shadow Mage",
+    muscleGroup: "Core",
+    level: 2,
+    maxLevel: 20,
+    lastTrained: "2023-12-28",
+    unlocked: true,
+    icon: "🔥",
+  },
+  {
+    id: "kaisel",
+    name: "Kaisel",
+    grade: "Shadow Dragon",
+    muscleGroup: "Cardio",
+    level: 1,
+    maxLevel: 20,
+    lastTrained: null,
+    unlocked: true,
+    icon: "🐉",
+  },
+  {
+    id: "unknown1",
+    name: "???",
+    grade: "Unknown",
+    muscleGroup: "Calves",
+    level: 0,
+    maxLevel: 20,
+    lastTrained: null,
+    unlocked: false,
+    icon: "❓",
+  },
+  {
+    id: "unknown2",
+    name: "???",
+    grade: "Unknown",
+    muscleGroup: "Glutes",
+    level: 0,
+    maxLevel: 20,
+    lastTrained: null,
+    unlocked: false,
+    icon: "❓",
+  },
 ];
 
 const QUESTS: Quest[] = [
@@ -120,11 +222,18 @@ const QUESTS: Quest[] = [
     id: "main-1",
     type: "main",
     title: "Trial of the Iron Monarch",
-    description: "The System demands progression. Your chest has shown stagnation. Break through — or remain E-Rank forever.",
-    systemMessage: "Hunter Nguyen. Your plateau has been detected. Today you will surpass your limits.",
+    description:
+      "The System demands progression. Your chest has shown stagnation. Break through — or remain E-Rank forever.",
+    systemMessage:
+      "Hunter Nguyen. Your plateau has been detected. Today you will surpass your limits.",
     requirements: [
       { label: "Bench Press", current: 0, total: 4, unit: "sets × 6 reps" },
-      { label: "Incline DB Press", current: 0, total: 3, unit: "sets × 10 reps" },
+      {
+        label: "Incline DB Press",
+        current: 0,
+        total: 3,
+        unit: "sets × 10 reps",
+      },
       { label: "Cable Fly", current: 0, total: 3, unit: "sets × 15 reps" },
     ],
     reward: { exp: 450, gold: 75, stat: "STR +3" },
@@ -136,7 +245,9 @@ const QUESTS: Quest[] = [
     type: "side",
     title: "Hydration Protocol",
     description: "Mana recovery insufficient. Consume 2.5L of water.",
-    requirements: [{ label: "Water consumed", current: 1.2, total: 2.5, unit: "liters" }],
+    requirements: [
+      { label: "Water consumed", current: 1.2, total: 2.5, unit: "liters" },
+    ],
     reward: { exp: 80, gold: 15 },
     expiresIn: 18,
     completed: false,
@@ -145,7 +256,8 @@ const QUESTS: Quest[] = [
     id: "side-2",
     type: "side",
     title: "Shadow Rest Protocol",
-    description: "Shadows require sleep to grow. The System demands 7+ hours tonight.",
+    description:
+      "Shadows require sleep to grow. The System demands 7+ hours tonight.",
     requirements: [{ label: "Sleep", current: 0, total: 7, unit: "hours" }],
     reward: { exp: 120, gold: 20, stat: "END +1" },
     expiresIn: 18,
@@ -164,12 +276,60 @@ const QUESTS: Quest[] = [
 ];
 
 const INVENTORY: InventoryItem[] = [
-  { id: "hp-mid", name: "Mid-Grade Recovery Potion", type: "consumable", grade: "uncommon", quantity: 3, icon: "💊", effect: "Restore HP +200. Reduces muscle soreness." },
-  { id: "mana-elixir", name: "Mana Elixir", type: "consumable", grade: "rare", quantity: 1, icon: "🧪", effect: "Pre-workout boost. +15% performance for 1 hour." },
-  { id: "protein-potion", name: "High-Protein Concentrate", type: "consumable", grade: "common", quantity: 5, icon: "🥛", effect: "+25g protein. STR recovery accelerated." },
-  { id: "knight-killer", name: "Iron Grips", type: "equipment", grade: "rare", quantity: 1, icon: "🧤", effect: "Deadlift grip enhanced. +10% back engagement." },
-  { id: "shadow-armor", name: "Shadow Compression Gear", type: "equipment", grade: "epic", quantity: 1, icon: "🦺", effect: "Core stability +25%. Posture corrected." },
-  { id: "ancient-scroll", name: "Form Codex — Deadlift", type: "special", grade: "epic", quantity: 1, icon: "📜", effect: "Master deadlift form. INT +5, PER +3." },
+  {
+    id: "hp-mid",
+    name: "Mid-Grade Recovery Potion",
+    type: "consumable",
+    grade: "uncommon",
+    quantity: 3,
+    icon: "💊",
+    effect: "Restore HP +200. Reduces muscle soreness.",
+  },
+  {
+    id: "mana-elixir",
+    name: "Mana Elixir",
+    type: "consumable",
+    grade: "rare",
+    quantity: 1,
+    icon: "🧪",
+    effect: "Pre-workout boost. +15% performance for 1 hour.",
+  },
+  {
+    id: "protein-potion",
+    name: "High-Protein Concentrate",
+    type: "consumable",
+    grade: "common",
+    quantity: 5,
+    icon: "🥛",
+    effect: "+25g protein. STR recovery accelerated.",
+  },
+  {
+    id: "knight-killer",
+    name: "Iron Grips",
+    type: "equipment",
+    grade: "rare",
+    quantity: 1,
+    icon: "🧤",
+    effect: "Deadlift grip enhanced. +10% back engagement.",
+  },
+  {
+    id: "shadow-armor",
+    name: "Shadow Compression Gear",
+    type: "equipment",
+    grade: "epic",
+    quantity: 1,
+    icon: "🦺",
+    effect: "Core stability +25%. Posture corrected.",
+  },
+  {
+    id: "ancient-scroll",
+    name: "Form Codex — Deadlift",
+    type: "special",
+    grade: "epic",
+    quantity: 1,
+    icon: "📜",
+    effect: "Master deadlift form. INT +5, PER +3.",
+  },
 ];
 
 export const useAppStore = create<AppState>((set) => ({
@@ -202,7 +362,9 @@ export const useAppStore = create<AppState>((set) => ({
     active: false,
     exercises: [
       {
-        id: "bench", name: "Bench Press", targetMuscle: "Chest",
+        id: "bench",
+        name: "Bench Press",
+        targetMuscle: "Chest",
         sets: [
           { reps: 6, weight: 80, completed: false },
           { reps: 6, weight: 80, completed: false },
@@ -211,7 +373,9 @@ export const useAppStore = create<AppState>((set) => ({
         ],
       },
       {
-        id: "incline", name: "Incline DB Press", targetMuscle: "Upper Chest",
+        id: "incline",
+        name: "Incline DB Press",
+        targetMuscle: "Upper Chest",
         sets: [
           { reps: 10, weight: 32, completed: false },
           { reps: 10, weight: 32, completed: false },
@@ -219,7 +383,9 @@ export const useAppStore = create<AppState>((set) => ({
         ],
       },
       {
-        id: "fly", name: "Cable Fly", targetMuscle: "Chest",
+        id: "fly",
+        name: "Cable Fly",
+        targetMuscle: "Chest",
         sets: [
           { reps: 15, weight: 15, completed: false },
           { reps: 15, weight: 15, completed: false },
@@ -233,7 +399,7 @@ export const useAppStore = create<AppState>((set) => ({
   completeQuest: (questId) =>
     set((state) => ({
       quests: state.quests.map((q) =>
-        q.id === questId ? { ...q, completed: true } : q
+        q.id === questId ? { ...q, completed: true } : q,
       ),
       currentExp: Math.min(state.currentExp + 200, state.maxExp),
       gold: state.gold + 50,
@@ -248,17 +414,21 @@ export const useAppStore = create<AppState>((set) => ({
             ? {
                 ...ex,
                 sets: ex.sets.map((s, i) =>
-                  i === setIndex ? { ...s, completed: !s.completed } : s
+                  i === setIndex ? { ...s, completed: !s.completed } : s,
                 ),
               }
-            : ex
+            : ex,
         ),
       },
     })),
 
   startDungeon: () =>
     set((state) => ({
-      activeDungeon: { ...state.activeDungeon, active: true, startTime: Date.now() },
+      activeDungeon: {
+        ...state.activeDungeon,
+        active: true,
+        startTime: Date.now(),
+      },
     })),
 
   completeDungeon: () =>

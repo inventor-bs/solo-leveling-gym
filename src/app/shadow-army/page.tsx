@@ -8,17 +8,23 @@ import { formatDistanceToNow } from "date-fns";
 import clsx from "clsx";
 
 const GRADE_COLOR: Record<string, string> = {
-  "Elite Knight":    "text-rank-a border-rank-a/40 bg-rank-a/5",
-  "Elite Warrior":   "text-rank-b border-rank-b/40 bg-rank-b/5",
-  "Elite Guardian":  "text-rank-b border-rank-b/40 bg-rank-b/5",
-  "Elite Assassin":  "text-rank-c border-rank-c/40 bg-rank-c/5",
+  "Elite Knight": "text-rank-a border-rank-a/40 bg-rank-a/5",
+  "Elite Warrior": "text-rank-b border-rank-b/40 bg-rank-b/5",
+  "Elite Guardian": "text-rank-b border-rank-b/40 bg-rank-b/5",
+  "Elite Assassin": "text-rank-c border-rank-c/40 bg-rank-c/5",
   "Elite Berserker": "text-rank-c border-rank-c/40 bg-rank-c/5",
-  "Shadow Mage":     "text-rank-d border-rank-d/40 bg-rank-d/5",
-  "Shadow Dragon":   "text-rank-s border-rank-s/40 bg-rank-s/5",
-  "Unknown":         "text-slate-600 border-slate-800 bg-shadow-dark",
+  "Shadow Mage": "text-rank-d border-rank-d/40 bg-rank-d/5",
+  "Shadow Dragon": "text-rank-s border-rank-s/40 bg-rank-s/5",
+  Unknown: "text-slate-600 border-slate-800 bg-shadow-dark",
 };
 
-function AriseAnimation({ name, onDone }: { name: string; onDone: () => void }) {
+function AriseAnimation({
+  name,
+  onDone,
+}: {
+  name: string;
+  onDone: () => void;
+}) {
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-center justify-center bg-void/95"
@@ -86,13 +92,20 @@ export default function ShadowArmyPage() {
       </AnimatePresence>
 
       <div className="relative z-10 max-w-5xl mx-auto space-y-6">
-
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-          <p className="font-mono text-xs text-system-blue/60 tracking-widest mb-1">◈ SYSTEM — SHADOW ARMY</p>
-          <h1 className="font-cinzel text-3xl font-black text-white">SHADOW ARMY</h1>
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <p className="font-mono text-xs text-system-blue/60 tracking-widest mb-1">
+            ◈ SYSTEM — SHADOW ARMY
+          </p>
+          <h1 className="font-cinzel text-3xl font-black text-white">
+            SHADOW ARMY
+          </h1>
           <p className="font-mono text-sm text-slate-400 mt-1">
-            {shadowArmy.filter((s) => s.unlocked).length} soldiers under your command
+            {shadowArmy.filter((s) => s.unlocked).length} soldiers under your
+            command
           </p>
         </motion.div>
 
@@ -118,8 +131,11 @@ export default function ShadowArmyPage() {
               {shadowArmy.map((soldier, i) => {
                 const isSelected = selected === soldier.id;
                 const levelPct = (soldier.level / soldier.maxLevel) * 100;
-                const needsTraining = soldier.unlocked && soldier.lastTrained &&
-                  new Date(soldier.lastTrained).getTime() < Date.now() - 3 * 24 * 60 * 60 * 1000;
+                const needsTraining =
+                  soldier.unlocked &&
+                  soldier.lastTrained &&
+                  new Date(soldier.lastTrained).getTime() <
+                    Date.now() - 3 * 24 * 60 * 60 * 1000;
 
                 return (
                   <motion.div
@@ -127,12 +143,17 @@ export default function ShadowArmyPage() {
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: i * 0.06 }}
-                    onClick={() => soldier.unlocked && setSelected(isSelected ? null : soldier.id)}
+                    onClick={() =>
+                      soldier.unlocked &&
+                      setSelected(isSelected ? null : soldier.id)
+                    }
                     className={clsx(
                       "relative p-3 rounded-xl border cursor-pointer transition-all duration-200",
                       !soldier.unlocked && "opacity-40 cursor-not-allowed",
                       isSelected && "border-system-blue/60 shadow-system",
-                      !isSelected && soldier.unlocked && "border-system-blue/20 hover:border-system-blue/40",
+                      !isSelected &&
+                        soldier.unlocked &&
+                        "border-system-blue/20 hover:border-system-blue/40",
                       needsTraining && "border-danger/30 bg-danger/5",
                     )}
                   >
@@ -140,23 +161,39 @@ export default function ShadowArmyPage() {
                       <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-danger animate-ping" />
                     )}
 
-                    <div className="text-3xl text-center mb-2">{soldier.icon}</div>
-                    <p className={clsx("font-cinzel text-sm font-bold text-center truncate", soldier.unlocked ? "text-white" : "text-slate-600")}>
+                    <div className="text-3xl text-center mb-2">
+                      {soldier.icon}
+                    </div>
+                    <p
+                      className={clsx(
+                        "font-cinzel text-sm font-bold text-center truncate",
+                        soldier.unlocked ? "text-white" : "text-slate-600",
+                      )}
+                    >
                       {soldier.name}
                     </p>
-                    <p className="font-mono text-xs text-slate-500 text-center">{soldier.muscleGroup}</p>
+                    <p className="font-mono text-xs text-slate-500 text-center">
+                      {soldier.muscleGroup}
+                    </p>
 
                     {soldier.unlocked && (
                       <>
-                        <p className="font-mono text-xs text-system-blue text-center mt-1">Lv.{soldier.level}</p>
+                        <p className="font-mono text-xs text-system-blue text-center mt-1">
+                          Lv.{soldier.level}
+                        </p>
                         <div className="mt-2 h-1 bg-shadow-dark rounded-full overflow-hidden">
-                          <div className="h-full bg-system-blue/60 rounded-full" style={{ width: `${levelPct}%` }} />
+                          <div
+                            className="h-full bg-system-blue/60 rounded-full"
+                            style={{ width: `${levelPct}%` }}
+                          />
                         </div>
                       </>
                     )}
 
                     {!soldier.unlocked && (
-                      <p className="font-mono text-xs text-slate-700 text-center mt-1">LOCKED</p>
+                      <p className="font-mono text-xs text-slate-700 text-center mt-1">
+                        LOCKED
+                      </p>
                     )}
                   </motion.div>
                 );
@@ -174,7 +211,11 @@ export default function ShadowArmyPage() {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
                 >
-                  <SystemPanel header="SOLDIER DETAIL" glowColor="blue" className="sticky top-6">
+                  <SystemPanel
+                    header="SOLDIER DETAIL"
+                    glowColor="blue"
+                    className="sticky top-6"
+                  >
                     <div className="p-4 space-y-4 text-center">
                       <motion.div
                         className="text-6xl"
@@ -184,26 +225,46 @@ export default function ShadowArmyPage() {
                         {selectedSoldier.icon}
                       </motion.div>
                       <div>
-                        <h3 className="font-cinzel text-lg font-bold text-white">{selectedSoldier.name}</h3>
-                        <span className={clsx("font-mono text-xs border px-2 py-0.5 rounded mt-1 inline-block", GRADE_COLOR[selectedSoldier.grade])}>
+                        <h3 className="font-cinzel text-lg font-bold text-white">
+                          {selectedSoldier.name}
+                        </h3>
+                        <span
+                          className={clsx(
+                            "font-mono text-xs border px-2 py-0.5 rounded mt-1 inline-block",
+                            GRADE_COLOR[selectedSoldier.grade],
+                          )}
+                        >
                           {selectedSoldier.grade}
                         </span>
                       </div>
 
                       <div className="space-y-2 text-left">
                         {[
-                          { label: "MUSCLE GROUP", value: selectedSoldier.muscleGroup },
-                          { label: "LEVEL", value: `${selectedSoldier.level} / ${selectedSoldier.maxLevel}` },
+                          {
+                            label: "MUSCLE GROUP",
+                            value: selectedSoldier.muscleGroup,
+                          },
+                          {
+                            label: "LEVEL",
+                            value: `${selectedSoldier.level} / ${selectedSoldier.maxLevel}`,
+                          },
                           {
                             label: "LAST TRAINED",
                             value: selectedSoldier.lastTrained
-                              ? formatDistanceToNow(new Date(selectedSoldier.lastTrained), { addSuffix: true })
-                              : "Never"
+                              ? formatDistanceToNow(
+                                  new Date(selectedSoldier.lastTrained),
+                                  { addSuffix: true },
+                                )
+                              : "Never",
                           },
                         ].map(({ label, value }) => (
                           <div key={label} className="flex justify-between">
-                            <span className="font-mono text-xs text-slate-500">{label}</span>
-                            <span className="font-mono text-xs text-white">{value}</span>
+                            <span className="font-mono text-xs text-slate-500">
+                              {label}
+                            </span>
+                            <span className="font-mono text-xs text-white">
+                              {value}
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -211,14 +272,18 @@ export default function ShadowArmyPage() {
                       <div>
                         <div className="flex justify-between font-mono text-xs text-system-blue/60 mb-1">
                           <span>POWER LEVEL</span>
-                          <span>{selectedSoldier.level}/{selectedSoldier.maxLevel}</span>
+                          <span>
+                            {selectedSoldier.level}/{selectedSoldier.maxLevel}
+                          </span>
                         </div>
                         <div className="h-2 bg-shadow-dark rounded-full overflow-hidden">
                           <motion.div
                             className="h-full bg-gradient-to-r from-system-blue to-monarch-purple rounded-full"
                             style={{ boxShadow: "0 0 6px rgba(0,212,255,0.6)" }}
                             initial={{ width: 0 }}
-                            animate={{ width: `${(selectedSoldier.level / selectedSoldier.maxLevel) * 100}%` }}
+                            animate={{
+                              width: `${(selectedSoldier.level / selectedSoldier.maxLevel) * 100}%`,
+                            }}
                             transition={{ duration: 0.8 }}
                           />
                         </div>
@@ -241,7 +306,9 @@ export default function ShadowArmyPage() {
                 >
                   <SystemPanel className="border-dashed border-system-blue/20">
                     <div className="p-8 text-center">
-                      <p className="font-mono text-xs text-slate-600">Select a shadow soldier to view details</p>
+                      <p className="font-mono text-xs text-slate-600">
+                        Select a shadow soldier to view details
+                      </p>
                     </div>
                   </SystemPanel>
                 </motion.div>

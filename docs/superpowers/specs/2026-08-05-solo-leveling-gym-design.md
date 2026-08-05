@@ -7,7 +7,7 @@
 
 ## 1. Tổng quan
 
-Web app theo dõi tập luyện cá nhân, đóng gói bằng hệ thống game của truyện *Solo Leveling*. Một người dùng duy nhất (chủ sở hữu), deploy công khai để bất kỳ ai cũng xem được hành trình tập luyện thật.
+Web app theo dõi tập luyện cá nhân, đóng gói bằng hệ thống game của truyện _Solo Leveling_. Một người dùng duy nhất (chủ sở hữu), deploy công khai để bất kỳ ai cũng xem được hành trình tập luyện thật.
 
 **Hai mục tiêu, cùng trọng số:**
 
@@ -30,11 +30,11 @@ Next.js 15 + React 19 + Tailwind + Zustand + framer-motion. 9 trang UI đã dự
 
 Có **ba loại số** trong app, và chúng tuân luật khác nhau. Nhầm lẫn giữa chúng là nguồn mâu thuẫn thiết kế lớn nhất.
 
-| Loại | Ví dụ | Luật |
-|---|---|---|
-| **Đo lường** | 6 stat, e1RM, volume, PR, shadow grade, Army Rank | **Suy ra thuần tuý từ `set_log` / `run_log`.** Không gì được sửa đổi: không item, không skill, không gold, không class. Đây là tấm gương phản chiếu sự thật. |
-| **Tiến trình** | EXP, level, rank, gold | Suy ra từ hoạt động, **nhưng được phép nhân bởi hệ số kiếm được bằng tập luyện** (buff shadow, skill, title, class). Không bao giờ được nhân bởi thứ mua bằng gold. |
-| **Điều chỉnh** | Fatigue, penalty −15% stat, trần fatigue của Tanker | Cơ chế tầng game. Áp lên **lớp hiển thị**, không ghi đè giá trị đo lường gốc. |
+| Loại           | Ví dụ                                               | Luật                                                                                                                                                                |
+| -------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Đo lường**   | 6 stat, e1RM, volume, PR, shadow grade, Army Rank   | **Suy ra thuần tuý từ `set_log` / `run_log`.** Không gì được sửa đổi: không item, không skill, không gold, không class. Đây là tấm gương phản chiếu sự thật.        |
+| **Tiến trình** | EXP, level, rank, gold                              | Suy ra từ hoạt động, **nhưng được phép nhân bởi hệ số kiếm được bằng tập luyện** (buff shadow, skill, title, class). Không bao giờ được nhân bởi thứ mua bằng gold. |
+| **Điều chỉnh** | Fatigue, penalty −15% stat, trần fatigue của Tanker | Cơ chế tầng game. Áp lên **lớp hiển thị**, không ghi đè giá trị đo lường gốc.                                                                                       |
 
 Hệ quả implement quan trọng: `stat` lưu trong DB luôn là **giá trị đo lường gốc**. Penalty −15% và mọi modifier khác được áp ở tầng đọc:
 
@@ -48,18 +48,18 @@ Nghĩa là thoát Penalty Zone không cần "hoàn lại" gì cả — chỉ c�
 
 ## 2. Quyết định đã chốt
 
-| Chủ đề | Quyết định |
-|---|---|
-| Người dùng | 1 người. Đọc công khai, ghi cần PIN. |
-| Lưu trữ | DB trên server (Turso/libSQL). **Không** localStorage — deploy công khai phải hiện dữ liệu thật. |
-| Chương trình tập | Upper/Lower 4 buổi + 2 buổi chạy Zone 2 |
-| Cách log | Plan-first, 1 chạm mỗi set, mức tạ tự đề xuất |
-| Stat | **Suy ra từ dữ liệu thật.** Bỏ `statPoints` thủ công. |
-| Hình phạt | Nghiêm khắc nhưng **chuộc lại được** (Penalty Zone có lối ra) |
-| Tầng AI | Gemini free tier **+** template engine làm nền. Không LLM kê mức tạ. |
-| Ngôn ngữ System | Tiếng Anh (UI cũng tiếng Anh) |
-| Phạm vi | Đủ 9 trang, **mở khoá dần theo level** |
-| Tích hợp | Không Strava/Apple Health ở v1. Chạy bộ nhập tay 2 số. |
+| Chủ đề           | Quyết định                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------------ |
+| Người dùng       | 1 người. Đọc công khai, ghi cần PIN.                                                             |
+| Lưu trữ          | DB trên server (Turso/libSQL). **Không** localStorage — deploy công khai phải hiện dữ liệu thật. |
+| Chương trình tập | Upper/Lower 4 buổi + 2 buổi chạy Zone 2                                                          |
+| Cách log         | Plan-first, 1 chạm mỗi set, mức tạ tự đề xuất                                                    |
+| Stat             | **Suy ra từ dữ liệu thật.** Bỏ `statPoints` thủ công.                                            |
+| Hình phạt        | Nghiêm khắc nhưng **chuộc lại được** (Penalty Zone có lối ra)                                    |
+| Tầng AI          | Gemini free tier **+** template engine làm nền. Không LLM kê mức tạ.                             |
+| Ngôn ngữ System  | Tiếng Anh (UI cũng tiếng Anh)                                                                    |
+| Phạm vi          | Đủ 9 trang, **mở khoá dần theo level**                                                           |
+| Tích hợp         | Không Strava/Apple Health ở v1. Chạy bộ nhập tay 2 số.                                           |
 
 ---
 
@@ -67,16 +67,16 @@ Nghĩa là thoát Penalty Zone không cần "hoàn lại" gì cả — chỉ c�
 
 ### 3.1 Stack
 
-| Thành phần | Chọn | Lý do |
-|---|---|---|
-| Framework | Next.js 15 (giữ) | App Router, Server Actions, Vercel Cron |
-| DB | Turso (libSQL) | SQLite edge. Local dev = một file. Free tier dư xa. |
-| ORM | Drizzle | Type-safe, schema bằng TypeScript, migration qua `drizzle-kit` |
-| Mutation | Server Actions | Không cần dựng REST riêng |
-| Auth | PIN → cookie httpOnly | Đọc công khai, ghi gác PIN |
-| LLM | Gemini 2.5 Flash (free tier) | ~250 req/ngày; app cần ~6–8 |
-| Deploy | Vercel | Cron có sẵn cho reset Daily Quest |
-| Test | Vitest + Playwright | Unit dày ở `core/`, E2E mỏng |
+| Thành phần | Chọn                         | Lý do                                                          |
+| ---------- | ---------------------------- | -------------------------------------------------------------- |
+| Framework  | Next.js 15 (giữ)             | App Router, Server Actions, Vercel Cron                        |
+| DB         | Turso (libSQL)               | SQLite edge. Local dev = một file. Free tier dư xa.            |
+| ORM        | Drizzle                      | Type-safe, schema bằng TypeScript, migration qua `drizzle-kit` |
+| Mutation   | Server Actions               | Không cần dựng REST riêng                                      |
+| Auth       | PIN → cookie httpOnly        | Đọc công khai, ghi gác PIN                                     |
+| LLM        | Gemini 2.5 Flash (free tier) | ~250 req/ngày; app cần ~6–8                                    |
+| Deploy     | Vercel                       | Cron có sẵn cho reset Daily Quest                              |
+| Test       | Vitest + Playwright          | Unit dày ở `core/`, E2E mỏng                                   |
 
 ### 3.2 Luật phụ thuộc
 
@@ -146,7 +146,7 @@ Mỗi tầng dưới đây được thêm vì nó chặn một lỗi cụ thể,
 
 **`core/quest/training-day.ts`** — Người dùng ở UTC+7, Vercel chạy UTC. Bất kỳ chỗ nào gọi `new Date().getDate()` sẽ khiến **mọi buổi tập log sau 19:00 giờ VN bị ghi sang ngày hôm sau** → streak vỡ, Daily Quest tính trượt oan, Penalty Zone kích hoạt sai.
 
-*Luật:* DB lưu **UTC epoch, luôn luôn**. Khái niệm "ngày tập" chỉ tồn tại trong đúng một hàm, nhận timezone làm tham số tường minh. Không nơi nào khác được tự suy ra ngày.
+_Luật:_ DB lưu **UTC epoch, luôn luôn**. Khái niệm "ngày tập" chỉ tồn tại trong đúng một hàm, nhận timezone làm tham số tường minh. Không nơi nào khác được tự suy ra ngày.
 
 **`RngPort`** — Hidden quest, loot drop, Emergency Quest đều có xác suất. Seeded RNG cho phép test phân phối một cách tất định.
 
@@ -168,12 +168,12 @@ logSet(...) → Result<{ state: HunterState, events: DomainEvent[] }>
 
 ### 3.5 Chiến lược test
 
-| Tầng | Công cụ | Mật độ | Nội dung |
-|---|---|---|---|
-| `core/` | Vitest | **Dày** | Mọi luật chơi. Không I/O, chạy mili-giây. |
-| `app-services/` | Vitest + SQLite in-memory | Vừa | Transaction, idempotency, ráp ports |
-| `server/actions` | Vitest | Mỏng | Gác PIN, validate đầu vào |
-| E2E | Playwright | 3–4 luồng | Log xong buổi tập · trượt quest → Penalty Zone · thoát Penalty Zone · onboarding |
+| Tầng             | Công cụ                   | Mật độ    | Nội dung                                                                         |
+| ---------------- | ------------------------- | --------- | -------------------------------------------------------------------------------- |
+| `core/`          | Vitest                    | **Dày**   | Mọi luật chơi. Không I/O, chạy mili-giây.                                        |
+| `app-services/`  | Vitest + SQLite in-memory | Vừa       | Transaction, idempotency, ráp ports                                              |
+| `server/actions` | Vitest                    | Mỏng      | Gác PIN, validate đầu vào                                                        |
+| E2E              | Playwright                | 3–4 luồng | Log xong buổi tập · trượt quest → Penalty Zone · thoát Penalty Zone · onboarding |
 
 ### 3.6 Cố ý KHÔNG làm
 
@@ -193,11 +193,13 @@ App một người dùng, một ghi chép mỗi lần. Những thứ sau là ngh
 ### 4.1 Bảng
 
 **Cốt lõi**
+
 - `hunter` — 1 dòng: tên, level, exp, gold, rank, title, class, 6 stat, fatigue, `reasonForHunting`, `timezone`
 - `exercise` — danh mục: tên, nhóm cơ, compound/isolation, đơn vị
 - `program` / `program_day` — Upper A · Lower A · Upper B · Lower B → bài + set/rep range
 
 **Dữ liệu người dùng tạo ra**
+
 - `session` — ngày, program_day, giờ bắt đầu/kết thúc, trạng thái, rank
 - `set_log` — **bảng trung tâm**: session, exercise, thứ tự set, reps, kg, completed, isPR
 - `run_log` — ngày, km, phút
@@ -206,6 +208,7 @@ App một người dùng, một ghi chép mỗi lần. Những thứ sau là ngh
 - `stat_snapshot` — ảnh chụp stat hằng ngày, phục vụ biểu đồ
 
 **Hệ thống game**
+
 - `shadow` — 9 dòng: nhóm cơ, level, exp, grade, lần tập cuối
 - `item` / `inventory` — định nghĩa và số lượng
 - `skill` / `unlocked_skill` / `equipped_skill`
@@ -231,16 +234,17 @@ Deploy công khai + đọc tự do nghĩa là **bất kỳ ai có link đều xe
 
 Upper/Lower 4 buổi + 2 buổi chạy. Mỗi nhóm cơ 2 lần/tuần — ngưỡng có bằng chứng mạnh nhất cho phì đại cơ. Chọn Upper/Lower thay vì PPL 6 ngày vì phải chừa chỗ cho chạy bộ và vì volume thấp hơn mà **hoàn thành được** thắng volume cao mà bỏ dở.
 
-| Dungeon | Bài | Set × Rep range |
-|---|---|---|
-| **Upper A** (nặng) | Bench Press · Barbell Row · Overhead Press · Lat Pulldown · DB Curl · Triceps Pushdown | 4×6-8 · 4×6-8 · 3×8-10 · 3×10-12 · 3×12-15 · 3×12-15 |
-| **Lower A** (squat) | Back Squat · Romanian Deadlift · Leg Press · Leg Curl · Calf Raise · Plank | 4×6-8 · 3×8-10 · 3×10-12 · 3×12-15 · 4×15-20 · 3×45s |
-| **Upper B** (volume) | Incline DB Press · Seated Cable Row · Lateral Raise · Face Pull · Cable Fly · Hammer Curl | 4×10-12 · 4×10-12 · 3×15-20 · 3×15-20 · 3×12-15 · 3×12-15 |
-| **Lower B** (hinge) | Deadlift · Front Squat · Bulgarian Split Squat · Leg Extension · Seated Calf · Hanging Leg Raise | 3×5-6 · 3×8-10 · 3×10-12 · 3×15-20 · 4×15-20 · 3×12-15 |
+| Dungeon              | Bài                                                                                              | Set × Rep range                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| **Upper A** (nặng)   | Bench Press · Barbell Row · Overhead Press · Lat Pulldown · DB Curl · Triceps Pushdown           | 4×6-8 · 4×6-8 · 3×8-10 · 3×10-12 · 3×12-15 · 3×12-15      |
+| **Lower A** (squat)  | Back Squat · Romanian Deadlift · Leg Press · Leg Curl · Calf Raise · Plank                       | 4×6-8 · 3×8-10 · 3×10-12 · 3×12-15 · 4×15-20 · 3×45s      |
+| **Upper B** (volume) | Incline DB Press · Seated Cable Row · Lateral Raise · Face Pull · Cable Fly · Hammer Curl        | 4×10-12 · 4×10-12 · 3×15-20 · 3×15-20 · 3×12-15 · 3×12-15 |
+| **Lower B** (hinge)  | Deadlift · Front Squat · Bulgarian Split Squat · Leg Extension · Seated Calf · Hanging Leg Raise | 3×5-6 · 3×8-10 · 3×10-12 · 3×15-20 · 4×15-20 · 3×12-15    |
 
 **Lịch tuần:** T2 Upper A · T3 chạy Z2 · T4 Lower A · T5 chạy Z2 · T6 Upper B · T7 Lower B · CN nghỉ
 
 **Luật chống interference** (tạ + chạy cùng chương trình):
+
 1. Không chạy nặng ngày sau squat/deadlift nặng — lịch trên đã tránh sẵn
 2. Nếu cùng buổi: **tạ trước, chạy sau**
 3. Phần lớn cardio giữ ở Zone 2; cách nhau 3–6 giờ giữa hai buổi giảm interference đáng kể
@@ -282,20 +286,20 @@ Deload được The System đóng khung là **rút lui chiến thuật**, không
 
 ### 5.4 Suy ra 6 stat
 
-| Stat | Nguồn |
-|---|---|
-| **STR** | Tổng e1RM của bench, squat, deadlift, OHP, row |
-| **AGI** | Pace + tổng km 4 tuần gần nhất |
-| **VIT** | Tổng volume load + số buổi hoàn tất |
-| **PER** | % set hoàn thành đúng kế hoạch |
-| **INT** | Tuân thủ chương trình + side quest (ngủ, nước, protein) |
+| Stat     | Nguồn                                                   |
+| -------- | ------------------------------------------------------- |
+| **STR**  | Tổng e1RM của bench, squat, deadlift, OHP, row          |
+| **AGI**  | Pace + tổng km 4 tuần gần nhất                          |
+| **VIT**  | Tổng volume load + số buổi hoàn tất                     |
+| **PER**  | % set hoàn thành đúng kế hoạch                          |
+| **INT**  | Tuân thủ chương trình + side quest (ngủ, nước, protein) |
 | **LUCK** | Streak + số hidden quest — **ảnh hưởng tỉ lệ rơi item** |
 
 e1RM theo công thức Epley: `1RM = kg × (1 + reps/30)`.
 
 **Stat sẽ tụt nếu ngừng tập.** Đó là detraining ngoài đời. Một thanh STR đi xuống có sức nặng tâm lý mà thông báo "bạn đã mất streak" không có.
 
-Level-up không cho stat — cho **Ability Point**, tiêu ở cây skill (§9). Tách bạch: *stat là tấm gương phản chiếu sự thật, skill là chỗ người dùng được chọn.*
+Level-up không cho stat — cho **Ability Point**, tiêu ở cây skill (§9). Tách bạch: _stat là tấm gương phản chiếu sự thật, skill là chỗ người dùng được chọn._
 
 ### 5.5 Fatigue
 
@@ -322,14 +326,14 @@ Bài tay không + chạy, làm được ở nhà. **Nguyên tắc: hình phạt 
 
 Quy mô lớn theo rank:
 
-| Rank | Hít đất | Gập bụng | Squat | Chạy |
-|---|---|---|---|---|
-| E | 20 | 20 | 20 | 1 km |
-| D | 30 | 30 | 30 | 2 km |
-| C | 45 | 45 | 45 | 3 km |
-| B | 60 | 60 | 60 | 5 km |
-| A | 80 | 80 | 80 | 7 km |
-| **S** | **100** | **100** | **100** | **10 km** |
+| Rank  | Hít đất | Gập bụng | Squat   | Chạy      |
+| ----- | ------- | -------- | ------- | --------- |
+| E     | 20      | 20       | 20      | 1 km      |
+| D     | 30      | 30       | 30      | 2 km      |
+| C     | 45      | 45       | 45      | 3 km      |
+| B     | 60      | 60       | 60      | 5 km      |
+| A     | 80      | 80       | 80      | 7 km      |
+| **S** | **100** | **100**  | **100** | **10 km** |
 
 Con số kinh điển của Jin-Woo là **đích đến cuối**, không phải vạch xuất phát. Bắt người chưa từng log làm 100/100/100 + 10km ngày đầu là cầm chắc trượt → Penalty Zone → gỡ app.
 
@@ -337,14 +341,14 @@ Reset 00:00 ICT, hết hạn 23:59:59 cùng ngày. Vercel Cron 17:00 UTC.
 
 ### 6.2 Sáu loại quest
 
-| Loại | Nguồn | Trượt |
-|---|---|---|
-| **Daily Quest** | Tự sinh mỗi ngày | **→ Penalty Zone** |
-| **Dungeon Quest** | Buổi tạ theo lịch | → Dungeon Break (§6.5) |
-| **Side Quest** | Ngủ 7h, nước 2.5L, protein, bước chân | Không phạt |
-| **Hidden Quest** | Điều kiện ẩn: 5 ngày liên tiếp, PR, tập trước 7h | Chỉ hiện khi đã hoàn thành. LUCK tăng tỉ lệ |
-| **Emergency Quest** | Ngẫu nhiên, hiếm, giới hạn giờ | Thưởng lớn. **Tắt được.** |
-| **Job Change Quest** | Level 40 | §9.5 |
+| Loại                 | Nguồn                                            | Trượt                                       |
+| -------------------- | ------------------------------------------------ | ------------------------------------------- |
+| **Daily Quest**      | Tự sinh mỗi ngày                                 | **→ Penalty Zone**                          |
+| **Dungeon Quest**    | Buổi tạ theo lịch                                | → Dungeon Break (§6.5)                      |
+| **Side Quest**       | Ngủ 7h, nước 2.5L, protein, bước chân            | Không phạt                                  |
+| **Hidden Quest**     | Điều kiện ẩn: 5 ngày liên tiếp, PR, tập trước 7h | Chỉ hiện khi đã hoàn thành. LUCK tăng tỉ lệ |
+| **Emergency Quest**  | Ngẫu nhiên, hiếm, giới hạn giờ                   | Thưởng lớn. **Tắt được.**                   |
+| **Job Change Quest** | Level 40                                         | §9.5                                        |
 
 Chỉ Daily Quest dẫn tới Penalty Zone. Nếu ngủ thiếu 30 phút cũng bị phạt thì hình phạt mất hết ý nghĩa.
 
@@ -352,11 +356,11 @@ Chỉ Daily Quest dẫn tới Penalty Zone. Nếu ngủ thiếu 30 phút cũng b
 
 **Kích hoạt:** 23:59:59 ICT mà Daily Quest chưa xong.
 
-| Mất gì | Chi tiết |
-|---|---|
-| EXP | −10% EXP hiện tại. **Vĩnh viễn.** Không bao giờ tụt level. |
-| Stat | −15% toàn bộ. **Tạm thời** — hồi khi thoát. |
-| Khoá | Mọi trang trừ Penalty Zone |
+| Mất gì | Chi tiết                                                   |
+| ------ | ---------------------------------------------------------- |
+| EXP    | −10% EXP hiện tại. **Vĩnh viễn.** Không bao giờ tụt level. |
+| Stat   | −15% toàn bộ. **Tạm thời** — hồi khi thoát.                |
+| Khoá   | Mọi trang trừ Penalty Zone                                 |
 
 **Thoát:** hoàn thành Survival Quest = **1.5×** Daily Quest hôm đó.
 
@@ -366,12 +370,12 @@ Nghiên cứu cho thấy động lực dựa trên nỗi sợ **sụp đổ khi 
 
 Nên Penalty Zone **đổi mỗi lần**:
 
-| Lần | Bối cảnh | Giọng System |
-|---|---|---|
-| 1 | Sa mạc rết khổng lồ | Lạnh, nêu sự kiện |
-| 2 | Hang băng | Mất kiên nhẫn |
-| 3 | Đầm lầy tối | Khinh miệt |
-| 4+ | Xoay vòng | Lạnh nhạt dần |
+| Lần | Bối cảnh            | Giọng System      |
+| --- | ------------------- | ----------------- |
+| 1   | Sa mạc rết khổng lồ | Lạnh, nêu sự kiện |
+| 2   | Hang băng           | Mất kiên nhẫn     |
+| 3   | Đầm lầy tối         | Khinh miệt        |
+| 4+  | Xoay vòng           | Lạnh nhạt dần     |
 
 Cùng cơ chế, khác trải nghiệm. Chi phí gần bằng 0 vì SystemVoice đã có sẵn.
 
@@ -410,17 +414,17 @@ Streak là **đầu vào của hệ thống khác**, không phải con số đ�
 
 ### 7.1 Ánh xạ
 
-| Shadow | Nhóm cơ | Nguyên tác |
-|---|---|---|
-| **Igris** | Chest | Elite Knight — shadow đầu tiên |
-| **Tank** | Back | Beast |
-| **Iron** | Legs (Quads) | Elite Knight, rìu |
-| **Beru** | Posterior Chain | Ant King → Marshal |
-| **Greed** | Shoulders | Elite |
-| **Jima** | Arms | High Orc Warrior |
-| **Tusk** | Core | Shaman |
-| **Kaisel** | Cardio | Shadow Dragon |
-| **Bellion** | *Toàn quân* | Grand Marshal. Mở ở **S-Rank**. |
+| Shadow      | Nhóm cơ         | Nguyên tác                      |
+| ----------- | --------------- | ------------------------------- |
+| **Igris**   | Chest           | Elite Knight — shadow đầu tiên  |
+| **Tank**    | Back            | Beast                           |
+| **Iron**    | Legs (Quads)    | Elite Knight, rìu               |
+| **Beru**    | Posterior Chain | Ant King → Marshal              |
+| **Greed**   | Shoulders       | Elite                           |
+| **Jima**    | Arms            | High Orc Warrior                |
+| **Tusk**    | Core            | Shaman                          |
+| **Kaisel**  | Cardio          | Shadow Dragon                   |
+| **Bellion** | _Toàn quân_     | Grand Marshal. Mở ở **S-Rank**. |
 
 ### 7.2 ARISE
 
@@ -444,12 +448,12 @@ Khó phớt lờ hơn một ô trống trong lịch. Không phải bỏ tập ch
 
 ### 7.4 Tác dụng thật
 
-| Cơ chế | Tác dụng |
-|---|---|
-| Buff riêng | Mỗi grade → +5% EXP cho bài thuộc nhóm cơ đó |
-| **Army Rank** | Tổng grade → mở tầng hàng trong Store |
-| Mở skill | Shadow đạt Marshal → mở nhánh skill tương ứng |
-| **Cân đối** | Army Rank tính theo shadow **yếu nhất** |
+| Cơ chế        | Tác dụng                                      |
+| ------------- | --------------------------------------------- |
+| Buff riêng    | Mỗi grade → +5% EXP cho bài thuộc nhóm cơ đó  |
+| **Army Rank** | Tổng grade → mở tầng hàng trong Store         |
+| Mở skill      | Shadow đạt Marshal → mở nhánh skill tương ứng |
+| **Cân đối**   | Army Rank tính theo shadow **yếu nhất**       |
 
 Cơ chế cuối khiến **tập cân đối là con đường tối ưu về mặt game**, không phải lời khuyên đạo đức.
 
@@ -464,6 +468,7 @@ Cơ chế cuối khiến **tập cân đối là con đường tối ưu về m�
 Bộ lọc cụ thể, theo phân loại ở §1.3: **gold không bao giờ được chạm vào số Đo lường, và không bao giờ được nhân số Tiến trình.**
 
 Bị loại theo luật này:
+
 - Item cộng stat, item thăng grade shadow → chạm vào số **Đo lường**
 - Item tăng EXP → nhân số **Tiến trình** bằng tiền, trong khi hệ số nhân chỉ được phép kiếm bằng tập luyện
 
@@ -471,47 +476,47 @@ Lưu ý phân biệt: buff +5% EXP của shadow (§7.4), skill Vital Strike (§9
 
 ### 8.2 Thu nhập
 
-| Nguồn | Gold |
-|---|---|
-| Daily Quest | 50 |
-| Clear dungeon | 30–120 (rank E→A) |
-| **PR mới** | 150 |
-| Hidden Quest | 200–500 |
-| Lên level | 100 × level |
-| **Tuần hoàn hảo** | 500 |
+| Nguồn             | Gold              |
+| ----------------- | ----------------- |
+| Daily Quest       | 50                |
+| Clear dungeon     | 30–120 (rank E→A) |
+| **PR mới**        | 150               |
+| Hidden Quest      | 200–500           |
+| Lên level         | 100 × level       |
+| **Tuần hoàn hảo** | 500               |
 
 Tuần tập đều: **~1.200–1.500 G**. Đây là gốc định giá.
 
 ### 8.3 Phân bổ sink
 
-| Loại | Tỉ trọng | Vai trò |
-|---|---|---|
-| Mở nội dung khó hơn | ~35% | Trụ chính — tiêu tiền để giành quyền được khổ hơn |
-| Mở chương trình mới | ~30% | Chống chán, đúng khoa học huấn luyện |
-| Cosmetic | ~20% | Sink vô hạn, phục vụ portfolio |
-| Đặt cược | ~10% | Đòn bẩy hành vi |
-| Giảm nhẹ hình phạt | ~5% | Van an toàn, có trần |
+| Loại                | Tỉ trọng | Vai trò                                           |
+| ------------------- | -------- | ------------------------------------------------- |
+| Mở nội dung khó hơn | ~35%     | Trụ chính — tiêu tiền để giành quyền được khổ hơn |
+| Mở chương trình mới | ~30%     | Chống chán, đúng khoa học huấn luyện              |
+| Cosmetic            | ~20%     | Sink vô hạn, phục vụ portfolio                    |
+| Đặt cược            | ~10%     | Đòn bẩy hành vi                                   |
+| Giảm nhẹ hình phạt  | ~5%      | Van an toàn, có trần                              |
 
 ### 8.4 Nội dung khó hơn
 
-| Item | Giá | Nội dung |
-|---|---|---|
-| Instant Dungeon Key | 800 | Buổi tập ngoài lịch, EXP đầy đủ |
-| **Red Gate** | 2.500 | 1.5× volume, hết giờ là thất bại. Thưởng ×4 + đồ epic đảm bảo |
-| **Boss Raid** | 4.000 | Ngày thử PR chính thức. Phá kỷ lục → thưởng lớn + cutscene ARISE |
-| Demon Castle Floor | 1.500/tầng | Chuỗi leo tầng, mỗi tầng khó hơn |
+| Item                | Giá        | Nội dung                                                         |
+| ------------------- | ---------- | ---------------------------------------------------------------- |
+| Instant Dungeon Key | 800        | Buổi tập ngoài lịch, EXP đầy đủ                                  |
+| **Red Gate**        | 2.500      | 1.5× volume, hết giờ là thất bại. Thưởng ×4 + đồ epic đảm bảo    |
+| **Boss Raid**       | 4.000      | Ngày thử PR chính thức. Phá kỷ lục → thưởng lớn + cutscene ARISE |
+| Demon Castle Floor  | 1.500/tầng | Chuỗi leo tầng, mỗi tầng khó hơn                                 |
 
 Red Gate: bấm vào là cam kết, bỏ dở thì mất gold. Chính điều đó tạo sức nặng.
 
 ### 8.5 Chương trình mới
 
-| Mở khoá | Giá | Yêu cầu |
-|---|---|---|
-| Bài tập mới cho một nhóm cơ | 400 | Army Rank D+ |
-| **Push/Pull/Legs 6 ngày** | 3.000 | Level 20 |
-| **5/3/1** | 5.000 | Level 30 |
-| **Arnold Split** | 6.000 | Level 35 |
-| Kiểu dungeon: AMRAP / EMOM / Drop-set | 1.200/kiểu | Level 15 |
+| Mở khoá                               | Giá        | Yêu cầu      |
+| ------------------------------------- | ---------- | ------------ |
+| Bài tập mới cho một nhóm cơ           | 400        | Army Rank D+ |
+| **Push/Pull/Legs 6 ngày**             | 3.000      | Level 20     |
+| **5/3/1**                             | 5.000      | Level 30     |
+| **Arnold Split**                      | 6.000      | Level 35     |
+| Kiểu dungeon: AMRAP / EMOM / Drop-set | 1.200/kiểu | Level 15     |
 
 Gác biến hoá **sau** cam kết — đúng điều khoa học huấn luyện khuyên (người mới đổi chương trình liên tục thì không tiến bộ). App ép làm đúng bằng logic của game, không bằng lời khuyên.
 
@@ -543,9 +548,9 @@ Không thúc đẩy tập, nhưng giải quyết lạm phát và **là chính th
 
 ### 8.9 Trang bị
 
-3 ô: **Weapon / Armor / Accessory**. Mỗi món là modifier bị động ở tầng game (VD: *Knight Killer* +10% EXP bài Back; *Shadow Compression Gear* fatigue tích chậm 15%).
+3 ô: **Weapon / Armor / Accessory**. Mỗi món là modifier bị động ở tầng game (VD: _Knight Killer_ +10% EXP bài Back; _Shadow Compression Gear_ fatigue tích chậm 15%).
 
-**Không mua được bằng gold.** Chỉ **rơi ra** khi clear dungeon, tỉ lệ theo rank dungeon và **LUCK**. LUCK đến từ streak → *tập đều → LUCK cao → đồ tốt hơn.* Vòng lặp khép kín, không đường tắt bằng tiền.
+**Không mua được bằng gold.** Chỉ **rơi ra** khi clear dungeon, tỉ lệ theo rank dungeon và **LUCK**. LUCK đến từ streak → _tập đều → LUCK cao → đồ tốt hơn._ Vòng lặp khép kín, không đường tắt bằng tiền.
 
 Grade: common → uncommon → rare → epic → legendary.
 
@@ -554,6 +559,7 @@ Grade: common → uncommon → rare → epic → legendary.
 Kinh tế một người chơi không có áp lực khan hiếm tự nhiên — nó trượt về lạm phát hoặc nghèo mãi. Con số trên là **ước lượng trên giấy**, chưa kiểm chứng được trước khi dùng thật.
 
 Giảm thiểu:
+
 1. **Toàn bộ giá và tỉ lệ rơi nằm trong `core/economy/pricing.ts`** — hằng số, một file
 2. **Gold sink cuối** — cosmetic tầng III giá cao không giới hạn, để gold thừa có chỗ tiêu mà không phá cân bằng
 
@@ -567,31 +573,31 @@ Giảm thiểu:
 
 ### 9.2 Nhánh BODY
 
-| Skill | AP | Tác dụng |
-|---|---|---|
-| Tenacity | 3 | Penalty chỉ mất 5% EXP thay vì 10% |
-| Advanced Regeneration | 4 | Fatigue tiêu tan nhanh hơn 25% |
-| Iron Body | 5 | Shadow suy yếu sau 10 ngày thay vì 7 |
-| Vital Strike | 6 | Set BOSS ×2 EXP thay vì ×1.5 |
+| Skill                 | AP  | Tác dụng                             |
+| --------------------- | --- | ------------------------------------ |
+| Tenacity              | 3   | Penalty chỉ mất 5% EXP thay vì 10%   |
+| Advanced Regeneration | 4   | Fatigue tiêu tan nhanh hơn 25%       |
+| Iron Body             | 5   | Shadow suy yếu sau 10 ngày thay vì 7 |
+| Vital Strike          | 6   | Set BOSS ×2 EXP thay vì ×1.5         |
 
 ### 9.3 Nhánh SHADOW
 
-| Skill | AP | Tác dụng |
-|---|---|---|
-| Shadow Preservation | 3 | Suy yếu 1%/ngày thay vì 2% |
-| Army Discipline | 5 | Army Rank tính theo shadow **trung bình** thay vì yếu nhất |
-| Shadow Extraction+ | 6 | PR trên bài phụ cũng rút được shadow |
-| Legion | 8 | Mọi shadow +10% EXP |
+| Skill               | AP  | Tác dụng                                                   |
+| ------------------- | --- | ---------------------------------------------------------- |
+| Shadow Preservation | 3   | Suy yếu 1%/ngày thay vì 2%                                 |
+| Army Discipline     | 5   | Army Rank tính theo shadow **trung bình** thay vì yếu nhất |
+| Shadow Extraction+  | 6   | PR trên bài phụ cũng rút được shadow                       |
+| Legion              | 8   | Mọi shadow +10% EXP                                        |
 
 ### 9.4 Nhánh SOVEREIGN
 
-| Skill | AP | Tác dụng |
-|---|---|---|
-| Bloodlust | 4 | Dungeon rank B+: +50% gold |
-| Stealth | 4 | Hidden Quest dày hơn |
-| Ruler's Authority | 7 | Đổi một mục trong Daily Quest hôm nay |
-| **Shadow Exchange** | 8 | Hoán đổi hai buổi trong tuần, không mất streak — 1 lần/tuần |
-| **Shadow Storage** | 10 | **Gửi** buổi tập thừa vào kho, rút ra bù cho hôm lỡ |
+| Skill               | AP  | Tác dụng                                                    |
+| ------------------- | --- | ----------------------------------------------------------- |
+| Bloodlust           | 4   | Dungeon rank B+: +50% gold                                  |
+| Stealth             | 4   | Hidden Quest dày hơn                                        |
+| Ruler's Authority   | 7   | Đổi một mục trong Daily Quest hôm nay                       |
+| **Shadow Exchange** | 8   | Hoán đổi hai buổi trong tuần, không mất streak — 1 lần/tuần |
+| **Shadow Storage**  | 10  | **Gửi** buổi tập thừa vào kho, rút ra bù cho hôm lỡ         |
 
 **Shadow Storage** không xoá bỏ kỷ luật — nó cho phép **trả trước**. Muốn có buổi để cất thì phải tập dư đã. Thưởng cho người dồn sức lúc rảnh, đúng cách người đi làm sống.
 
@@ -615,14 +621,14 @@ Trượt không mất gì — chỉ đợi tới Lv45. Cột mốc nên khó, kh
 
 ### 9.7 Class
 
-**Người dùng không tự chọn từ menu.** The System đọc 40 level dữ liệu và đề nghị class họ *đã thật sự trở thành*.
+**Người dùng không tự chọn từ menu.** The System đọc 40 level dữ liệu và đề nghị class họ _đã thật sự trở thành_.
 
-| Class | Điều kiện | Đặc quyền |
-|---|---|---|
-| **Berserker** | STR nổi trội | Compound +25% EXP · mở 5/3/1 miễn phí |
-| **Assassin** | AGI nổi trội | Fatigue hồi nhanh 40% · quest chạy ×2 gold |
-| **Tanker** | VIT nổi trội | Trần fatigue +25 · giảm nhẹ penalty |
-| **Fighter** | Cân bằng | +10% mọi thứ · thêm 1 ô skill |
+| Class                 | Điều kiện                   | Đặc quyền                                                       |
+| --------------------- | --------------------------- | --------------------------------------------------------------- |
+| **Berserker**         | STR nổi trội                | Compound +25% EXP · mở 5/3/1 miễn phí                           |
+| **Assassin**          | AGI nổi trội                | Fatigue hồi nhanh 40% · quest chạy ×2 gold                      |
+| **Tanker**            | VIT nổi trội                | Trần fatigue +25 · giảm nhẹ penalty                             |
+| **Fighter**           | Cân bằng                    | +10% mọi thứ · thêm 1 ô skill                                   |
 | **🔒 Shadow Monarch** | **Cả 8 shadow đạt Knight+** | Bellion thức tỉnh · nhánh Sovereign giảm nửa AP · theme Monarch |
 
 Shadow Monarch **không hiện trong danh sách** cho tới khi đủ điều kiện. Điều kiện của nó là tập đều cả tám nhóm cơ trong 40 level.
@@ -651,11 +657,11 @@ Ngưỡng "cả 8 shadow đạt Knight" là **hằng số cần tinh chỉnh** s
 
 Gemini Flash mất 1–2 giây. Vừa phá kỷ lục bench, đứng thở dốc — hai giây spinner là đủ giết khoảnh khắc.
 
-| Nhóm | Sinh lúc nào | Độ trễ |
-|---|---|---|
-| Theo lịch (briefing, chronicle chủ nhật) | Cron 00:00 ICT → DB | 0 ms |
-| Theo sự kiện (PR, ARISE, level up, penalty) | **Sinh sẵn thành pool lúc reset** | 0 ms |
-| Trượt pool | Rơi về template | 0 ms |
+| Nhóm                                        | Sinh lúc nào                      | Độ trễ |
+| ------------------------------------------- | --------------------------------- | ------ |
+| Theo lịch (briefing, chronicle chủ nhật)    | Cron 00:00 ICT → DB               | 0 ms   |
+| Theo sự kiện (PR, ARISE, level up, penalty) | **Sinh sẵn thành pool lúc reset** | 0 ms   |
+| Trượt pool                                  | Rơi về template                   | 0 ms   |
 
 Lúc reset, cron sinh sẵn ~6 message: briefing + các phản ứng khả dĩ hôm nay. **Không có trạng thái loading nào trong toàn app.**
 
@@ -741,12 +747,12 @@ Gemini →(timeout 3s | lỗi | trượt cổng)→ Template
 
 Item **Voice of the Ruler** (4.000 G) đổi cả system prompt lẫn bộ template:
 
-| Giọng | Chất |
-|---|---|
+| Giọng               | Chất                    |
+| ------------------- | ----------------------- |
 | **Cold** (mặc định) | Vô cảm, chỉ nêu sự kiện |
-| **Mocking** | Khinh miệt, thách thức |
-| **Ancient** | Trang trọng, cổ ngữ |
-| **Merciless** | Ngắn, tàn nhẫn |
+| **Mocking**         | Khinh miệt, thách thức  |
+| **Ancient**         | Trang trọng, cổ ngữ     |
+| **Merciless**       | Ngắn, tàn nhẫn          |
 
 Cosmetic **thật sự thay đổi trải nghiệm hằng ngày**, và gần như miễn phí về kỹ thuật.
 
@@ -806,7 +812,7 @@ Từ Lv1, The System nói năng như phần mềm bình thường. Rải rác c�
 > `It was never about your body.`
 > `A vessel was required. You have been evaluated.`
 
-**Đây là đòn phản công trực tiếp vào suy tàn mới lạ** — điểm chết số 1 của thể loại này. Level không có kết thúc; câu chuyện thì có, và đó là thứ khiến người dùng quay lại ở tháng thứ tám. *Zombies, Run!* sống bằng đúng cơ chế này.
+**Đây là đòn phản công trực tiếp vào suy tàn mới lạ** — điểm chết số 1 của thể loại này. Level không có kết thúc; câu chuyện thì có, và đó là thứ khiến người dùng quay lại ở tháng thứ tám. _Zombies, Run!_ sống bằng đúng cơ chế này.
 
 Chi phí thấp: SystemVoice đã dựng, đây chỉ là ~15 đoạn text gác sau cột mốc. Lưu ở `narrative_fragment`, logic ở `core/narrative/arc.ts`.
 
@@ -827,14 +833,14 @@ Nghiên cứu 2025 cho thấy độ giàu tính năng gamification có tác đ�
 
 Giải pháp: **build đủ 9 trang, mở dần theo level.**
 
-| Trang | Mở ở |
-|---|---|
-| Dashboard, Quests, Dungeon, Status | Từ đầu |
-| Shadow Army | Sau ARISE đầu tiên |
-| Chronicle | Level 5 |
-| Store | Level 10 |
-| Inventory | Level 15 |
-| Skills | Sau Job Change (Lv40) |
+| Trang                              | Mở ở                  |
+| ---------------------------------- | --------------------- |
+| Dashboard, Quests, Dungeon, Status | Từ đầu                |
+| Shadow Army                        | Sau ARISE đầu tiên    |
+| Chronicle                          | Level 5               |
+| Store                              | Level 10              |
+| Inventory                          | Level 15              |
+| Skills                             | Sau Job Change (Lv40) |
 
 Trang chưa mở hiển thị đúng ngôn ngữ của The System:
 
@@ -892,12 +898,12 @@ Radar chart 6 stat (recharts đã có) · bảng e1RM từng bài kèm xu hướ
 
 **Title** — buff bị động nhỏ, đeo một cái mỗi lúc:
 
-| Title | Điều kiện | Buff |
-|---|---|---|
-| *Unyielding* | Streak 30 ngày | −20% mất EXP khi penalty |
-| *Monarch of Dawn* | 10 buổi trước 7h sáng | +15% gold buổi sáng |
-| *One Who Returned* | Thoát Penalty Zone 5 lần | +10% EXP sau khi thoát |
-| *Wolf's Nemesis* | Clear 20 dungeon A-Rank | +25% tỉ lệ rơi đồ |
+| Title              | Điều kiện                | Buff                     |
+| ------------------ | ------------------------ | ------------------------ |
+| _Unyielding_       | Streak 30 ngày           | −20% mất EXP khi penalty |
+| _Monarch of Dawn_  | 10 buổi trước 7h sáng    | +15% gold buổi sáng      |
+| _One Who Returned_ | Thoát Penalty Zone 5 lần | +10% EXP sau khi thoát   |
+| _Wolf's Nemesis_   | Clear 20 dungeon A-Rank  | +25% tỉ lệ rơi đồ        |
 
 ### 12.3 Chronicle
 
@@ -930,16 +936,16 @@ Theo §6, §5.2, §8, §8.9, §9.
 
 ## 13. Thứ tự build
 
-| Phase | Nội dung | Kết quả |
-|---|---|---|
-| **0** | DB, schema, PIN, container, eslint boundaries, CI | Nền |
+| Phase | Nội dung                                                                     | Kết quả                   |
+| ----- | ---------------------------------------------------------------------------- | ------------------------- |
+| **0** | DB, schema, PIN, container, eslint boundaries, CI                            | Nền                       |
 | **1** | **Engine** + Double Dungeon onboarding + Reason for Hunting + template voice | **Dùng thật được từ đây** |
-| **2** | Daily Quest, cron, Penalty Zone + biến thể, Dungeon Break, streak | Vòng lặp hoàn chỉnh |
-| **3** | Shadow Army, ARISE, Status đầy đủ, mốc ngày 7/14 | Phần cảm xúc |
-| **4** | Gemini voice, Chronicle, heatmap, tuyến truyện | Phần linh hồn |
-| **5** | Gold, Store, Inventory, drop, wager | Kinh tế |
-| **6** | Skills, Ability Point, Job Change, Class | Chiều sâu |
-| **7** | Cosmetic, theme, giọng, deploy, seed | Hoàn thiện |
+| **2** | Daily Quest, cron, Penalty Zone + biến thể, Dungeon Break, streak            | Vòng lặp hoàn chỉnh       |
+| **3** | Shadow Army, ARISE, Status đầy đủ, mốc ngày 7/14                             | Phần cảm xúc              |
+| **4** | Gemini voice, Chronicle, heatmap, tuyến truyện                               | Phần linh hồn             |
+| **5** | Gold, Store, Inventory, drop, wager                                          | Kinh tế                   |
+| **6** | Skills, Ability Point, Job Change, Class                                     | Chiều sâu                 |
+| **7** | Cosmetic, theme, giọng, deploy, seed                                         | Hoàn thiện                |
 
 ### 13.1 Vì sao thứ tự này quan trọng
 
@@ -969,11 +975,11 @@ Các phase sau lập kế hoạch khi tới, dựa trên những gì học đư�
 
 Ba phát hiện chống lại thiết kế này, cùng cách giảm thiểu:
 
-| Phát hiện | Đe doạ phần nào | Giảm thiểu |
-|---|---|---|
-| "App dựa vào nỗi sợ mất mát thì động lực sụp đổ khi nỗi sợ hết vui" | Penalty Zone (§6.3) | Biến thể + giọng đổi dần (§6.4) |
-| Độ giàu tính năng có tác động hình chữ S — vượt ngưỡng thì lợi ích âm | Phạm vi 9 trang | Mở khoá dần theo level (§11.5) |
-| Gamification áp đặt → hoạt động bền vững yếu hơn | Toàn bộ giọng The System | Van tự chủ (§11.6) + Reason for Hunting (§11.2) |
+| Phát hiện                                                             | Đe doạ phần nào          | Giảm thiểu                                      |
+| --------------------------------------------------------------------- | ------------------------ | ----------------------------------------------- |
+| "App dựa vào nỗi sợ mất mát thì động lực sụp đổ khi nỗi sợ hết vui"   | Penalty Zone (§6.3)      | Biến thể + giọng đổi dần (§6.4)                 |
+| Độ giàu tính năng có tác động hình chữ S — vượt ngưỡng thì lợi ích âm | Phạm vi 9 trang          | Mở khoá dần theo level (§11.5)                  |
+| Gamification áp đặt → hoạt động bền vững yếu hơn                      | Toàn bộ giọng The System | Van tự chủ (§11.6) + Reason for Hunting (§11.2) |
 
 Về phát hiện thứ ba: SDT đo các app **áp gamification lên người dùng không yêu cầu**. Ở đây người dùng tự thiết kế hệ thống cho chính mình — quyền tự chủ ở mức tối đa, và bản thân fandom **là** động lực nội tại. Nhưng van tự chủ vẫn cần có.
 
@@ -1003,43 +1009,47 @@ Hạn mức Gemini có thể đổi. Giảm thiểu: template engine là lớp n
 
 Cân nhắc và **loại**:
 
-| Hạng mục | Lý do |
-|---|---|
-| Auth nhiều người dùng, guild, leaderboard, feed | 1 người dùng theo thiết kế |
-| Tích hợp Strava / Apple Health | OAuth + webhook + rate limit; không quyết định app sống hay chết. Cân nhắc lại sau v1. |
-| Mana stone / essence stone | Tiền tệ thứ hai = bội thực tính năng |
-| Demon's Castle 100 tầng (bản đầy đủ) | Chỉ giữ dạng item mua theo tầng (§8.4) |
-| Tuyến Rulers vs Monarchs | Quá xa so với vòng lặp cốt lõi |
-| Item tăng EXP, item thăng grade shadow, item cộng stat | Vi phạm luật §8.1 |
-| AI kê chương trình / mức tạ (Hướng C ở câu hỏi 5) | Chỗ duy nhất trong app có thể gây chấn thương thật |
-| Chống gian lận | Vô nghĩa với app cá nhân |
-| Sync đa thiết bị ngoài DB dùng chung | DB server đã giải quyết |
+| Hạng mục                                               | Lý do                                                                                  |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Auth nhiều người dùng, guild, leaderboard, feed        | 1 người dùng theo thiết kế                                                             |
+| Tích hợp Strava / Apple Health                         | OAuth + webhook + rate limit; không quyết định app sống hay chết. Cân nhắc lại sau v1. |
+| Mana stone / essence stone                             | Tiền tệ thứ hai = bội thực tính năng                                                   |
+| Demon's Castle 100 tầng (bản đầy đủ)                   | Chỉ giữ dạng item mua theo tầng (§8.4)                                                 |
+| Tuyến Rulers vs Monarchs                               | Quá xa so với vòng lặp cốt lõi                                                         |
+| Item tăng EXP, item thăng grade shadow, item cộng stat | Vi phạm luật §8.1                                                                      |
+| AI kê chương trình / mức tạ (Hướng C ở câu hỏi 5)      | Chỗ duy nhất trong app có thể gây chấn thương thật                                     |
+| Chống gian lận                                         | Vô nghĩa với app cá nhân                                                               |
+| Sync đa thiết bị ngoài DB dùng chung                   | DB server đã giải quyết                                                                |
 
 ---
 
 ## Phụ lục A — Nguồn tham khảo
 
 **Solo Leveling lore**
+
 - [Penalty Zone — Solo Leveling Wiki](https://solo-leveling.fandom.com/wiki/Penalty_Zone)
 - [Quests — Solo Leveling Wiki](https://solo-leveling.fandom.com/wiki/Quests)
 - [Job Change Quest — Solo Leveling Wiki](https://solo-leveling.fandom.com/wiki/Job_Change_Quest)
-- [System (Solo Leveling) — Heroism Wiki](https://heroism.fandom.com/wiki/System_(Solo_Leveling))
+- [System (Solo Leveling) — Heroism Wiki](<https://heroism.fandom.com/wiki/System_(Solo_Leveling)>)
 - [Why does the System exist in Solo Leveling? — Sportskeeda](https://www.sportskeeda.com/anime/why-system-exist-solo-leveling-explained)
 - [How Weak Is Jin-Woo as an E-Rank Hunter? — GameRant](https://gamerant.com/solo-leveling-how-weak-is-jin-woo-e-rank-hunter/)
 - [Solo Leveling Stat System Guide](https://sololeveling.wiki/power-system-and-abilities/solo-leveling-stat-system)
 
 **Khoa học huấn luyện**
+
 - [Concurrent Training and the Interference Effect — Barbell Medicine](https://www.barbellmedicine.com/blog/concurrent-training-and-the-interference-effect/)
 - [Training Frequency for Hypertrophy — Weightology](https://weightology.net/the-members-area/evidence-based-guides/training-frequency-for-hypertrophy-the-evidence-based-bible/)
 - [PPL vs Upper Lower: Data Analysis — Arvo](https://arvo.guru/blog/ppl-vs-upper-lower-data)
 - [Hybrid Training Guide — Tailored Coaching Method](https://tailoredcoachingmethod.com/hybrid-athlete-training-guide/)
 
 **Gamification & giữ chân người dùng**
+
 - [Is more always better? An S-shaped impact of gamification feature richness on exercise adherence — Frontiers in Psychology, 2025](https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2025.1671543/full)
 - [Advancing Gamification Research with Self-Determination Theory — TechTrends](https://link.springer.com/article/10.1007/s11528-024-00968-9)
 - [Gamification 101: Why Your Fitness App Is Losing Users — Mindster](https://mindster.com/mindster-blogs/fitness-app-user-retention/)
 - [Why Fitness Apps Lose Users — Imaginovation](https://imaginovation.net/blog/why-fitness-apps-lose-users-ai-ar-gamification-fix/)
 
 **Free LLM tier**
+
 - [Gemini API Free Tier Rate Limits 2026](https://aipromptshub.co/blog/gemini-api-free-tier-rate-limits)
 - [Free LLM APIs in 2026: 13 Providers Compared](https://klymentiev.com/blog/free-llm-api)

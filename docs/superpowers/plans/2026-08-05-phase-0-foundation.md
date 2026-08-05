@@ -24,39 +24,40 @@
 
 ## File Structure
 
-| File | Trách nhiệm |
-|---|---|
-| `vitest.config.ts` | Cấu hình test runner, alias `@/` |
-| `playwright.config.ts` | Cấu hình E2E |
-| `drizzle.config.ts` | Cấu hình migration |
-| `.eslintrc.json` | Ép ranh giới kiến trúc |
-| `.env.example` | Khai báo biến môi trường cần thiết |
-| `src/core/shared/result.ts` | `Result<T,E>` — lỗi là giá trị, không throw |
-| `src/core/shared/units.ts` | Branded types: `Kg`, `Reps`, `Exp`, `Gold`, `Epoch` |
-| `src/core/shared/events.ts` | Union type domain events |
-| `src/core/quest/training-day.ts` | Ranh giới "ngày tập" theo múi giờ — nơi DUY NHẤT suy ra ngày |
-| `src/ports/clock.port.ts` | Interface đọc thời gian |
-| `src/ports/rng.port.ts` | Interface số ngẫu nhiên |
-| `src/infra/clock/system-clock.ts` | Clock thật + `fixedClock` cho test |
-| `src/infra/rng/seeded-rng.ts` | RNG tất định |
-| `src/infra/config/env.ts` | Validate env lúc boot, sai là chết ngay |
-| `src/infra/db/client.ts` | Kết nối Turso/libSQL |
-| `src/infra/db/schema/hunter.ts` | Bảng `hunter` (1 dòng duy nhất) |
-| `src/infra/db/schema/system.ts` | Bảng `processed_action` (idempotency) |
-| `src/infra/db/schema/index.ts` | Gom schema cho drizzle-kit |
-| `src/infra/db/repositories/hunter.repo.ts` | Đọc/ghi hunter |
-| `src/infra/db/repositories/idempotency.repo.ts` | Chống xử lý trùng |
-| `src/server/auth/pin.ts` | So khớp PIN an toàn về thời gian |
-| `src/server/auth/session.ts` | Ký/xác thực cookie phiên |
-| `src/server/auth/guard.ts` | `requireWriteAccess()` cho server actions |
-| `src/server/container.ts` | Composition root — nơi DUY NHẤT ráp mọi thứ |
-| `.github/workflows/ci.yml` | Chạy lint + test |
+| File                                            | Trách nhiệm                                                  |
+| ----------------------------------------------- | ------------------------------------------------------------ |
+| `vitest.config.ts`                              | Cấu hình test runner, alias `@/`                             |
+| `playwright.config.ts`                          | Cấu hình E2E                                                 |
+| `drizzle.config.ts`                             | Cấu hình migration                                           |
+| `.eslintrc.json`                                | Ép ranh giới kiến trúc                                       |
+| `.env.example`                                  | Khai báo biến môi trường cần thiết                           |
+| `src/core/shared/result.ts`                     | `Result<T,E>` — lỗi là giá trị, không throw                  |
+| `src/core/shared/units.ts`                      | Branded types: `Kg`, `Reps`, `Exp`, `Gold`, `Epoch`          |
+| `src/core/shared/events.ts`                     | Union type domain events                                     |
+| `src/core/quest/training-day.ts`                | Ranh giới "ngày tập" theo múi giờ — nơi DUY NHẤT suy ra ngày |
+| `src/ports/clock.port.ts`                       | Interface đọc thời gian                                      |
+| `src/ports/rng.port.ts`                         | Interface số ngẫu nhiên                                      |
+| `src/infra/clock/system-clock.ts`               | Clock thật + `fixedClock` cho test                           |
+| `src/infra/rng/seeded-rng.ts`                   | RNG tất định                                                 |
+| `src/infra/config/env.ts`                       | Validate env lúc boot, sai là chết ngay                      |
+| `src/infra/db/client.ts`                        | Kết nối Turso/libSQL                                         |
+| `src/infra/db/schema/hunter.ts`                 | Bảng `hunter` (1 dòng duy nhất)                              |
+| `src/infra/db/schema/system.ts`                 | Bảng `processed_action` (idempotency)                        |
+| `src/infra/db/schema/index.ts`                  | Gom schema cho drizzle-kit                                   |
+| `src/infra/db/repositories/hunter.repo.ts`      | Đọc/ghi hunter                                               |
+| `src/infra/db/repositories/idempotency.repo.ts` | Chống xử lý trùng                                            |
+| `src/server/auth/pin.ts`                        | So khớp PIN an toàn về thời gian                             |
+| `src/server/auth/session.ts`                    | Ký/xác thực cookie phiên                                     |
+| `src/server/auth/guard.ts`                      | `requireWriteAccess()` cho server actions                    |
+| `src/server/container.ts`                       | Composition root — nơi DUY NHẤT ráp mọi thứ                  |
+| `.github/workflows/ci.yml`                      | Chạy lint + test                                             |
 
 ---
 
 ## Task 1: Project setup — git, dependencies, test runners
 
 **Files:**
+
 - Create: `vitest.config.ts`
 - Create: `playwright.config.ts`
 - Create: `.env.example`
@@ -64,6 +65,7 @@
 - Modify: `package.json`
 
 **Interfaces:**
+
 - Consumes: (không có — task đầu tiên)
 - Produces: script `pnpm test`, `pnpm test:e2e`, `pnpm lint`; alias `@/` hoạt động trong Vitest
 
@@ -199,6 +201,7 @@ git commit -m "chore: init git, add drizzle/zod/vitest/playwright, test config"
 ## Task 2: Core shared primitives
 
 **Files:**
+
 - Create: `src/core/shared/result.ts`
 - Create: `src/core/shared/result.test.ts`
 - Create: `src/core/shared/units.ts`
@@ -206,6 +209,7 @@ git commit -m "chore: init git, add drizzle/zod/vitest/playwright, test config"
 - Create: `src/core/shared/events.ts`
 
 **Interfaces:**
+
 - Consumes: (không có)
 - Produces:
   - `type Result<T, E> = { ok: true; value: T } | { ok: false; error: E }`
@@ -382,6 +386,7 @@ git commit -m "feat(core): add Result type, branded units, domain event union"
 ## Task 3: Ports và implementation của chúng
 
 **Files:**
+
 - Create: `src/ports/clock.port.ts`
 - Create: `src/ports/rng.port.ts`
 - Create: `src/infra/clock/system-clock.ts`
@@ -390,6 +395,7 @@ git commit -m "feat(core): add Result type, branded units, domain event union"
 - Create: `src/infra/rng/seeded-rng.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Epoch`, `epoch()` từ `@/core/shared/units`
 - Produces:
   - `interface ClockPort { now(): Epoch }`
@@ -594,10 +600,12 @@ git commit -m "feat(ports): add ClockPort and RngPort with system/seeded impleme
 Đây là task quan trọng nhất trong Phase 0. Nó chặn một lỗi cụ thể: hunter ở UTC+7, Vercel chạy UTC — nếu bất kỳ đâu gọi `new Date().getDate()` thì **mọi buổi tập log sau 19:00 giờ Việt Nam sẽ bị ghi sang ngày hôm sau**, làm vỡ streak và kích hoạt Penalty Zone sai.
 
 **Files:**
+
 - Create: `src/core/quest/training-day.ts`
 - Create: `src/core/quest/training-day.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Epoch`, `epoch()` từ `@/core/shared/units`
 - Produces:
   - `type TrainingDay` — chuỗi branded dạng `YYYY-MM-DD`
@@ -745,7 +753,9 @@ declare const trainingDayBrand: unique symbol;
  *
  * DB luôn lưu UTC epoch. Kiểu này chỉ tồn tại ở tầng logic.
  */
-export type TrainingDay = string & { readonly [trainingDayBrand]: "TrainingDay" };
+export type TrainingDay = string & {
+  readonly [trainingDayBrand]: "TrainingDay";
+};
 
 const MS_PER_MINUTE = 60_000;
 const MS_PER_DAY = 86_400_000;
@@ -819,10 +829,12 @@ git commit -m "feat(core): add timezone-safe TrainingDay boundary"
 ## Task 5: Validate biến môi trường lúc boot
 
 **Files:**
+
 - Create: `src/infra/config/env.ts`
 - Create: `src/infra/config/env.test.ts`
 
 **Interfaces:**
+
 - Consumes: `zod`
 - Produces:
   - `parseEnv(source: Record<string, string | undefined>): Env` — thuần, test được
@@ -862,7 +874,9 @@ describe("parseEnv", () => {
   });
 
   it("báo lỗi khi PIN ngắn hơn 4 ký tự", () => {
-    expect(() => parseEnv({ ...valid, HUNTER_PIN: "12" })).toThrow(/HUNTER_PIN/);
+    expect(() => parseEnv({ ...valid, HUNTER_PIN: "12" })).toThrow(
+      /HUNTER_PIN/,
+    );
   });
 
   it("báo lỗi khi SESSION_SECRET ngắn hơn 32 ký tự", () => {
@@ -950,6 +964,7 @@ git commit -m "feat(infra): validate environment variables at boot with zod"
 ## Task 6: Database — Turso client, schema hunter, migration
 
 **Files:**
+
 - Create: `drizzle.config.ts`
 - Create: `src/infra/db/client.ts`
 - Create: `src/infra/db/schema/hunter.ts`
@@ -957,6 +972,7 @@ git commit -m "feat(infra): validate environment variables at boot with zod"
 - Create: `src/infra/db/migrate.ts`
 
 **Interfaces:**
+
 - Consumes: `env` từ `@/infra/config/env`
 - Produces:
   - `db` — instance Drizzle đã kết nối
@@ -1126,6 +1142,7 @@ git commit -m "feat(db): add Turso client, hunter and processed_action schema, m
 ## Task 7: Repository hunter và idempotency
 
 **Files:**
+
 - Create: `src/infra/db/repositories/hunter.repo.ts`
 - Create: `src/infra/db/repositories/hunter.repo.test.ts`
 - Create: `src/infra/db/repositories/idempotency.repo.ts`
@@ -1133,6 +1150,7 @@ git commit -m "feat(db): add Turso client, hunter and processed_action schema, m
 - Create: `src/infra/db/testing/make-test-db.ts`
 
 **Interfaces:**
+
 - Consumes: `Db`, `createDb` từ `@/infra/db/client`; `hunter`, `HUNTER_ID`, `processedAction` từ schema
 - Produces:
   - `makeTestDb(): Promise<Db>` — DB in-memory đã migrate, cho test
@@ -1381,11 +1399,13 @@ git commit -m "feat(db): add HunterRepo, IdempotencyRepo, in-memory test db help
 ## Task 8: Xác thực bằng PIN
 
 **Files:**
+
 - Create: `src/server/auth/session.ts`
 - Create: `src/server/auth/session.test.ts`
 - Create: `src/server/auth/guard.ts`
 
 **Interfaces:**
+
 - Consumes: `env` từ `@/infra/config/env`; `ClockPort` từ `@/ports/clock.port`
 - Produces:
   - `signSession(expiresAt: number, secret: string): string`
@@ -1562,10 +1582,12 @@ git commit -m "feat(auth): add HMAC session tokens, timing-safe PIN check, write
 ## Task 9: Composition root
 
 **Files:**
+
 - Create: `src/server/container.ts`
 - Create: `src/server/container.test.ts`
 
 **Interfaces:**
+
 - Consumes: `db`, `HunterRepo`, `IdempotencyRepo`, `systemClock`, `seededRng`, `env`
 - Produces:
   - `type Container = { db: Db; clock: ClockPort; rng: RngPort; hunters: HunterRepo; idempotency: IdempotencyRepo; tzOffsetMinutes: number }`
@@ -1685,11 +1707,13 @@ git commit -m "feat(server): add composition root"
 Kiến trúc không được máy kiểm tra sẽ mục trong vài tháng. Task này biến các luật ở phần Global Constraints thành lỗi CI.
 
 **Files:**
+
 - Create: `.eslintrc.json`
 - Create: `.github/workflows/ci.yml`
 - Create: `e2e/smoke.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `eslint-plugin-import` (đã cài ở Task 1)
 - Produces: `pnpm lint` fail khi `core/` bị nhiễm bẩn
 

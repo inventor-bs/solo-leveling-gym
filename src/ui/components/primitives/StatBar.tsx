@@ -29,16 +29,28 @@ const STAT_GLOW: Record<string, string> = {
   LUK: "shadow-[0_0_8px_rgba(244,114,182,0.6)]",
 };
 
-export function StatBar({ label, shortLabel, value, maxValue = 100, delay = 0 }: StatBarProps) {
+export function StatBar({
+  label,
+  shortLabel,
+  value,
+  maxValue = 100,
+  delay = 0,
+}: StatBarProps) {
   const pct = Math.min((value / maxValue) * 100, 100);
-  const gradient = STAT_COLORS[shortLabel] || "from-system-blue to-monarch-purple";
+  const gradient =
+    STAT_COLORS[shortLabel] || "from-system-blue to-monarch-purple";
   const glow = STAT_GLOW[shortLabel] || "";
 
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className={clsx("font-mono text-xs font-bold w-8", glow.includes("orange") ? "text-orange-400" : "text-slate-300")}>
+          <span
+            className={clsx(
+              "font-mono text-xs font-bold w-8",
+              glow.includes("orange") ? "text-orange-400" : "text-slate-300",
+            )}
+          >
             {shortLabel}
           </span>
           <span className="text-xs text-slate-500">{label}</span>
@@ -54,7 +66,11 @@ export function StatBar({ label, shortLabel, value, maxValue = 100, delay = 0 }:
       </div>
       <div className="h-2 bg-shadow-mid rounded-full overflow-hidden relative">
         <motion.div
-          className={clsx("h-full bg-gradient-to-r rounded-full", gradient, glow)}
+          className={clsx(
+            "h-full bg-gradient-to-r rounded-full",
+            gradient,
+            glow,
+          )}
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
           transition={{ duration: 1.2, delay, ease: "easeOut" }}

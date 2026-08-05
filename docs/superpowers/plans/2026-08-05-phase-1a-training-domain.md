@@ -22,16 +22,16 @@
 
 ## File Structure
 
-| File | Trách nhiệm |
-|---|---|
-| `src/core/training/types.ts` | Kiểu dữ liệu dùng chung cho toàn bộ domain tập luyện |
-| `src/core/training/pr.ts` | e1RM (Epley) và phát hiện PR |
-| `src/core/training/volume.ts` | Volume load, tổng hợp theo nhóm cơ |
-| `src/core/training/overload.ts` | Double progression — đề xuất tạ buổi sau |
-| `src/core/hunter/progression.ts` | EXP → level → rank |
-| `src/core/hunter/stats.ts` | Suy ra 6 stat từ log |
-| `src/core/hunter/fatigue.ts` | Tích luỹ và tiêu tan fatigue |
-| `src/core/training/dungeon-rank.ts` | Rank của buổi tập từ volume tương đối |
+| File                                | Trách nhiệm                                          |
+| ----------------------------------- | ---------------------------------------------------- |
+| `src/core/training/types.ts`        | Kiểu dữ liệu dùng chung cho toàn bộ domain tập luyện |
+| `src/core/training/pr.ts`           | e1RM (Epley) và phát hiện PR                         |
+| `src/core/training/volume.ts`       | Volume load, tổng hợp theo nhóm cơ                   |
+| `src/core/training/overload.ts`     | Double progression — đề xuất tạ buổi sau             |
+| `src/core/hunter/progression.ts`    | EXP → level → rank                                   |
+| `src/core/hunter/stats.ts`          | Suy ra 6 stat từ log                                 |
+| `src/core/hunter/fatigue.ts`        | Tích luỹ và tiêu tan fatigue                         |
+| `src/core/training/dungeon-rank.ts` | Rank của buổi tập từ volume tương đối                |
 
 Tất cả đều có file `*.test.ts` đi kèm.
 
@@ -40,9 +40,11 @@ Tất cả đều có file `*.test.ts` đi kèm.
 ## Task 1: Kiểu dữ liệu dùng chung
 
 **Files:**
+
 - Create: `src/core/training/types.ts`
 
 **Interfaces:**
+
 - Consumes: `Kg`, `Reps`, `Epoch` từ `@/core/shared/units`; `TrainingDay` từ `@/core/quest/training-day`
 - Produces:
   - `type MuscleGroup = "chest" | "back" | "quads" | "posterior" | "shoulders" | "arms" | "core" | "cardio"`
@@ -142,10 +144,12 @@ git commit -m "feat(core): add training domain types"
 ## Task 2: e1RM và phát hiện PR
 
 **Files:**
+
 - Create: `src/core/training/pr.ts`
 - Create: `src/core/training/pr.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Kg`, `Reps`, `kg` từ `@/core/shared/units`; `LoggedSet` từ `./types`
 - Produces:
   - `estimateOneRepMax(weight: Kg, repsDone: Reps): Kg`
@@ -364,10 +368,12 @@ git commit -m "feat(core): add e1RM estimation and PR detection"
 ## Task 3: Volume load
 
 **Files:**
+
 - Create: `src/core/training/volume.ts`
 - Create: `src/core/training/volume.test.ts`
 
 **Interfaces:**
+
 - Consumes: `LoggedSet`, `ExerciseDef`, `MuscleGroup`, `MUSCLE_GROUPS` từ `./types`
 - Produces:
   - `sessionVolumeLoad(sets: readonly LoggedSet[]): number`
@@ -525,9 +531,10 @@ export function volumeByMuscle(
   sets: readonly LoggedSet[],
   catalog: ReadonlyMap<string, ExerciseDef>,
 ): Record<MuscleGroup, number> {
-  const result = Object.fromEntries(
-    MUSCLE_GROUPS.map((m) => [m, 0]),
-  ) as Record<MuscleGroup, number>;
+  const result = Object.fromEntries(MUSCLE_GROUPS.map((m) => [m, 0])) as Record<
+    MuscleGroup,
+    number
+  >;
 
   for (const s of sets) {
     if (!s.completed) continue;
@@ -563,10 +570,12 @@ git commit -m "feat(core): add volume load calculation"
 Đây là thuật toán quyết định "hôm nay đẩy bao nhiêu kg". Nó phải tường minh và test được — spec §5.3 nói rõ LLM không được đụng vào đây.
 
 **Files:**
+
 - Create: `src/core/training/overload.ts`
 - Create: `src/core/training/overload.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Kg`, `Reps`, `kg` từ `@/core/shared/units`; `RepRange`, `LoggedSet` từ `./types`
 - Produces:
   - `type ExercisePerformance = { weight: Kg; repsPerSet: readonly Reps[] }`
@@ -799,11 +808,7 @@ export function suggestNextLoad(
     ? anySetBelowMin(previous, range)
     : false;
 
-  if (
-    lastFailed &&
-    previousFailed &&
-    DELOAD_AFTER_CONSECUTIVE_FAILURES === 2
-  ) {
+  if (lastFailed && previousFailed && DELOAD_AFTER_CONSECUTIVE_FAILURES === 2) {
     return {
       weight: kg(roundDownTo(last.weight * DELOAD_FACTOR, WEIGHT_ROUNDING_KG)),
       targetReps: range.min,
@@ -866,10 +871,12 @@ git commit -m "feat(core): add double-progression overload algorithm"
 ## Task 5: EXP, level, rank
 
 **Files:**
+
 - Create: `src/core/hunter/progression.ts`
 - Create: `src/core/hunter/progression.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Exp`, `exp` từ `@/core/shared/units`
 - Produces:
   - `type Rank = "E" | "D" | "C" | "B" | "A" | "S" | "National" | "Monarch"`
@@ -991,15 +998,7 @@ Tạo `src/core/hunter/progression.ts`:
 ```ts
 import { exp as makeExp, type Exp } from "@/core/shared/units";
 
-export type Rank =
-  | "E"
-  | "D"
-  | "C"
-  | "B"
-  | "A"
-  | "S"
-  | "National"
-  | "Monarch";
+export type Rank = "E" | "D" | "C" | "B" | "A" | "S" | "National" | "Monarch";
 
 /**
  * Hằng số cân bằng — spec §11.4 nói ngưỡng E→D được tinh chỉnh
@@ -1082,10 +1081,12 @@ git commit -m "feat(core): add EXP curve, level-up, and rank thresholds"
 Spec §1.3 và §5.4: đây là số **Đo lường**. Hàm này chỉ nhận log tập, không nhận buff, item, hay modifier nào.
 
 **Files:**
+
 - Create: `src/core/hunter/stats.ts`
 - Create: `src/core/hunter/stats.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Kg` từ `@/core/shared/units`
 - Produces:
   - `interface Stats { strength: number; agility: number; vitality: number; intelligence: number; perception: number; luck: number }`
@@ -1182,7 +1183,9 @@ describe("deriveStats — VIT", () => {
 
 describe("deriveStats — PER", () => {
   it("là phần trăm set hoàn thành so với kế hoạch", () => {
-    const s = deriveStats(input({ setsCompleted28d: 180, setsPlanned28d: 200 }));
+    const s = deriveStats(
+      input({ setsCompleted28d: 180, setsPlanned28d: 200 }),
+    );
     expect(s.perception).toBe(90);
   });
 
@@ -1191,7 +1194,9 @@ describe("deriveStats — PER", () => {
   });
 
   it("bị chặn trần ở 100 dù làm dư", () => {
-    const s = deriveStats(input({ setsCompleted28d: 250, setsPlanned28d: 200 }));
+    const s = deriveStats(
+      input({ setsCompleted28d: 250, setsPlanned28d: 200 }),
+    );
     expect(s.perception).toBe(100);
   });
 });
@@ -1417,10 +1422,12 @@ git commit -m "feat(core): derive six stats from training logs"
 ## Task 7: Fatigue
 
 **Files:**
+
 - Create: `src/core/hunter/fatigue.ts`
 - Create: `src/core/hunter/fatigue.test.ts`
 
 **Interfaces:**
+
 - Consumes: (không có ngoài kiểu số)
 - Produces:
   - `type FatigueLevel = "normal" | "warning" | "critical"`
@@ -1608,10 +1615,12 @@ git commit -m "feat(core): add fatigue accumulation and decay"
 ## Task 8: Rank của dungeon
 
 **Files:**
+
 - Create: `src/core/training/dungeon-rank.ts`
 - Create: `src/core/training/dungeon-rank.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Rank` từ `@/core/hunter/progression`
 - Produces:
   - `type DungeonRank = "E" | "D" | "C" | "B" | "A"`

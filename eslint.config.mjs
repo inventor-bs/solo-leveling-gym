@@ -2,6 +2,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { FlatCompat } from "@eslint/eslintrc";
 import importPlugin from "eslint-plugin-import";
+import prettierConfig from "eslint-config-prettier";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -118,6 +119,8 @@ const eslintConfig = [
       "no-restricted-imports": "off",
     },
   },
+  // Must stay last: disables stylistic rules that would fight Prettier.
+  prettierConfig,
 ];
 
 export default eslintConfig;

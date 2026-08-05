@@ -78,17 +78,21 @@ export default function LandingPage() {
           transition={{ delay: 1.3 }}
         >
           <div className="system-panel-inner">
-            <p className="font-mono text-system-blue text-xs tracking-widest mb-3">[ SYSTEM MESSAGE ]</p>
+            <p className="font-mono text-system-blue text-xs tracking-widest mb-3">
+              [ SYSTEM MESSAGE ]
+            </p>
             <p className="font-mono text-white text-sm leading-relaxed system-flicker">
-              &quot;A player has been detected in this world. The System has evaluated your potential
-              and found it... acceptable. Your journey from E-Rank begins now.
+              &quot;A player has been detected in this world. The System has
+              evaluated your potential and found it... acceptable. Your journey
+              from E-Rank begins now.
             </p>
             <p className="font-mono text-white text-sm leading-relaxed mt-2">
               Train. Grow. Arise.&quot;
             </p>
             <div className="mt-4 pt-4 border-t border-system-blue/20">
               <p className="font-mono text-system-blue/50 text-xs">
-                ⚠ WARNING: Failure to complete daily quests will result in appropriate punishment.
+                ⚠ WARNING: Failure to complete daily quests will result in
+                appropriate punishment.
               </p>
             </div>
           </div>
@@ -141,9 +145,14 @@ export default function LandingPage() {
             { label: "Dungeons Cleared", value: "94,231" },
             { label: "Shadows Raised", value: "∞" },
           ].map(({ label, value }) => (
-            <div key={label} className="system-panel rounded-lg p-3 border border-system-blue/20">
+            <div
+              key={label}
+              className="system-panel rounded-lg p-3 border border-system-blue/20"
+            >
               <div className="system-panel-inner text-center">
-                <p className="font-mono text-xl font-bold text-system-blue">{value}</p>
+                <p className="font-mono text-xl font-bold text-system-blue">
+                  {value}
+                </p>
                 <p className="font-mono text-xs text-slate-500 mt-1">{label}</p>
               </div>
             </div>

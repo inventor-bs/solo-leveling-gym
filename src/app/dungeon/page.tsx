@@ -34,21 +34,33 @@ function DungeonEntryScreen({ onEnter }: { onEnter: () => void }) {
             </motion.div>
 
             <div>
-              <p className="font-mono text-xs text-system-blue tracking-widest mb-3">◈ GATE DETECTED</p>
-              <h2 className="font-cinzel text-xl font-black text-white mb-1">{activeDungeon.name}</h2>
+              <p className="font-mono text-xs text-system-blue tracking-widest mb-3">
+                ◈ GATE DETECTED
+              </p>
+              <h2 className="font-cinzel text-xl font-black text-white mb-1">
+                {activeDungeon.name}
+              </h2>
               <RankBadge rank={activeDungeon.rank} size="md" />
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-left">
               {[
                 { label: "TYPE", value: activeDungeon.type },
-                { label: "EXERCISES", value: `${activeDungeon.exercises.length} movements` },
+                {
+                  label: "EXERCISES",
+                  value: `${activeDungeon.exercises.length} movements`,
+                },
                 { label: "ESTIMATED", value: "60-75 min" },
                 { label: "BOSS", value: "Bench Press PR" },
               ].map(({ label, value }) => (
-                <div key={label} className="p-2 bg-shadow-mid rounded-lg border border-system-blue/10">
+                <div
+                  key={label}
+                  className="p-2 bg-shadow-mid rounded-lg border border-system-blue/10"
+                >
                   <p className="font-mono text-xs text-slate-500">{label}</p>
-                  <p className="font-mono text-xs text-white font-bold mt-0.5">{value}</p>
+                  <p className="font-mono text-xs text-white font-bold mt-0.5">
+                    {value}
+                  </p>
                 </div>
               ))}
             </div>
@@ -99,21 +111,41 @@ function CompletionOverlay({ onClose }: { onClose: () => void }) {
           ✦
         </motion.div>
 
-        <h2 className="font-cinzel text-4xl font-black shimmer-text mb-2">DUNGEON CLEAR</h2>
-        <p className="font-mono text-system-blue text-sm tracking-wider mb-6">QUEST COMPLETE</p>
+        <h2 className="font-cinzel text-4xl font-black shimmer-text mb-2">
+          DUNGEON CLEAR
+        </h2>
+        <p className="font-mono text-system-blue text-sm tracking-wider mb-6">
+          QUEST COMPLETE
+        </p>
 
         <SystemPanel glowColor="gold" className="mb-6">
           <div className="p-4 space-y-3">
             {[
-              { label: "EXP Gained",    value: "+450 EXP",    color: "text-success" },
-              { label: "Gold Gained",   value: "+75 G",       color: "text-gold" },
-              { label: "Stat Gained",   value: "STR +3",      color: "text-orange-400" },
-              { label: "Shadow XP",     value: "Igris +120",  color: "text-monarch-light" },
-              { label: "Item Drop",     value: "Mid-Grade Potion", color: "text-rank-c" },
+              { label: "EXP Gained", value: "+450 EXP", color: "text-success" },
+              { label: "Gold Gained", value: "+75 G", color: "text-gold" },
+              {
+                label: "Stat Gained",
+                value: "STR +3",
+                color: "text-orange-400",
+              },
+              {
+                label: "Shadow XP",
+                value: "Igris +120",
+                color: "text-monarch-light",
+              },
+              {
+                label: "Item Drop",
+                value: "Mid-Grade Potion",
+                color: "text-rank-c",
+              },
             ].map(({ label, value, color }) => (
               <div key={label} className="flex justify-between items-center">
-                <span className="font-mono text-xs text-slate-400">{label}</span>
-                <span className={clsx("font-mono text-sm font-bold", color)}>{value}</span>
+                <span className="font-mono text-xs text-slate-400">
+                  {label}
+                </span>
+                <span className={clsx("font-mono text-sm font-bold", color)}>
+                  {value}
+                </span>
               </div>
             ))}
           </div>
@@ -133,7 +165,8 @@ function CompletionOverlay({ onClose }: { onClose: () => void }) {
 }
 
 export default function DungeonPage() {
-  const { activeDungeon, toggleSet, startDungeon, completeDungeon } = useAppStore();
+  const { activeDungeon, toggleSet, startDungeon, completeDungeon } =
+    useAppStore();
   const [elapsed, setElapsed] = useState(0);
   const [showComplete, setShowComplete] = useState(false);
   const router = useRouter();
@@ -147,13 +180,21 @@ export default function DungeonPage() {
   }, [activeDungeon.active, activeDungeon.startTime]);
 
   const formatTime = (s: number) => {
-    const m = Math.floor(s / 60).toString().padStart(2, "0");
+    const m = Math.floor(s / 60)
+      .toString()
+      .padStart(2, "0");
     const sec = (s % 60).toString().padStart(2, "0");
     return `${m}:${sec}`;
   };
 
-  const totalSets = activeDungeon.exercises.reduce((a, ex) => a + ex.sets.length, 0);
-  const completedSets = activeDungeon.exercises.reduce((a, ex) => a + ex.sets.filter((s) => s.completed).length, 0);
+  const totalSets = activeDungeon.exercises.reduce(
+    (a, ex) => a + ex.sets.length,
+    0,
+  );
+  const completedSets = activeDungeon.exercises.reduce(
+    (a, ex) => a + ex.sets.filter((s) => s.completed).length,
+    0,
+  );
   const progress = totalSets > 0 ? completedSets / totalSets : 0;
 
   const handleComplete = () => {
@@ -168,17 +209,33 @@ export default function DungeonPage() {
   return (
     <div className="relative min-h-screen bg-void p-4 md:p-6">
       <ShadowParticles />
-      <AnimatePresence>{showComplete && <CompletionOverlay onClose={() => { setShowComplete(false); router.push("/dashboard"); }} />}</AnimatePresence>
+      <AnimatePresence>
+        {showComplete && (
+          <CompletionOverlay
+            onClose={() => {
+              setShowComplete(false);
+              router.push("/dashboard");
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       <div className="relative z-10 max-w-3xl mx-auto space-y-4">
         {/* Dungeon HUD */}
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
           <SystemPanel glowColor="purple">
             <div className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="font-mono text-xs text-monarch-light tracking-widest">◈ DUNGEON ACTIVE</p>
-                  <h2 className="font-cinzel text-sm font-bold text-white mt-0.5">{activeDungeon.name}</h2>
+                  <p className="font-mono text-xs text-monarch-light tracking-widest">
+                    ◈ DUNGEON ACTIVE
+                  </p>
+                  <h2 className="font-cinzel text-sm font-bold text-white mt-0.5">
+                    {activeDungeon.name}
+                  </h2>
                 </div>
                 <div className="flex items-center gap-3">
                   <RankBadge rank={activeDungeon.rank} size="sm" />
@@ -193,7 +250,9 @@ export default function DungeonPage() {
               <div>
                 <div className="flex justify-between font-mono text-xs text-system-blue/60 mb-1">
                   <span>DUNGEON PROGRESS</span>
-                  <span>{completedSets} / {totalSets} sets</span>
+                  <span>
+                    {completedSets} / {totalSets} sets
+                  </span>
                 </div>
                 <div className="h-2 bg-shadow-dark rounded-full overflow-hidden">
                   <motion.div
@@ -226,12 +285,21 @@ export default function DungeonPage() {
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div>
-                        <h3 className={clsx("font-cinzel text-base font-bold", exCompleted ? "text-gold" : "text-white")}>
+                        <h3
+                          className={clsx(
+                            "font-cinzel text-base font-bold",
+                            exCompleted ? "text-gold" : "text-white",
+                          )}
+                        >
                           {exercise.name}
                         </h3>
-                        <p className="font-mono text-xs text-slate-500">{exercise.targetMuscle}</p>
+                        <p className="font-mono text-xs text-slate-500">
+                          {exercise.targetMuscle}
+                        </p>
                       </div>
-                      {exCompleted && <CheckCircle2 className="text-gold w-5 h-5" />}
+                      {exCompleted && (
+                        <CheckCircle2 className="text-gold w-5 h-5" />
+                      )}
                     </div>
 
                     {/* Sets grid */}
@@ -246,16 +314,22 @@ export default function DungeonPage() {
                             "p-3 rounded-lg border text-center transition-all duration-200",
                             set.completed
                               ? "bg-success/15 border-success/40 shadow-[0_0_8px_rgba(0,255,136,0.3)]"
-                              : "bg-shadow-mid border-system-blue/20 hover:border-system-blue/50"
+                              : "bg-shadow-mid border-system-blue/20 hover:border-system-blue/50",
                           )}
                         >
                           <div className="flex items-center justify-center mb-1">
-                            {set.completed
-                              ? <CheckCircle2 className="text-success w-4 h-4" />
-                              : <Circle className="text-slate-600 w-4 h-4" />}
+                            {set.completed ? (
+                              <CheckCircle2 className="text-success w-4 h-4" />
+                            ) : (
+                              <Circle className="text-slate-600 w-4 h-4" />
+                            )}
                           </div>
-                          <p className="font-mono text-xs text-white font-bold">Set {setIdx + 1}</p>
-                          <p className="font-mono text-xs text-slate-400">{set.reps} × {set.weight}kg</p>
+                          <p className="font-mono text-xs text-white font-bold">
+                            Set {setIdx + 1}
+                          </p>
+                          <p className="font-mono text-xs text-slate-400">
+                            {set.reps} × {set.weight}kg
+                          </p>
                         </motion.button>
                       ))}
                     </div>
@@ -281,11 +355,13 @@ export default function DungeonPage() {
               progress >= 1
                 ? "bg-gold text-void shadow-gold animate-glow-pulse"
                 : progress > 0.5
-                ? "bg-monarch-purple/30 border border-monarch-purple/50 text-monarch-light hover:bg-monarch-purple/50"
-                : "bg-shadow-mid border border-slate-700 text-slate-600 cursor-not-allowed"
+                  ? "bg-monarch-purple/30 border border-monarch-purple/50 text-monarch-light hover:bg-monarch-purple/50"
+                  : "bg-shadow-mid border border-slate-700 text-slate-600 cursor-not-allowed",
             )}
           >
-            {progress >= 1 ? "⚔ DEFEAT THE BOSS — DUNGEON CLEAR" : "⚔ COMPLETE DUNGEON"}
+            {progress >= 1
+              ? "⚔ DEFEAT THE BOSS — DUNGEON CLEAR"
+              : "⚔ COMPLETE DUNGEON"}
           </motion.button>
         </motion.div>
       </div>

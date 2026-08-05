@@ -38,8 +38,7 @@ export function buildContainer(seed: ContainerSeed = {}): Container {
     rng: seed.rng ?? seededRng(Date.now() >>> 0),
     hunters: new HunterRepo(db),
     idempotency: new IdempotencyRepo(db),
-    tzOffsetMinutes:
-      seed.tzOffsetMinutes ?? getEnv().HUNTER_TZ_OFFSET_MINUTES,
+    tzOffsetMinutes: seed.tzOffsetMinutes ?? getEnv().HUNTER_TZ_OFFSET_MINUTES,
   };
 }
 

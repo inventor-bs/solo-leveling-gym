@@ -33,13 +33,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className={`${cinzel.variable} ${inter.variable} ${jetbrains.variable} bg-void min-h-screen`}>
+      <body
+        className={`${cinzel.variable} ${inter.variable} ${jetbrains.variable} bg-void min-h-screen`}
+      >
         <div className="noise-overlay" />
         <div className="flex min-h-screen">
           <Sidebar />
-          <main className="flex-1 ml-0 md:ml-64 relative">
-            {children}
-          </main>
+          <main className="flex-1 ml-0 md:ml-64 relative">{children}</main>
         </div>
         <SystemToastProvider />
       </body>

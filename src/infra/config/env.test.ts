@@ -26,7 +26,9 @@ describe("parseEnv", () => {
   });
 
   it("errors when HUNTER_PIN is shorter than 4 characters", () => {
-    expect(() => parseEnv({ ...valid, HUNTER_PIN: "12" })).toThrow(/HUNTER_PIN/);
+    expect(() => parseEnv({ ...valid, HUNTER_PIN: "12" })).toThrow(
+      /HUNTER_PIN/,
+    );
   });
 
   it("errors when SESSION_SECRET is shorter than 32 characters", () => {
@@ -42,6 +44,8 @@ describe("parseEnv", () => {
   it("collects multiple errors into a single message", () => {
     expect(() =>
       parseEnv({ TURSO_DATABASE_URL: undefined, HUNTER_PIN: "1" }),
-    ).toThrow(/TURSO_DATABASE_URL[\s\S]*HUNTER_PIN|HUNTER_PIN[\s\S]*SESSION_SECRET/);
+    ).toThrow(
+      /TURSO_DATABASE_URL[\s\S]*HUNTER_PIN|HUNTER_PIN[\s\S]*SESSION_SECRET/,
+    );
   });
 });

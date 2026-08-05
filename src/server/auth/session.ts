@@ -31,7 +31,11 @@ export function verifySession(
   // elements are read explicitly and checked — types now match the invariant.
   const expiresAtRaw = parts[0];
   const signature = parts[1];
-  if (parts.length !== 2 || expiresAtRaw === undefined || signature === undefined) {
+  if (
+    parts.length !== 2 ||
+    expiresAtRaw === undefined ||
+    signature === undefined
+  ) {
     return false;
   }
 

@@ -5,10 +5,30 @@ import { useAppStore } from "@/ui/stores/useAppStore";
 import clsx from "clsx";
 
 const TYPE_CONFIG = {
-  info:    { border: "border-system-blue/50",   bg: "bg-system-blue/10",   icon: "◈", text: "text-system-blue" },
-  warning: { border: "border-warning/50",        bg: "bg-warning/10",       icon: "⚠", text: "text-warning" },
-  danger:  { border: "border-danger/50",         bg: "bg-danger/10",        icon: "⚡", text: "text-danger" },
-  success: { border: "border-success/50",        bg: "bg-success/10",       icon: "✦", text: "text-success" },
+  info: {
+    border: "border-system-blue/50",
+    bg: "bg-system-blue/10",
+    icon: "◈",
+    text: "text-system-blue",
+  },
+  warning: {
+    border: "border-warning/50",
+    bg: "bg-warning/10",
+    icon: "⚠",
+    text: "text-warning",
+  },
+  danger: {
+    border: "border-danger/50",
+    bg: "bg-danger/10",
+    icon: "⚡",
+    text: "text-danger",
+  },
+  success: {
+    border: "border-success/50",
+    bg: "bg-success/10",
+    icon: "✦",
+    text: "text-success",
+  },
 };
 
 export function SystemToastProvider() {
@@ -27,14 +47,24 @@ export function SystemToastProvider() {
               exit={{ opacity: 0, x: 60, scale: 0.9 }}
               className={clsx(
                 "pointer-events-auto system-panel rounded-lg px-4 py-3 border max-w-xs",
-                cfg.border, cfg.bg
+                cfg.border,
+                cfg.bg,
               )}
               onClick={() => removeNotification(n.id)}
             >
               <div className="system-panel-inner flex items-start gap-2">
-                <span className={clsx("font-mono text-sm animate-glow-pulse", cfg.text)}>{cfg.icon}</span>
+                <span
+                  className={clsx(
+                    "font-mono text-sm animate-glow-pulse",
+                    cfg.text,
+                  )}
+                >
+                  {cfg.icon}
+                </span>
                 <div>
-                  <p className="font-mono text-xs text-slate-300 leading-relaxed">{n.message}</p>
+                  <p className="font-mono text-xs text-slate-300 leading-relaxed">
+                    {n.message}
+                  </p>
                 </div>
               </div>
             </motion.div>

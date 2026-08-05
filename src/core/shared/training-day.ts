@@ -29,7 +29,9 @@ const TRAINING_DAY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 export class InvalidTrainingDayError extends Error {
   constructor(value: string) {
-    super(`Invalid TrainingDay: ${JSON.stringify(value)} (expected YYYY-MM-DD)`);
+    super(
+      `Invalid TrainingDay: ${JSON.stringify(value)} (expected YYYY-MM-DD)`,
+    );
     this.name = "InvalidTrainingDayError";
   }
 }
@@ -119,7 +121,9 @@ export function trainingDayEnd(
 /** Adds (or subtracts, when n is negative) a number of calendar days. */
 export function addDays(day: TrainingDay, n: number): TrainingDay {
   const { year, month, day: d } = partsOf(day);
-  return formatUtcParts(new Date(Date.UTC(year, month - 1, d) + n * MS_PER_DAY));
+  return formatUtcParts(
+    new Date(Date.UTC(year, month - 1, d) + n * MS_PER_DAY),
+  );
 }
 
 /** Number of calendar days from `from` to `to`. Negative if `to` precedes `from`. */
