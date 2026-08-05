@@ -1,0 +1,179 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-cinzel: 'Cinzel', serif;
+  --font-inter: 'Inter', sans-serif;
+  --font-jetbrains: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #080810;
+  color: #e2e8f0;
+  font-family: var(--font-inter);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #080810; }
+::-webkit-scrollbar-thumb { background: #00D4FF33; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #00D4FF66; }
+
+/* System Panel base */
+.system-panel {
+  background: rgba(13, 13, 26, 0.95);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.1), inset 0 0 20px rgba(0, 212, 255, 0.03);
+  position: relative;
+  backdrop-filter: blur(12px);
+}
+
+.system-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 212, 255, 0.012) 2px,
+    rgba(0, 212, 255, 0.012) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Corner decorations */
+.system-panel-inner {
+  position: relative;
+  z-index: 1;
+}
+
+/* Corner marks */
+.system-corner::before,
+.system-corner::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: #00D4FF;
+  border-style: solid;
+  opacity: 0.8;
+}
+.system-corner-tl::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+.system-corner-tr::after  { top: -1px; right: -1px; border-width: 2px 2px 0 0; }
+
+/* System text flicker */
+@keyframes text-flicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.7; }
+  94% { opacity: 1; }
+  96% { opacity: 0.8; }
+  97% { opacity: 1; }
+}
+
+.system-flicker {
+  animation: text-flicker 5s infinite;
+}
+
+/* Holographic shimmer */
+.holo-text {
+  background: linear-gradient(90deg, #00D4FF, #7B2FBE, #00D4FF);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: rank-shine 3s linear infinite;
+}
+
+/* Stat bar fill animation */
+@keyframes bar-fill {
+  from { width: 0%; }
+}
+
+.stat-bar-fill {
+  animation: bar-fill 1s ease-out;
+}
+
+/* Level up burst */
+@keyframes level-burst {
+  0% { transform: scale(0.5); opacity: 0; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.level-burst {
+  animation: level-burst 0.5s ease-out;
+}
+
+/* Danger pulse */
+@keyframes danger-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 51, 102, 0.3); }
+  50% { box-shadow: 0 0 30px rgba(255, 51, 102, 0.8), 0 0 60px rgba(255, 51, 102, 0.3); }
+}
+
+.danger-pulse {
+  animation: danger-pulse 1.5s ease-in-out infinite;
+}
+
+/* Glow ring spinner */
+@keyframes spin-glow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Typewriter cursor */
+.typewriter::after {
+  content: '|';
+  animation: text-flicker 1s step-end infinite;
+  color: #00D4FF;
+}
+
+/* Noise texture overlay */
+.noise-overlay {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+}
+
+/* Quest complete shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.shimmer-text {
+  background: linear-gradient(90deg, #FFD700 0%, #ffffff 50%, #FFD700 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 2s linear infinite;
+}
+
+/* Rank badge colors */
+.rank-e { color: #9CA3AF; border-color: #9CA3AF44; }
+.rank-d { color: #4ADE80; border-color: #4ADE8044; }
+.rank-c { color: #60A5FA; border-color: #60A5FA44; }
+.rank-b { color: #A78BFA; border-color: #A78BFA44; }
+.rank-a { color: #F59E0B; border-color: #F59E0B44; }
+.rank-s { color: #FF6B35; border-color: #FF6B3544; }
+.rank-national { color: #FF3366; border-color: #FF336644; }
+.rank-monarch { color: #7B2FBE; border-color: #7B2FBE44; }

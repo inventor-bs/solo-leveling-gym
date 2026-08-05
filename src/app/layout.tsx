@@ -1,0 +1,48 @@
+import type { Metadata } from "next";
+import { Cinzel, Inter, JetBrains_Mono } from "next/font/google";
+import "./globals.css";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { SystemToastProvider } from "@/components/ui/SystemToast";
+
+const cinzel = Cinzel({
+  variable: "--font-cinzel",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+});
+
+const jetbrains = JetBrains_Mono({
+  variable: "--font-jetbrains",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "700"],
+});
+
+export const metadata: Metadata = {
+  title: "SYSTEM | Solo Leveling Gym",
+  description: "The System has chosen you. Arise.",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" className="dark">
+      <body className={`${cinzel.variable} ${inter.variable} ${jetbrains.variable} bg-void min-h-screen`}>
+        <div className="noise-overlay" />
+        <div className="flex min-h-screen">
+          <Sidebar />
+          <main className="flex-1 ml-0 md:ml-64 relative">
+            {children}
+          </main>
+        </div>
+        <SystemToastProvider />
+      </body>
+    </html>
+  );
+}
