@@ -1,12 +1,18 @@
 node_modules
 .next
-.env
-.env.local
+.vercel
+
+# Secrets. .env.example is the documented template and must stay tracked.
+.env*
+!.env.example
+
 *.db
 *.db-journal
+/src/infra/db/local.db
+
+coverage
 /test-results
 /playwright-report
-/src/infra/db/local.db
-coverage
-.DS_Store
 *.tsbuildinfo
+
+.DS_Store
