@@ -1,11 +1,11 @@
 "use client";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
-import { useAppStore } from "@/store/useAppStore";
-import { SystemPanel } from "@/components/ui/SystemPanel";
-import { RankBadge } from "@/components/ui/RankBadge";
-import { ShadowParticles } from "@/components/ui/ShadowParticles";
-import { CheckCircle2, Circle, Timer, Swords, ChevronRight, Trophy } from "lucide-react";
+import { useAppStore } from "@/ui/stores/useAppStore";
+import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
+import { RankBadge } from "@/ui/components/primitives/RankBadge";
+import { ShadowParticles } from "@/ui/components/primitives/ShadowParticles";
+import { CheckCircle2, Circle, Timer } from "lucide-react";
 import clsx from "clsx";
 import { useRouter } from "next/navigation";
 

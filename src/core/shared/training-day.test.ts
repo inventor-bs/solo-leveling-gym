@@ -6,6 +6,9 @@ import {
   trainingDayEnd,
   addDays,
   daysBetween,
+  parseTrainingDay,
+  isTrainingDay,
+  InvalidTrainingDayError,
   type TrainingDay,
 } from "./training-day";
 
@@ -129,5 +132,86 @@ describe("daysBetween", () => {
     expect(
       daysBetween("2026-12-30" as TrainingDay, "2027-01-02" as TrainingDay),
     ).toBe(3);
+  });
+});
+
+describe("parseTrainingDay / isTrainingDay", () => {
+  it("accepts a well-formed date", () => {
+    expect(parseTrainingDay("2026-08-05")).toBe("2026-08-05");
+    expect(isTrainingDay("2026-08-05")).toBe(true);
+  });
+
+  it("rejects a non-date string", () => {
+    expect(() => parseTrainingDay("garbage")).toThrow(InvalidTrainingDayError);
+    expect(isTrainingDay("garbage")).toBe(false);
+  });
+
+  it("rejects unpadded components", () => {
+    expect(isTrainingDay("2026-8-5")).toBe(false);
+    expect(isTrainingDay("26-08-05")).toBe(false);
+  });
+
+  it("rejects trailing or leading text", () => {
+    expect(isTrainingDay("2026-08-05T00:00:00Z")).toBe(false);
+    expect(isTrainingDay(" 2026-08-05")).toBe(false);
+    expect(isTrainingDay("")).toBe(false);
+  });
+
+  it("rejects calendar-invalid dates the regex alone would accept", () => {
+    expect(isTrainingDay("2026-13-01")).toBe(false); // month 13
+    expect(isTrainingDay("2026-02-30")).toBe(false); // Feb 30
+    expect(isTrainingDay("2026-00-10")).toBe(false); // month 0
+    expect(isTrainingDay("2026-04-31")).toBe(false); // April has 30 days
+  });
+
+  it("accepts a real leap day and rejects a fake one", () => {
+    expect(isTrainingDay("2028-02-29")).toBe(true); // 2028 is a leap year
+    expect(isTrainingDay("2026-02-29")).toBe(false); // 2026 is not
+  });
+});
+
+describe("malformed input is rejected instead of silently producing NaN", () => {
+  const malformed = "garbage" as unknown as TrainingDay;
+
+  it("REGRESSION: trainingDayStart throws rather than returning NaN", () => {
+    // Before the runtime guard this returned NaN silently, and the NaN
+    // propagated through streak, penalty, and quest-reset logic unnoticed.
+    expect(() => trainingDayStart(malformed, ICT)).toThrow(
+      InvalidTrainingDayError,
+    );
+  });
+
+  it("trainingDayEnd throws", () => {
+    expect(() => trainingDayEnd(malformed, ICT)).toThrow(
+      InvalidTrainingDayError,
+    );
+  });
+
+  it("addDays throws", () => {
+    expect(() => addDays(malformed, 1)).toThrow(InvalidTrainingDayError);
+  });
+
+  it("daysBetween throws on either argument", () => {
+    const valid = "2026-08-05" as TrainingDay;
+    expect(() => daysBetween(malformed, valid)).toThrow(
+      InvalidTrainingDayError,
+    );
+    expect(() => daysBetween(valid, malformed)).toThrow(
+      InvalidTrainingDayError,
+    );
+  });
+
+  it("the error message names the offending value", () => {
+    expect(() => parseTrainingDay("nope")).toThrow(/"nope"/);
+  });
+});
+
+describe("toTrainingDay always emits parseable output", () => {
+  it("round-trips through parseTrainingDay for a range of instants", () => {
+    for (let i = 0; i < 400; i++) {
+      const at = epoch(Date.parse("2026-01-01T00:00:00Z") + i * 86_400_000);
+      const day = toTrainingDay(at, ICT);
+      expect(() => parseTrainingDay(day)).not.toThrow();
+    }
   });
 });

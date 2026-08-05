@@ -1,9 +1,8 @@
 "use client";
 import { motion } from "framer-motion";
 import { useState } from "react";
-import { useAppStore } from "@/store/useAppStore";
-import { SystemPanel } from "@/components/ui/SystemPanel";
-import { ShadowParticles } from "@/components/ui/ShadowParticles";
+import { useAppStore } from "@/ui/stores/useAppStore";
+import { ShadowParticles } from "@/ui/components/primitives/ShadowParticles";
 import clsx from "clsx";
 
 const STORE_ITEMS = [

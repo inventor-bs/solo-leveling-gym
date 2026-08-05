@@ -1,10 +1,10 @@
 "use client";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useState } from "react";
-import { useAppStore } from "@/store/useAppStore";
-import { SystemPanel } from "@/components/ui/SystemPanel";
-import { ShadowParticles } from "@/components/ui/ShadowParticles";
-import { Clock, CheckCircle, Lock, AlertTriangle } from "lucide-react";
+import { useAppStore } from "@/ui/stores/useAppStore";
+import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
+import { ShadowParticles } from "@/ui/components/primitives/ShadowParticles";
+import { Clock, CheckCircle, AlertTriangle } from "lucide-react";
 import clsx from "clsx";
 
 const QUEST_TYPE_STYLE = {
@@ -72,7 +72,6 @@ export default function QuestsPage() {
           {quests.map((quest, idx) => {
             const style = QUEST_TYPE_STYLE[quest.type];
             const isHidden = quest.type === "hidden";
-            const totalProgress = quest.requirements.reduce((acc, r) => acc + (r.current / r.total), 0) / quest.requirements.length;
 
             return (
               <motion.div

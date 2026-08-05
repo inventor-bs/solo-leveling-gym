@@ -1,6 +1,6 @@
 "use client";
 import { motion } from "framer-motion";
-import { ShadowParticles } from "@/components/ui/ShadowParticles";
+import { ShadowParticles } from "@/ui/components/primitives/ShadowParticles";
 import Link from "next/link";
 
 export default function LandingPage() {

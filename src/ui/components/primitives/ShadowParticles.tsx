@@ -1,6 +1,36 @@
 "use client";
 import { useEffect, useRef } from "react";
 
+type Particle = {
+  x: number;
+  y: number;
+  size: number;
+  speedX: number;
+  speedY: number;
+  opacity: number;
+  color: string;
+  life: number;
+  maxLife: number;
+};
+
+/** Non-empty tuple, so indexing modulo its length always yields a string. */
+const COLORS = ["#00D4FF", "#7B2FBE", "#4A90D9", "#00D4FF88"] as const;
+
+const MAX_PARTICLES = 80;
+const SPAWN_EVERY_N_FRAMES = 4;
+const FADE_PORTION = 0.2;
+
+function pickColor(): string {
+  return COLORS[Math.floor(Math.random() * COLORS.length) % COLORS.length]!;
+}
+
+/** Eases opacity in over the first 20% of life and out over the last 20%. */
+function opacityForProgress(progress: number): number {
+  if (progress < FADE_PORTION) return progress / FADE_PORTION;
+  if (progress > 1 - FADE_PORTION) return (1 - progress) / FADE_PORTION;
+  return 1;
+}
+
 export function ShadowParticles() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -11,13 +41,7 @@ export function ShadowParticles() {
     if (!ctx) return;
 
     let animId: number;
-    const particles: {
-      x: number; y: number; size: number;
-      speedX: number; speedY: number;
-      opacity: number; color: string; life: number; maxLife: number;
-    }[] = [];
-
-    const COLORS = ["#00D4FF", "#7B2FBE", "#4A90D9", "#00D4FF88"];
+    const particles: Particle[] = [];
 
     const resize = () => {
       canvas.width = canvas.offsetWidth;
@@ -27,8 +51,7 @@ export function ShadowParticles() {
     window.addEventListener("resize", resize);
 
     const spawn = () => {
-      if (particles.length > 80) return;
-      const maxLife = 120 + Math.random() * 180;
+      if (particles.length > MAX_PARTICLES) return;
       particles.push({
         x: Math.random() * canvas.width,
         y: canvas.height + 10,
@@ -36,8 +59,9 @@ export function ShadowParticles() {
         speedX: (Math.random() - 0.5) * 0.6,
         speedY: -(0.4 + Math.random() * 1.2),
         opacity: 0,
-        color: COLORS[Math.floor(Math.random() * COLORS.length)],
-        life: 0, maxLife,
+        color: pickColor(),
+        life: 0,
+        maxLife: 120 + Math.random() * 180,
       });
     };
 
@@ -45,19 +69,16 @@ export function ShadowParticles() {
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       frame++;
-      if (frame % 4 === 0) spawn();
+      if (frame % SPAWN_EVERY_N_FRAMES === 0) spawn();
 
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
+        if (!p) continue;
+
         p.life++;
         p.x += p.speedX;
         p.y += p.speedY;
-        const progress = p.life / p.maxLife;
-        p.opacity = progress < 0.2
-          ? progress / 0.2
-          : progress > 0.8
-          ? (1 - progress) / 0.2
-          : 1;
+        p.opacity = opacityForProgress(p.life / p.maxLife);
 
         ctx.save();
         ctx.globalAlpha = p.opacity * 0.7;

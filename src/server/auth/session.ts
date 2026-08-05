@@ -27,9 +27,14 @@ export function verifySession(
   now: number,
 ): boolean {
   const parts = token.split(".");
-  if (parts.length !== 2) return false;
+  // A length check alone doesn't narrow an array to a tuple, so the
+  // elements are read explicitly and checked — types now match the invariant.
+  const expiresAtRaw = parts[0];
+  const signature = parts[1];
+  if (parts.length !== 2 || expiresAtRaw === undefined || signature === undefined) {
+    return false;
+  }
 
-  const [expiresAtRaw, signature] = parts;
   const expiresAt = Number(expiresAtRaw);
   if (!Number.isFinite(expiresAt)) return false;
 

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Cinzel, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { SystemToastProvider } from "@/components/ui/SystemToast";
+import { Sidebar } from "@/ui/components/layout/Sidebar";
+import { SystemToastProvider } from "@/ui/components/primitives/SystemToast";
 
 const cinzel = Cinzel({
   variable: "--font-cinzel",

@@ -1,13 +1,13 @@
 "use client";
 import { motion } from "framer-motion";
-import { useAppStore } from "@/store/useAppStore";
-import { SystemPanel } from "@/components/ui/SystemPanel";
-import { RankBadge } from "@/components/ui/RankBadge";
-import { StatBar } from "@/components/ui/StatBar";
-import { ShadowParticles } from "@/components/ui/ShadowParticles";
-import { useSystemToast } from "@/components/ui/SystemToast";
+import { useAppStore } from "@/ui/stores/useAppStore";
+import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
+import { RankBadge } from "@/ui/components/primitives/RankBadge";
+import { StatBar } from "@/ui/components/primitives/StatBar";
+import { ShadowParticles } from "@/ui/components/primitives/ShadowParticles";
+import { useSystemToast } from "@/ui/components/primitives/SystemToast";
 import Link from "next/link";
-import { Flame, Swords, Clock, TrendingUp, Zap, Shield } from "lucide-react";
+import { Flame, Swords, Clock, Shield } from "lucide-react";
 
 export default function DashboardPage() {
   const { hunterName, rank, level, currentExp, maxExp, gold, title, stats, quests, streakDays, shadowArmy } = useAppStore();
@@ -214,7 +214,9 @@ export default function DashboardPage() {
             <SystemPanel header="SIDE QUESTS" className="h-full">
               <div className="p-4 space-y-3">
                 {sideQuests.map((q) => {
-                  const pct = (q.requirements[0].current / q.requirements[0].total) * 100;
+                  const req = q.requirements[0];
+                  if (!req) return null;
+                  const pct = (req.current / req.total) * 100;
                   return (
                     <div key={q.id} className="p-3 rounded-lg bg-shadow-mid/50 border border-system-blue/10 hover:border-system-blue/30 transition-all">
                       <div className="flex items-center justify-between mb-2">
@@ -225,8 +227,8 @@ export default function DashboardPage() {
                         <div className="h-full bg-system-blue/60 rounded-full" style={{ width: `${pct}%` }} />
                       </div>
                       <div className="flex justify-between font-mono text-xs text-slate-500 mt-1">
-                        <span>{q.requirements[0].label}</span>
-                        <span>{q.requirements[0].current}/{q.requirements[0].total} {q.requirements[0].unit}</span>
+                        <span>{req.label}</span>
+                        <span>{req.current}/{req.total} {req.unit}</span>
                       </div>
                     </div>
                   );

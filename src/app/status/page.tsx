@@ -1,12 +1,12 @@
 "use client";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { useAppStore } from "@/store/useAppStore";
-import { SystemPanel } from "@/components/ui/SystemPanel";
-import { RankBadge } from "@/components/ui/RankBadge";
-import { StatBar } from "@/components/ui/StatBar";
-import { ShadowParticles } from "@/components/ui/ShadowParticles";
-import { ChevronUp, ChevronDown, Zap } from "lucide-react";
+import { useAppStore } from "@/ui/stores/useAppStore";
+import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
+import { RankBadge } from "@/ui/components/primitives/RankBadge";
+import { StatBar } from "@/ui/components/primitives/StatBar";
+import { ShadowParticles } from "@/ui/components/primitives/ShadowParticles";
+import { Zap } from "lucide-react";
 
 const STAT_KEYS = [
   { key: "strength",     label: "Strength",     short: "STR", desc: "Physical power — lifting capacity, muscle mass" },

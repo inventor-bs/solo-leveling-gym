@@ -1,9 +1,9 @@
 "use client";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { useAppStore } from "@/store/useAppStore";
-import { SystemPanel } from "@/components/ui/SystemPanel";
-import { ShadowParticles } from "@/components/ui/ShadowParticles";
+import { useAppStore } from "@/ui/stores/useAppStore";
+import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
+import { ShadowParticles } from "@/ui/components/primitives/ShadowParticles";
 import { formatDistanceToNow } from "date-fns";
 import clsx from "clsx";
 

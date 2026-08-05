@@ -1,7 +1,7 @@
 "use client";
-import { useEffect } from "react";
+
 import { motion, AnimatePresence } from "framer-motion";
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore } from "@/ui/stores/useAppStore";
 import clsx from "clsx";
 
 const TYPE_CONFIG = {

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore } from "@/ui/stores/useAppStore";
 import clsx from "clsx";
 import {
   LayoutDashboard, Swords, ScrollText, Users, Package,

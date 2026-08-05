@@ -1,7 +1,7 @@
 "use client";
 import { motion } from "framer-motion";
-import { SystemPanel } from "@/components/ui/SystemPanel";
-import { ShadowParticles } from "@/components/ui/ShadowParticles";
+import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
+import { ShadowParticles } from "@/ui/components/primitives/ShadowParticles";
 import clsx from "clsx";
 
 const SKILLS = [

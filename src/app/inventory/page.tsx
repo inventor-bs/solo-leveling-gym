@@ -1,12 +1,18 @@
 "use client";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { useAppStore } from "@/store/useAppStore";
-import { SystemPanel } from "@/components/ui/SystemPanel";
-import { ShadowParticles } from "@/components/ui/ShadowParticles";
+import { useAppStore, type InventoryItem } from "@/ui/stores/useAppStore";
+import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
+import { ShadowParticles } from "@/ui/components/primitives/ShadowParticles";
 import clsx from "clsx";
 
-const GRADE_STYLE: Record<string, string> = {
+type ItemGrade = InventoryItem["grade"];
+
+/**
+ * Keyed by the grade union rather than `string`, so every lookup is total —
+ * no `undefined` to guard against at each call site.
+ */
+const GRADE_STYLE: Record<ItemGrade, string> = {
   common:    "border-slate-600    text-slate-400     bg-slate-900/50",
   uncommon:  "border-rank-d/50   text-rank-d        bg-rank-d/10",
   rare:      "border-rank-c/50   text-rank-c        bg-rank-c/10",
@@ -14,7 +20,7 @@ const GRADE_STYLE: Record<string, string> = {
   legendary: "border-rank-s/50   text-rank-s        bg-rank-s/10",
 };
 
-const GRADE_GLOW: Record<string, string> = {
+const GRADE_GLOW: Record<ItemGrade, string> = {
   common:   "",
   uncommon: "hover:shadow-[0_0_10px_rgba(74,222,128,0.3)]",
   rare:     "hover:shadow-[0_0_10px_rgba(96,165,250,0.3)]",
@@ -103,7 +109,7 @@ export default function InventoryPage() {
                         </span>
                       )}
                       <span className={clsx("absolute top-1 right-1 font-mono text-[8px] uppercase tracking-wider", GRADE_STYLE[item.grade].split(" ")[1])}>
-                        {item.grade[0].toUpperCase()}
+                        {item.grade.charAt(0).toUpperCase()}
                       </span>
                     </motion.button>
                   );

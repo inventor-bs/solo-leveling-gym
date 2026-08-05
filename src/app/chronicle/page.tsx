@@ -1,7 +1,7 @@
 "use client";
 import { motion } from "framer-motion";
-import { ShadowParticles } from "@/components/ui/ShadowParticles";
-import { SystemPanel } from "@/components/ui/SystemPanel";
+import { ShadowParticles } from "@/ui/components/primitives/ShadowParticles";
+import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const WEEKLY_DATA = [
