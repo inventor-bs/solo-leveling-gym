@@ -36,7 +36,7 @@ export default function ChroniclePage() {
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
           <p className="font-mono text-xs text-system-blue/60 tracking-widest mb-1">◈ SYSTEM — CHRONICLE</p>
           <h1 className="font-cinzel text-3xl font-black text-white">CHRONICLE</h1>
-          <p className="font-mono text-sm text-slate-400 mt-1">The record of the Shadow Monarch's journey.</p>
+          <p className="font-mono text-sm text-slate-400 mt-1">The record of the Shadow Monarch&apos;s journey.</p>
         </motion.div>
 
         {/* Stat graph */}

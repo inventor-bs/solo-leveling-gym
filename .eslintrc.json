@@ -1,0 +1,91 @@
+{
+  "extends": ["next/core-web-vitals"],
+  "plugins": ["import"],
+  "rules": {
+    "import/no-restricted-paths": [
+      "error",
+      {
+        "zones": [
+          {
+            "target": "./src/core",
+            "from": "./src/infra",
+            "message": "core/ không được biết infra/ tồn tại. Dùng ports/."
+          },
+          {
+            "target": "./src/core",
+            "from": "./src/server",
+            "message": "core/ không được import server/."
+          },
+          {
+            "target": "./src/core",
+            "from": "./src/app-services",
+            "message": "Phụ thuộc chảy vào core/, không chảy ra."
+          },
+          {
+            "target": "./src/core",
+            "from": "./src/ui",
+            "message": "core/ là domain thuần, không biết gì về UI."
+          },
+          {
+            "target": "./src/core",
+            "from": "./src/app",
+            "message": "core/ không được import route Next."
+          },
+          {
+            "target": "./src/ports",
+            "from": "./src/infra",
+            "message": "ports/ chỉ chứa interface. infra/ implement chúng, không ngược lại."
+          }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["src/core/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              "next/*",
+              "react",
+              "react-dom",
+              "drizzle-orm",
+              "drizzle-orm/*",
+              "@libsql/*",
+              "@/infra/*",
+              "@/server/*",
+              "@/app-services/*",
+              "@/ui/*",
+              "@/app/*"
+            ]
+          }
+        ],
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "CallExpression[callee.object.name='Date'][callee.property.name='now']",
+            "message": "core/ không được đọc thời gian môi trường. Dùng ClockPort."
+          },
+          {
+            "selector": "CallExpression[callee.object.name='Math'][callee.property.name='random']",
+            "message": "core/ không được sinh số ngẫu nhiên. Dùng RngPort."
+          },
+          {
+            "selector": "MemberExpression[object.object.name='process'][object.property.name='env']",
+            "message": "core/ không được đọc process.env. Nhận cấu hình qua tham số."
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/**/*.test.ts"],
+      "rules": {
+        "no-restricted-syntax": "off",
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "ignorePatterns": ["src/infra/db/migrations/**", ".next/**"]
+}

@@ -133,7 +133,7 @@ export function Sidebar() {
         {/* Footer */}
         <div className="p-4 border-t border-system-blue/10">
           <p className="font-mono text-xs text-system-blue/30 text-center">
-            "From this point on, I will<br />be the one who heals himself."
+            &ldquo;From this point on, I will<br />be the one who heals himself.&rdquo;
           </p>
         </div>
       </aside>
