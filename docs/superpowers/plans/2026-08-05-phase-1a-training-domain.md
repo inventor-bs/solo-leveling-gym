@@ -127,7 +127,7 @@ export interface RunRecord {
 
 - [ ] **Step 2: Xác nhận biên dịch được**
 
-Run: `npx tsc --noEmit`
+Run: `pnpm typecheck`
 Expected: không có lỗi
 
 - [ ] **Step 3: Commit**
@@ -273,7 +273,7 @@ describe("detectPrs", () => {
 
 - [ ] **Step 2: Chạy test để xác nhận thất bại**
 
-Run: `npm test -- src/core/training/pr.test.ts`
+Run: `pnpm test -- src/core/training/pr.test.ts`
 Expected: FAIL — không resolve được `./pr`
 
 - [ ] **Step 3: Implement**
@@ -349,7 +349,7 @@ export function detectPrs(
 
 - [ ] **Step 4: Chạy test để xác nhận pass**
 
-Run: `npm test -- src/core/training/pr.test.ts`
+Run: `pnpm test -- src/core/training/pr.test.ts`
 Expected: PASS, 16 tests
 
 - [ ] **Step 5: Commit**
@@ -495,7 +495,7 @@ describe("averageVolumeLoad", () => {
 
 - [ ] **Step 2: Chạy test để xác nhận thất bại**
 
-Run: `npm test -- src/core/training/volume.test.ts`
+Run: `pnpm test -- src/core/training/volume.test.ts`
 Expected: FAIL — không resolve được `./volume`
 
 - [ ] **Step 3: Implement**
@@ -546,7 +546,7 @@ export function averageVolumeLoad(sessionVolumes: readonly number[]): number {
 
 - [ ] **Step 4: Chạy test để xác nhận pass**
 
-Run: `npm test -- src/core/training/volume.test.ts`
+Run: `pnpm test -- src/core/training/volume.test.ts`
 Expected: PASS, 10 tests
 
 - [ ] **Step 5: Commit**
@@ -729,7 +729,7 @@ describe("toExercisePerformance", () => {
 
 - [ ] **Step 2: Chạy test để xác nhận thất bại**
 
-Run: `npm test -- src/core/training/overload.test.ts`
+Run: `pnpm test -- src/core/training/overload.test.ts`
 Expected: FAIL — không resolve được `./overload`
 
 - [ ] **Step 3: Implement**
@@ -851,7 +851,7 @@ export function toExercisePerformance(
 
 - [ ] **Step 4: Chạy test để xác nhận pass**
 
-Run: `npm test -- src/core/training/overload.test.ts`
+Run: `pnpm test -- src/core/training/overload.test.ts`
 Expected: PASS, 16 tests
 
 - [ ] **Step 5: Commit**
@@ -981,7 +981,7 @@ describe("rankForLevel", () => {
 
 - [ ] **Step 2: Chạy test để xác nhận thất bại**
 
-Run: `npm test -- src/core/hunter/progression.test.ts`
+Run: `pnpm test -- src/core/hunter/progression.test.ts`
 Expected: FAIL — không resolve được `./progression`
 
 - [ ] **Step 3: Implement**
@@ -1065,7 +1065,7 @@ export function rankForLevel(level: number): Rank {
 
 - [ ] **Step 4: Chạy test để xác nhận pass**
 
-Run: `npm test -- src/core/hunter/progression.test.ts`
+Run: `pnpm test -- src/core/hunter/progression.test.ts`
 Expected: PASS, 14 tests
 
 - [ ] **Step 5: Commit**
@@ -1272,7 +1272,7 @@ describe("deriveStats — tính chất chung", () => {
 
 - [ ] **Step 2: Chạy test để xác nhận thất bại**
 
-Run: `npm test -- src/core/hunter/stats.test.ts`
+Run: `pnpm test -- src/core/hunter/stats.test.ts`
 Expected: FAIL — không resolve được `./stats`
 
 - [ ] **Step 3: Implement**
@@ -1402,7 +1402,7 @@ export function deriveStats(input: StatInput): Stats {
 
 - [ ] **Step 4: Chạy test để xác nhận pass**
 
-Run: `npm test -- src/core/hunter/stats.test.ts`
+Run: `pnpm test -- src/core/hunter/stats.test.ts`
 Expected: PASS, 18 tests
 
 - [ ] **Step 5: Commit**
@@ -1523,7 +1523,7 @@ describe("expMultiplierForFatigue", () => {
 
 - [ ] **Step 2: Chạy test để xác nhận thất bại**
 
-Run: `npm test -- src/core/hunter/fatigue.test.ts`
+Run: `pnpm test -- src/core/hunter/fatigue.test.ts`
 Expected: FAIL — không resolve được `./fatigue`
 
 - [ ] **Step 3: Implement**
@@ -1593,7 +1593,7 @@ export function expMultiplierForFatigue(value: number): number {
 
 - [ ] **Step 4: Chạy test để xác nhận pass**
 
-Run: `npm test -- src/core/hunter/fatigue.test.ts`
+Run: `pnpm test -- src/core/hunter/fatigue.test.ts`
 Expected: PASS, 16 tests
 
 - [ ] **Step 5: Commit**
@@ -1676,7 +1676,7 @@ describe("goldForDungeonRank", () => {
 
 - [ ] **Step 2: Chạy test để xác nhận thất bại**
 
-Run: `npm test -- src/core/training/dungeon-rank.test.ts`
+Run: `pnpm test -- src/core/training/dungeon-rank.test.ts`
 Expected: FAIL — không resolve được `./dungeon-rank`
 
 - [ ] **Step 3: Implement**
@@ -1723,13 +1723,13 @@ export function goldForDungeonRank(rank: DungeonRank): number {
 
 - [ ] **Step 4: Chạy test để xác nhận pass**
 
-Run: `npm test -- src/core/training/dungeon-rank.test.ts`
+Run: `pnpm test -- src/core/training/dungeon-rank.test.ts`
 Expected: PASS, 8 tests
 
 - [ ] **Step 5: Chạy toàn bộ kiểm tra**
 
 ```bash
-npm run lint && npm test && npx tsc --noEmit
+pnpm lint && pnpm test && pnpm typecheck
 ```
 
 Expected: cả ba pass. Tổng khoảng 132 unit test (34 từ Phase 0 + 98 từ Phase 1A).
@@ -1745,9 +1745,9 @@ git commit -m "feat(core): derive dungeon rank from relative volume"
 
 ## Definition of Done — Phase 1A
 
-- [ ] `npm test` pass toàn bộ, không có test nào bị skip
-- [ ] `npm run lint` sạch — không file nào trong `src/core/` vi phạm ranh giới
-- [ ] `npx tsc --noEmit` sạch
+- [ ] `pnpm test` pass toàn bộ, không có test nào bị skip
+- [ ] `pnpm lint` sạch — không file nào trong `src/core/` vi phạm ranh giới
+- [ ] `pnpm typecheck` sạch
 - [ ] Mọi hằng số cân bằng nằm trong object `*_TUNING` được export, không rải rác trong thân hàm
 - [ ] Không hàm nào trong `src/core/` nhận buff/item/modifier làm tham số — stat vẫn là số Đo lường thuần
 - [ ] Có test regression cho: detraining làm tụt stat, dungeon rank tụt khi hunter khoẻ lên, deload chỉ sau 2 buổi liên tiếp

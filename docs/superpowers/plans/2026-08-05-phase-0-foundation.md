@@ -6,11 +6,11 @@
 
 **Architecture:** Clean layering một chiều: `app/ → server/ → app-services/ → core/`, với `infra/` implement các interface trong `ports/`. `core/` là domain thuần, không I/O, không framework, không đọc thời gian hay số ngẫu nhiên từ môi trường. Ranh giới được ép bằng ESLint chứ không bằng quy ước.
 
-**Tech Stack:** Next.js 15 · TypeScript 5 (strict) · Drizzle ORM · Turso (libSQL) · Zod · Vitest · Playwright · Node 20
+**Tech Stack:** Next.js 15 · TypeScript 5 (strict) · Drizzle ORM · Turso (libSQL) · Zod · Vitest · Playwright · Node 24
 
 ## Global Constraints
 
-- **Node 20.20.1, npm 10.8.2** — đã cài sẵn trên máy.
+- **Node 24.19.0 (Krypton, Active LTS), pnpm 11.1.3** — ghim bằng `.nvmrc` và trường `packageManager`.
 - **TypeScript `strict: true`** — đã bật trong `tsconfig.json`, không được tắt.
 - **Path alias `@/*` → `./src/*`** — đã cấu hình, dùng nhất quán trong mọi import.
 - **`src/core/**` KHÔNG được import:** `next/*`, `react`, `drizzle-orm`, `@libsql/client`, bất cứ thứ gì trong `src/infra`, `src/server`, `src/ui`, `src/app`, `src/app-services`.
@@ -65,7 +65,7 @@
 
 **Interfaces:**
 - Consumes: (không có — task đầu tiên)
-- Produces: script `npm test`, `npm run test:e2e`, `npm run lint`; alias `@/` hoạt động trong Vitest
+- Produces: script `pnpm test`, `pnpm test:e2e`, `pnpm lint`; alias `@/` hoạt động trong Vitest
 
 - [ ] **Step 1: Khởi tạo git**
 
@@ -93,9 +93,9 @@ coverage
 - [ ] **Step 3: Cài dependencies**
 
 ```bash
-npm install drizzle-orm @libsql/client zod
-npm install -D drizzle-kit vitest @vitest/coverage-v8 @playwright/test eslint-plugin-import dotenv tsx
-npx playwright install chromium
+pnpm add drizzle-orm @libsql/client zod
+pnpm add -D drizzle-kit vitest @vitest/coverage-v8 @playwright/test eslint-plugin-import dotenv tsx
+pnpm exec playwright install chromium
 ```
 
 - [ ] **Step 4: Thêm scripts vào `package.json`**
@@ -140,7 +140,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "npm run dev",
+    command: "pnpm dev",
     url: "http://localhost:3000",
     reuseExistingServer: true,
     timeout: 60_000,
@@ -183,7 +183,7 @@ describe("setup", () => {
 });
 ```
 
-Run: `npm test`
+Run: `pnpm test`
 Expected: PASS, 1 test
 
 - [ ] **Step 9: Xoá file smoke và commit**
@@ -249,7 +249,7 @@ describe("Result", () => {
 
 - [ ] **Step 2: Chạy test để xác nhận thất bại**
 
-Run: `npm test -- src/core/shared/result.test.ts`
+Run: `pnpm test -- src/core/shared/result.test.ts`
 Expected: FAIL — `Failed to resolve import "./result"`
 
 - [ ] **Step 3: Implement `Result`**
@@ -278,7 +278,7 @@ export function unwrapOr<T, E>(r: Result<T, E>, fallback: T): T {
 
 - [ ] **Step 4: Chạy test để xác nhận pass**
 
-Run: `npm test -- src/core/shared/result.test.ts`
+Run: `pnpm test -- src/core/shared/result.test.ts`
 Expected: PASS, 4 tests
 
 - [ ] **Step 5: Viết test thất bại cho branded units**
@@ -307,7 +307,7 @@ describe("branded units", () => {
 
 - [ ] **Step 6: Chạy test để xác nhận thất bại**
 
-Run: `npm test -- src/core/shared/units.test.ts`
+Run: `pnpm test -- src/core/shared/units.test.ts`
 Expected: FAIL — không resolve được `./units`
 
 - [ ] **Step 7: Implement branded units**
@@ -339,7 +339,7 @@ export const epoch = (n: number): Epoch => n as Epoch;
 
 - [ ] **Step 8: Chạy test để xác nhận pass**
 
-Run: `npm test -- src/core/shared/units.test.ts`
+Run: `pnpm test -- src/core/shared/units.test.ts`
 Expected: PASS, 2 tests
 
 - [ ] **Step 9: Tạo khung domain events**
@@ -369,7 +369,7 @@ export type DomainEventOfType<T extends DomainEvent["type"]> = Extract<
 
 - [ ] **Step 10: Chạy toàn bộ test và commit**
 
-Run: `npm test`
+Run: `pnpm test`
 Expected: PASS, 6 tests
 
 ```bash
@@ -460,7 +460,7 @@ describe("fixedClock", () => {
 
 - [ ] **Step 3: Chạy test để xác nhận thất bại**
 
-Run: `npm test -- src/infra/clock`
+Run: `pnpm test -- src/infra/clock`
 Expected: FAIL — không resolve được `./system-clock`
 
 - [ ] **Step 4: Implement clock**
@@ -487,7 +487,7 @@ export function fixedClock(iso: string): ClockPort {
 
 - [ ] **Step 5: Chạy test để xác nhận pass**
 
-Run: `npm test -- src/infra/clock`
+Run: `pnpm test -- src/infra/clock`
 Expected: PASS, 2 tests
 
 - [ ] **Step 6: Viết test thất bại cho RNG**
@@ -536,7 +536,7 @@ describe("seededRng", () => {
 
 - [ ] **Step 7: Chạy test để xác nhận thất bại**
 
-Run: `npm test -- src/infra/rng`
+Run: `pnpm test -- src/infra/rng`
 Expected: FAIL — không resolve được `./seeded-rng`
 
 - [ ] **Step 8: Implement seeded RNG**
@@ -577,7 +577,7 @@ export function seededRng(seed: number): RngPort {
 
 - [ ] **Step 9: Chạy test để xác nhận pass**
 
-Run: `npm test -- src/infra/rng`
+Run: `pnpm test -- src/infra/rng`
 Expected: PASS, 4 tests
 
 - [ ] **Step 10: Commit**
@@ -725,7 +725,7 @@ describe("daysBetween", () => {
 
 - [ ] **Step 2: Chạy test để xác nhận thất bại**
 
-Run: `npm test -- src/core/quest/training-day.test.ts`
+Run: `pnpm test -- src/core/quest/training-day.test.ts`
 Expected: FAIL — không resolve được `./training-day`
 
 - [ ] **Step 3: Implement**
@@ -804,7 +804,7 @@ export function daysBetween(from: TrainingDay, to: TrainingDay): number {
 
 - [ ] **Step 4: Chạy test để xác nhận pass**
 
-Run: `npm test -- src/core/quest/training-day.test.ts`
+Run: `pnpm test -- src/core/quest/training-day.test.ts`
 Expected: PASS, 14 tests
 
 - [ ] **Step 5: Commit**
@@ -879,7 +879,7 @@ describe("parseEnv", () => {
 
 - [ ] **Step 2: Chạy test để xác nhận thất bại**
 
-Run: `npm test -- src/infra/config`
+Run: `pnpm test -- src/infra/config`
 Expected: FAIL — không resolve được `./env`
 
 - [ ] **Step 3: Implement**
@@ -920,7 +920,7 @@ export const env: Env = parseEnv(process.env);
 
 - [ ] **Step 4: Chạy test để xác nhận pass**
 
-Run: `npm test -- src/infra/config`
+Run: `pnpm test -- src/infra/config`
 Expected: PASS, 6 tests
 
 - [ ] **Step 5: Tạo `.env` cho local dev**
@@ -1100,8 +1100,8 @@ main().catch((e) => {
 - [ ] **Step 7: Sinh và chạy migration**
 
 ```bash
-npm run db:generate
-npm run db:migrate
+pnpm db:generate
+pnpm db:migrate
 ```
 
 Expected: thư mục `src/infra/db/migrations/` xuất hiện file `.sql`, và console in "Migration hoàn tất."
@@ -1109,7 +1109,7 @@ Expected: thư mục `src/infra/db/migrations/` xuất hiện file `.sql`, và c
 - [ ] **Step 8: Xác nhận bảng đã tạo**
 
 ```bash
-npx tsx -e "import('@libsql/client').then(async(m)=>{const c=m.createClient({url:'file:./src/infra/db/local.db'});const r=await c.execute(\"select name from sqlite_master where type='table' order by name\");console.log(r.rows)})"
+pnpm exec tsx -e "import('@libsql/client').then(async(m)=>{const c=m.createClient({url:'file:./src/infra/db/local.db'});const r=await c.execute(\"select name from sqlite_master where type='table' order by name\");console.log(r.rows)})"
 ```
 
 Expected: kết quả chứa `hunter` và `processed_action`
@@ -1216,7 +1216,7 @@ describe("HunterRepo", () => {
 
 - [ ] **Step 3: Chạy test để xác nhận thất bại**
 
-Run: `npm test -- src/infra/db/repositories/hunter.repo.test.ts`
+Run: `pnpm test -- src/infra/db/repositories/hunter.repo.test.ts`
 Expected: FAIL — không resolve được `./hunter.repo`
 
 - [ ] **Step 4: Implement HunterRepo**
@@ -1271,7 +1271,7 @@ export class HunterRepo {
 
 - [ ] **Step 5: Chạy test để xác nhận pass**
 
-Run: `npm test -- src/infra/db/repositories/hunter.repo.test.ts`
+Run: `pnpm test -- src/infra/db/repositories/hunter.repo.test.ts`
 Expected: PASS, 4 tests
 
 - [ ] **Step 6: Viết test thất bại cho IdempotencyRepo**
@@ -1325,7 +1325,7 @@ describe("IdempotencyRepo", () => {
 
 - [ ] **Step 7: Chạy test để xác nhận thất bại**
 
-Run: `npm test -- src/infra/db/repositories/idempotency.repo.test.ts`
+Run: `pnpm test -- src/infra/db/repositories/idempotency.repo.test.ts`
 Expected: FAIL — không resolve được `./idempotency.repo`
 
 - [ ] **Step 8: Implement IdempotencyRepo**
@@ -1366,7 +1366,7 @@ export class IdempotencyRepo {
 
 - [ ] **Step 9: Chạy test để xác nhận pass**
 
-Run: `npm test -- src/infra/db/repositories`
+Run: `pnpm test -- src/infra/db/repositories`
 Expected: PASS, 8 tests
 
 - [ ] **Step 10: Commit**
@@ -1458,7 +1458,7 @@ describe("checkPin", () => {
 
 - [ ] **Step 2: Chạy test để xác nhận thất bại**
 
-Run: `npm test -- src/server/auth`
+Run: `pnpm test -- src/server/auth`
 Expected: FAIL — không resolve được `./session`
 
 - [ ] **Step 3: Implement session**
@@ -1518,7 +1518,7 @@ export function checkPin(input: string, expected: string): boolean {
 
 - [ ] **Step 4: Chạy test để xác nhận pass**
 
-Run: `npm test -- src/server/auth`
+Run: `pnpm test -- src/server/auth`
 Expected: PASS, 9 tests
 
 - [ ] **Step 5: Implement guard cho server actions**
@@ -1614,7 +1614,7 @@ describe("buildContainer", () => {
 
 - [ ] **Step 2: Chạy test để xác nhận thất bại**
 
-Run: `npm test -- src/server/container.test.ts`
+Run: `pnpm test -- src/server/container.test.ts`
 Expected: FAIL — không resolve được `./container`
 
 - [ ] **Step 3: Implement container**
@@ -1668,7 +1668,7 @@ export const container: Container = buildContainer();
 
 - [ ] **Step 4: Chạy test để xác nhận pass**
 
-Run: `npm test -- src/server/container.test.ts`
+Run: `pnpm test -- src/server/container.test.ts`
 Expected: PASS, 3 tests
 
 - [ ] **Step 5: Commit**
@@ -1691,7 +1691,7 @@ Kiến trúc không được máy kiểm tra sẽ mục trong vài tháng. Task 
 
 **Interfaces:**
 - Consumes: `eslint-plugin-import` (đã cài ở Task 1)
-- Produces: `npm run lint` fail khi `core/` bị nhiễm bẩn
+- Produces: `pnpm lint` fail khi `core/` bị nhiễm bẩn
 
 - [ ] **Step 1: Tạo `.eslintrc.json`**
 
@@ -1785,7 +1785,7 @@ Tạo file vi phạm tạm `src/core/violation.ts`:
 export const bad = Date.now();
 ```
 
-Run: `npm run lint`
+Run: `pnpm lint`
 Expected: FAIL với thông báo "core/ không được đọc thời gian môi trường. Dùng ClockPort."
 
 - [ ] **Step 3: Xác nhận lint phát hiện import xuyên tầng**
@@ -1797,14 +1797,14 @@ import { db } from "@/infra/db/client";
 export const bad = db;
 ```
 
-Run: `npm run lint`
+Run: `pnpm lint`
 Expected: FAIL với thông báo về `drizzle-orm` hoặc `import/no-restricted-paths`
 
 - [ ] **Step 4: Xoá file vi phạm và xác nhận lint sạch**
 
 ```bash
 rm src/core/violation.ts
-npm run lint
+pnpm lint
 ```
 
 Expected: không có lỗi
@@ -1824,7 +1824,7 @@ test("trang chủ tải được", async ({ page }) => {
 
 - [ ] **Step 6: Chạy E2E để xác nhận hạ tầng hoạt động**
 
-Run: `npm run test:e2e`
+Run: `pnpm test:e2e`
 Expected: PASS, 1 test
 
 - [ ] **Step 7: Tạo CI workflow**
@@ -1849,20 +1849,22 @@ jobs:
       HUNTER_TZ_OFFSET_MINUTES: "420"
     steps:
       - uses: actions/checkout@v4
+      # pnpm phải được cài TRƯỚC setup-node, vì cache: pnpm cần lệnh pnpm tồn tại.
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test
-      - run: npx tsc --noEmit
+          node-version-file: ".nvmrc"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm typecheck
 ```
 
 - [ ] **Step 8: Chạy toàn bộ kiểm tra**
 
 ```bash
-npm run lint && npm test && npx tsc --noEmit
+pnpm lint && pnpm test && pnpm typecheck
 ```
 
 Expected: cả ba lệnh pass. Tổng 34 unit test.
@@ -1878,11 +1880,11 @@ git commit -m "chore: enforce architecture boundaries in eslint, add CI workflow
 
 ## Definition of Done — Phase 0
 
-- [ ] `npm run lint` sạch, và **fail** khi cố tình đưa `Date.now()` vào `src/core/`
-- [ ] `npm test` pass toàn bộ 34 unit test
-- [ ] `npx tsc --noEmit` sạch
-- [ ] `npm run test:e2e` pass smoke test
-- [ ] `npm run db:migrate` tạo được bảng `hunter` và `processed_action`
+- [ ] `pnpm lint` sạch, và **fail** khi cố tình đưa `Date.now()` vào `src/core/`
+- [ ] `pnpm test` pass toàn bộ 34 unit test
+- [ ] `pnpm typecheck` sạch
+- [ ] `pnpm test:e2e` pass smoke test
+- [ ] `pnpm db:migrate` tạo được bảng `hunter` và `processed_action`
 - [ ] `toTrainingDay` xử lý đúng ranh giới 23:59 / 00:00 giờ ICT — có test regression cho bug 19:00
 - [ ] `.env` đã điền, `.env.example` đã commit, `.env` bị `.gitignore` chặn
 - [ ] Đã commit đủ 10 lần, mỗi task một commit
