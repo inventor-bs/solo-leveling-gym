@@ -27,12 +27,21 @@ Log in. This opens a browser; GitHub sign-in is the quickest route.
 turso auth login
 ```
 
-Create the database. `sin` (Singapore) is the closest region to Vietnam —
-latency matters here because every page read hits the DB.
+Create the database. Turso has no Singapore region; `aws-ap-northeast-1`
+(Tokyo) is the closest to Vietnam and is also the default.
 
 ```bash
-turso db create solo-leveling-gym --location sin
+turso db create solo-leveling-gym --location aws-ap-northeast-1
 ```
+
+**Region pairing matters more than it looks.** The latency that counts is not
+browser → Vercel, it is **Vercel function → Turso**, because every server-rendered
+page read hits the DB. A function in Washington DC (Vercel's default) talking to
+a DB in Tokyo pays a cross-Pacific round trip on every request.
+
+`vercel.json` therefore pins functions to `hnd1` (Tokyo), matching the DB region.
+On the Hobby plan a single region is allowed; if a deploy is ever rejected over
+this, removing the `regions` key is the fix.
 
 Collect the two values the app needs:
 
