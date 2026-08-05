@@ -9,13 +9,20 @@ Everything below is one-time setup. After it, `git push origin main` deploys.
 
 ## Prerequisites
 
-Already installed on this machine:
+**Turso CLI** is installed at `~/.turso/turso` and on `PATH` in a fresh terminal
+(the installer updated `~/.zshrc`).
 
-- Turso CLI at `~/.turso/turso` (v1.0.31)
-- Vercel CLI at `~/Library/pnpm/bin/vercel` (v58.5.1)
+**Vercel CLI** is not installed, and does not need to be. Run it through `pnpm dlx`:
 
-Neither is on your `PATH` in non-interactive shells. Either open a new terminal
-(both installers updated `~/.zshrc`), or prefix with the full path.
+```bash
+pnpm dlx vercel@latest <command>
+```
+
+This is deliberate. The CLI is only needed for the initial link and first deploy —
+after that, Vercel's GitHub integration deploys on every push to `main`, so the
+CLI never runs again. Installing it globally would mean a PATH change for a
+one-time need; adding it as a devDependency would add ~280 packages to every
+`pnpm install`, including in CI.
 
 ---
 
@@ -69,8 +76,8 @@ forge write access. Use a **different** value from your local `.env`.
 ## Step 3 — Vercel project
 
 ```bash
-vercel login
-vercel link
+pnpm dlx vercel@latest login
+pnpm dlx vercel@latest link
 ```
 
 Accept the defaults when linking — the repo name matches the project name.
@@ -101,11 +108,11 @@ Set them through the dashboard (Project → Settings → Environment Variables),
 on the CLI:
 
 ```bash
-vercel env add TURSO_DATABASE_URL production
-vercel env add TURSO_AUTH_TOKEN production
-vercel env add SESSION_SECRET production
-vercel env add HUNTER_PIN production
-vercel env add HUNTER_TZ_OFFSET_MINUTES production
+pnpm dlx vercel@latest env add TURSO_DATABASE_URL production
+pnpm dlx vercel@latest env add TURSO_AUTH_TOKEN production
+pnpm dlx vercel@latest env add SESSION_SECRET production
+pnpm dlx vercel@latest env add HUNTER_PIN production
+pnpm dlx vercel@latest env add HUNTER_TZ_OFFSET_MINUTES production
 ```
 
 `src/infra/config/env.ts` validates all of these at first use and fails with the
@@ -117,7 +124,7 @@ rather than mysteriously at request time.
 ## Step 5 — Deploy
 
 ```bash
-vercel --prod
+pnpm dlx vercel@latest --prod
 ```
 
 After the first manual deploy, Vercel's GitHub integration takes over: pushes to
