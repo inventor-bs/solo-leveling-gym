@@ -169,6 +169,38 @@ describe("startSession — dungeon break", () => {
     }
   });
 
+  it("REGRESSION: a run logged on an off-day does not forgive a skipped lifting day", async () => {
+    // Trained Monday 2026-08-03, skipped Wednesday, ran Thursday (an
+    // off-day for lifting), now lifting Friday 2026-08-07. The Thursday
+    // run must not erase the missed Wednesday lifting session.
+    const c = await containerOn("2026-08-07T02:00:00.000Z");
+    await c.hunters.create({ name: "Jin-Woo", createdAt: 1 });
+    await c.training.createSession({
+      id: "s1",
+      day: "2026-08-03",
+      programDayId: "upper-a",
+      startedAt: 1,
+    });
+    await c.training.completeSession("s1", 2, "C");
+    await c.training.createRun({
+      id: "r1",
+      day: "2026-08-06",
+      distanceKm: 5,
+      durationSec: 1500,
+      loggedAt: 1,
+    });
+
+    const result = await startSession(c, {
+      programDayId: "upper-b",
+      clientActionId: "d",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.dungeonBreak.missedSessions).toBe(1);
+      expect(result.value.dungeonBreak.multiplier).toBe(1.2);
+    }
+  });
+
   it("REGRESSION: three skipped sessions still cap the carry at +40 percent", async () => {
     // Trained Monday 2026-08-03, then nothing until Saturday 2026-08-15:
     // Wed 5th, Fri 7th, Sat 8th, Mon 10th, Wed 12th, Fri 14th all missed.

@@ -17,6 +17,7 @@ import {
 } from "@/core/penalty/variants";
 import { rankForLevel } from "@/core/hunter/progression";
 import type { Container } from "@/server/container";
+import { ensureDailyQuest } from "./ensure-daily-quest";
 
 /** A hunter who has not trained in this many days gets the way back in. */
 export const DORMANT_DAYS_FOR_REAWAKENING = 14;
@@ -60,7 +61,8 @@ export async function getPenaltyView(
   // A returning hunter is handed the base quest, not the escalated debt.
   const targets = reawakening ? base : survivalTargets(base, daysStuck);
 
-  const quest = await container.quests.byDay(today);
+  const ensured = await ensureDailyQuest(container, today);
+  const quest = ensured.ok ? ensured.value : null;
   const progress: QuestProgress = {
     pushups: quest?.progressPushups ?? 0,
     situps: quest?.progressSitups ?? 0,

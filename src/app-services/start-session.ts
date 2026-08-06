@@ -68,15 +68,14 @@ export async function startSession(
 
   const scheduled = await container.programs.allDays();
   const scheduledWeekdays = new Set(scheduled.map((d) => d.weekday));
-  const lastActive = await container.training.lastActivityDay();
-  const windowStart = lastActive ? addDays(lastActive as TrainingDay, 1) : day;
-  const trained = new Set(
-    await container.training.completedSessionDaysBetween(windowStart, day),
-  );
+  const lastCompleted = await container.training.lastCompletedSessionDay();
+  const windowStart = lastCompleted
+    ? addDays(lastCompleted as TrainingDay, 1)
+    : day;
 
   let missedSessions = 0;
   for (let cursor = windowStart; cursor < day; cursor = addDays(cursor, 1)) {
-    if (scheduledWeekdays.has(isoWeekdayOf(cursor)) && !trained.has(cursor)) {
+    if (scheduledWeekdays.has(isoWeekdayOf(cursor))) {
       missedSessions += 1;
     }
   }

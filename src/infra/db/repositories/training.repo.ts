@@ -260,6 +260,22 @@ export class TrainingRepo {
     return candidates.sort().at(-1) ?? null;
   }
 
+  /**
+   * The most recent day with a COMPLETED LIFTING SESSION only — unlike
+   * lastActivityDay, a logged run does not count. Dungeon Break tracks
+   * skipped lifting days specifically; counting a run here would let an
+   * unrelated run silently forgive a missed lifting session.
+   */
+  async lastCompletedSessionDay(): Promise<string | null> {
+    const rows = await this.db
+      .select({ day: session.day })
+      .from(session)
+      .where(isNotNull(session.endedAt))
+      .orderBy(desc(session.day))
+      .limit(1);
+    return rows[0]?.day ?? null;
+  }
+
   /** Days inside [from, to] that carry a completed session. */
   async completedSessionDaysBetween(
     from: string,

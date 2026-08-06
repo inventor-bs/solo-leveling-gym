@@ -102,6 +102,19 @@ describe("getPenaltyView", () => {
     expect((await getPenaltyView(container))?.canEscape).toBe(true);
   });
 
+  it("REGRESSION: creates today's quest row itself, even if the daily-reset cron never ran", async () => {
+    const today = parseTrainingDay("2026-08-06");
+    await enterPenalty(container, today);
+    // Deliberately NOT calling ensureDailyQuest here — this simulates a
+    // delayed or failed cron run, which the owner's only reachable page
+    // must still recover from.
+
+    const view = await getPenaltyView(container);
+
+    expect(view).not.toBeNull();
+    expect(await container.quests.byDay(today)).not.toBeNull();
+  });
+
   it("REGRESSION: offers the Reawakening Test after fourteen dormant days", async () => {
     // Coming back to a wall of debt after a month is what makes people
     // delete the app. The base-difficulty test is the way back in.

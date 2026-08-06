@@ -111,6 +111,33 @@ describe("TrainingRepo activity lookups", () => {
     expect(await training.lastActivityDay()).toBe("2026-08-01");
   });
 
+  it("has no last completed session day on an empty log", async () => {
+    expect(await new TrainingRepo(db).lastCompletedSessionDay()).toBeNull();
+  });
+
+  it("REGRESSION: ignores a later run when reporting the last completed session day", async () => {
+    // lastActivityDay would return the run's day here. Dungeon Break tracks
+    // skipped lifting days specifically, so a run must not count as the
+    // anchor — that's exactly the bug this method exists to avoid.
+    const training = new TrainingRepo(db);
+    await seedProgram(db);
+    await training.createSession({
+      id: "s1",
+      day: "2026-08-03",
+      programDayId: "upper-a",
+      startedAt: 1,
+    });
+    await training.completeSession("s1", 2, "C");
+    await training.createRun({
+      id: "r1",
+      day: "2026-08-06",
+      distanceKm: 5,
+      durationSec: 1500,
+      loggedAt: 3,
+    });
+    expect(await training.lastCompletedSessionDay()).toBe("2026-08-03");
+  });
+
   it("lists the days that carry a completed session inside a range", async () => {
     const training = new TrainingRepo(db);
     await seedProgram(db);

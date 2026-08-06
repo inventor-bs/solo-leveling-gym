@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { logQuestProgressAction } from "@/server/actions/quest.actions";
 import { escapePenaltyAction } from "@/server/actions/penalty.actions";
+import { logRunAction } from "@/server/actions/training.actions";
 import type { ActionError } from "@/server/actions/action-result";
 import { ActionErrorNotice } from "@/ui/components/primitives/ActionErrorNotice";
 
@@ -30,6 +31,8 @@ export function SurvivalTracker({
   const [error, setError] = useState<ActionError | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const [km, setKm] = useState("");
+  const [minutes, setMinutes] = useState("");
 
   function add(key: Requirement["key"], amount: number) {
     setError(null);
@@ -46,6 +49,23 @@ export function SurvivalTracker({
       const result = await escapePenaltyAction();
       if (result.ok) router.push("/dashboard");
       else setError(result.error);
+    });
+  }
+
+  function logRun() {
+    const distanceKm = Number(km);
+    const durationSec = Number(minutes) * 60;
+    if (!(distanceKm > 0) || !(durationSec > 0)) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await logRunAction({ day, distanceKm, durationSec });
+      if (result.ok) {
+        setKm("");
+        setMinutes("");
+        router.refresh();
+      } else {
+        setError(result.error);
+      }
     });
   }
 
@@ -107,6 +127,31 @@ export function SurvivalTracker({
             }}
           />
         </div>
+        {runDone < runTarget && (
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="number"
+              placeholder="km"
+              value={km}
+              onChange={(e) => setKm(e.target.value)}
+              className="w-16 bg-shadow-dark border border-danger/40 rounded px-2 py-1 text-xs text-white"
+            />
+            <input
+              type="number"
+              placeholder="min"
+              value={minutes}
+              onChange={(e) => setMinutes(e.target.value)}
+              className="w-16 bg-shadow-dark border border-danger/40 rounded px-2 py-1 text-xs text-white"
+            />
+            <button
+              onClick={logRun}
+              disabled={pending}
+              className="flex-1 bg-danger/10 border border-danger/40 text-danger font-mono text-xs rounded py-1 hover:bg-danger/20 disabled:opacity-30"
+            >
+              LOG RUN
+            </button>
+          </div>
+        )}
       </div>
 
       <button
