@@ -199,10 +199,31 @@ describe("logSet — shadow extraction", () => {
 
   it("REGRESSION: a non-PR set never extracts a shadow", async () => {
     const container = await containerWithActiveSessionAndShadows();
-    // First log a genuine PR so there IS a historical best (and Tank is
-    // already extracted by it), then log a smaller set on the same
-    // exercise — it must not re-trigger anything.
-    await logSet(container, {
+    // Seed a prior completed session with a higher e1RM on barbell-row, so
+    // the set logged below is provably NOT a PR (isPr will be false) while
+    // Tank is still unextracted. This isolates the isPr gate: if it were
+    // ever removed, extraction would still fire on this "first encounter"
+    // for the shadow and the assertions below would catch it.
+    await container.training.createSession({
+      id: "session-0",
+      day: "2026-08-04",
+      programDayId: "upper-a",
+      startedAt: 0,
+    });
+    await container.training.upsertSetLog({
+      id: "old-set",
+      sessionId: "session-0",
+      exerciseId: "barbell-row",
+      setIndex: 0,
+      reps: 8,
+      weight: 100,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+    await container.training.completeSession("session-0", 100, "C");
+
+    const result = await logSet(container, {
       sessionId: "session-1",
       exerciseId: "barbell-row",
       setIndex: 0,
@@ -211,22 +232,16 @@ describe("logSet — shadow extraction", () => {
       completed: true,
       clientActionId: "a",
     });
-
-    const result = await logSet(container, {
-      sessionId: "session-1",
-      exerciseId: "barbell-row",
-      setIndex: 1,
-      reps: 8,
-      weight: 40,
-      completed: true,
-      clientActionId: "b",
-    });
     expect(result.ok).toBe(true);
     if (result.ok) {
+      expect(result.value.isPr).toBe(false);
       expect(result.value.events.some((e) => e.type === "ShadowArisen")).toBe(
         false,
       );
     }
+
+    const tank = await container.shadows.byId("tank");
+    expect(tank?.extractedAt).toBeNull();
   });
 
   it("emits a ShadowArisen event carrying the shadow's name", async () => {
