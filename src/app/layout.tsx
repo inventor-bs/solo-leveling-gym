@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Cinzel, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/ui/components/layout/Sidebar";
 import { SystemToastProvider } from "@/ui/components/primitives/SystemToast";
 
 const cinzel = Cinzel({
@@ -37,10 +36,7 @@ export default function RootLayout({
         className={`${cinzel.variable} ${inter.variable} ${jetbrains.variable} bg-void min-h-screen`}
       >
         <div className="noise-overlay" />
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <main className="flex-1 ml-0 md:ml-64 relative">{children}</main>
-        </div>
+        {children}
         <SystemToastProvider />
       </body>
     </html>
