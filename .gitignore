@@ -5,6 +5,7 @@ node_modules
 # Internal planning/spec docs and agent context — kept locally, not published.
 /docs
 /CLAUDE.md
+/.claude
 
 # Secrets. .env.example is the documented template and must stay tracked.
 .env*
