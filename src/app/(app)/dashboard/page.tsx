@@ -4,17 +4,11 @@ import { getContainer } from "@/server/container";
 import { rankForLevel } from "@/core/hunter/progression";
 import { buildSystemMessage } from "@/core/system-voice/template-engine";
 import { seededRng } from "@/infra/rng/seeded-rng";
-import { toTrainingDay } from "@/core/shared/training-day";
+import { toTrainingDay, isoWeekdayOf } from "@/core/shared/training-day";
 import { getQuestView } from "@/app-services/quest-view";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { RankBadge } from "@/ui/components/primitives/RankBadge";
 import { RunLogForm } from "@/ui/components/dungeon/RunLogForm";
-
-function isoWeekday(day: string): number {
-  const [y, m, d] = day.split("-").map(Number);
-  const jsDay = new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1)).getUTCDay();
-  return jsDay === 0 ? 7 : jsDay;
-}
 
 export default async function DashboardPage() {
   await redirectOwnerIfPenalised();
@@ -23,7 +17,7 @@ export default async function DashboardPage() {
   if (!hunter) return null;
 
   const today = toTrainingDay(container.clock.now(), container.tzOffsetMinutes);
-  const weekday = isoWeekday(today);
+  const weekday = isoWeekdayOf(today);
   const program = await container.programs.byWeekday(weekday);
   const isRunDay = weekday === 2 || weekday === 4;
   const isRestDay = weekday === 7;

@@ -106,3 +106,92 @@ describe("startSession", () => {
     ).toBe(true);
   });
 });
+
+describe("startSession — dungeon break", () => {
+  /** Container whose clock reads 09:00 ICT on the given calendar day. */
+  async function containerOn(iso: string) {
+    const db = await makeTestDb();
+    const c = buildContainer({
+      db,
+      clock: fixedClock(iso),
+      tzOffsetMinutes: 420,
+    });
+    await seedProgram(db);
+    return c;
+  }
+
+  it("leaves the plan alone when the previous scheduled day was trained", async () => {
+    // Trained Monday 2026-08-03, now Wednesday 2026-08-05: nothing skipped.
+    const c = await containerOn("2026-08-05T02:00:00.000Z");
+    await c.hunters.create({ name: "Jin-Woo", createdAt: 1 });
+    await c.training.createSession({
+      id: "s1",
+      day: "2026-08-03",
+      programDayId: "upper-a",
+      startedAt: 1,
+    });
+    await c.training.completeSession("s1", 2, "C");
+
+    const result = await startSession(c, {
+      programDayId: "lower-a",
+      clientActionId: "a",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.dungeonBreak.missedSessions).toBe(0);
+      expect(result.value.dungeonBreak.multiplier).toBe(1);
+      // Upper A's first slot is 4 sets in the seeded program.
+      expect(result.value.plan[0]?.targetSets).toBe(4);
+    }
+  });
+
+  it("carries one skipped session forward at +20 percent", async () => {
+    // Trained Monday 2026-08-03, skipped Wednesday, now Friday 2026-08-07.
+    const c = await containerOn("2026-08-07T02:00:00.000Z");
+    await c.hunters.create({ name: "Jin-Woo", createdAt: 1 });
+    await c.training.createSession({
+      id: "s1",
+      day: "2026-08-03",
+      programDayId: "upper-a",
+      startedAt: 1,
+    });
+    await c.training.completeSession("s1", 2, "C");
+
+    const result = await startSession(c, {
+      programDayId: "upper-b",
+      clientActionId: "b",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.dungeonBreak.missedSessions).toBe(1);
+      expect(result.value.dungeonBreak.multiplier).toBe(1.2);
+      expect(result.value.plan[0]?.targetSets).toBe(5); // 4 * 1.2 = 4.8 -> 5
+    }
+  });
+
+  it("REGRESSION: three skipped sessions still cap the carry at +40 percent", async () => {
+    // Trained Monday 2026-08-03, then nothing until Saturday 2026-08-15:
+    // Wed 5th, Fri 7th, Sat 8th, Mon 10th, Wed 12th, Fri 14th all missed.
+    // Without the cap this would compound into a session nobody can finish,
+    // which turns a nudge into a reason to quit.
+    const c = await containerOn("2026-08-15T02:00:00.000Z");
+    await c.hunters.create({ name: "Jin-Woo", createdAt: 1 });
+    await c.training.createSession({
+      id: "s1",
+      day: "2026-08-03",
+      programDayId: "upper-a",
+      startedAt: 1,
+    });
+    await c.training.completeSession("s1", 2, "C");
+
+    const result = await startSession(c, {
+      programDayId: "lower-b",
+      clientActionId: "c",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.dungeonBreak.missedSessions).toBeGreaterThan(2);
+      expect(result.value.dungeonBreak.multiplier).toBe(1.4);
+    }
+  });
+});

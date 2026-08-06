@@ -1,6 +1,16 @@
+import type { DomainEvent } from "@/core/shared/events";
 import { ok, err, type Result } from "@/core/shared/result";
-import { toTrainingDay } from "@/core/shared/training-day";
+import {
+  addDays,
+  isoWeekdayOf,
+  toTrainingDay,
+  type TrainingDay,
+} from "@/core/shared/training-day";
 import { kg, reps } from "@/core/shared/units";
+import {
+  carriedSets,
+  dungeonBreakMultiplier,
+} from "@/core/training/dungeon-break";
 import { suggestNextLoad, type OverloadAction } from "@/core/training/overload";
 import type { Container } from "@/server/container";
 
@@ -22,6 +32,8 @@ export type StartSessionResult = {
   programDayId: string;
   startedAt: number;
   plan: PlannedExercise[];
+  dungeonBreak: { missedSessions: number; multiplier: number };
+  events: DomainEvent[];
 };
 
 export type StartSessionError = { type: "program-day-not-found" };
@@ -54,6 +66,22 @@ export async function startSession(
     startedAt: now,
   });
 
+  const scheduled = await container.programs.allDays();
+  const scheduledWeekdays = new Set(scheduled.map((d) => d.weekday));
+  const lastActive = await container.training.lastActivityDay();
+  const windowStart = lastActive ? addDays(lastActive as TrainingDay, 1) : day;
+  const trained = new Set(
+    await container.training.completedSessionDaysBetween(windowStart, day),
+  );
+
+  let missedSessions = 0;
+  for (let cursor = windowStart; cursor < day; cursor = addDays(cursor, 1)) {
+    if (scheduledWeekdays.has(isoWeekdayOf(cursor)) && !trained.has(cursor)) {
+      missedSessions += 1;
+    }
+  }
+  const multiplier = dungeonBreakMultiplier(missedSessions);
+
   const plan: PlannedExercise[] = [];
   for (const { exercise, slot } of program.exercises) {
     const history = await container.training.getExercisePerformanceHistory(
@@ -69,7 +97,7 @@ export async function startSession(
       exerciseId: exercise.id,
       name: exercise.name,
       muscle: exercise.muscle,
-      targetSets: slot.targetSets,
+      targetSets: carriedSets(slot.targetSets, missedSessions),
       repMin: slot.repMin,
       repMax: slot.repMax,
       suggestedWeight: decision.weight,
@@ -78,12 +106,19 @@ export async function startSession(
     });
   }
 
+  const events: DomainEvent[] = [];
+  if (missedSessions > 0) {
+    events.push({ type: "DungeonBreak", missedSessions, multiplier });
+  }
+
   const result: StartSessionResult = {
     sessionId,
     day,
     programDayId: input.programDayId,
     startedAt: now,
     plan,
+    dungeonBreak: { missedSessions, multiplier },
+    events,
   };
   await container.idempotency.remember(input.clientActionId, result, now);
   return ok(result);

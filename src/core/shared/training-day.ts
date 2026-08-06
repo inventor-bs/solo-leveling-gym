@@ -136,3 +136,10 @@ export function daysBetween(from: TrainingDay, to: TrainingDay): number {
       MS_PER_DAY,
   );
 }
+
+/** ISO weekday, 1 = Monday through 7 = Sunday. */
+export function isoWeekdayOf(day: TrainingDay): number {
+  const { year, month, day: d } = partsOf(day);
+  const jsDay = new Date(Date.UTC(year, month - 1, d)).getUTCDay();
+  return jsDay === 0 ? 7 : jsDay;
+}

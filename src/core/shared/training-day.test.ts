@@ -6,6 +6,7 @@ import {
   trainingDayEnd,
   addDays,
   daysBetween,
+  isoWeekdayOf,
   parseTrainingDay,
   isTrainingDay,
   InvalidTrainingDayError,
@@ -132,6 +133,20 @@ describe("daysBetween", () => {
     expect(
       daysBetween("2026-12-30" as TrainingDay, "2027-01-02" as TrainingDay),
     ).toBe(3);
+  });
+});
+
+describe("isoWeekdayOf", () => {
+  it("maps known days to their ISO weekday", () => {
+    // 2026-08-03 is a Monday.
+    expect(isoWeekdayOf("2026-08-03" as TrainingDay)).toBe(1);
+    expect(isoWeekdayOf("2026-08-05" as TrainingDay)).toBe(3); // Wednesday
+    expect(isoWeekdayOf("2026-08-07" as TrainingDay)).toBe(5); // Friday
+    expect(isoWeekdayOf("2026-08-08" as TrainingDay)).toBe(6); // Saturday
+  });
+
+  it("REGRESSION: Sunday (JS getUTCDay 0) maps to ISO 7, not 0", () => {
+    expect(isoWeekdayOf("2026-08-09" as TrainingDay)).toBe(7); // Sunday
   });
 });
 
