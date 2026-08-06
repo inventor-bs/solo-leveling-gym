@@ -3,6 +3,7 @@ import { fixedClock } from "@/infra/clock/system-clock";
 import { makeTestDb } from "@/infra/db/testing/make-test-db";
 import { seedProgram } from "@/infra/db/seed/program";
 import { buildContainer } from "@/server/container";
+import { SHADOW_ROSTER } from "@/core/shadow/roster";
 import { logSet } from "./log-set";
 
 async function containerWithActiveSession() {
@@ -21,6 +22,19 @@ async function containerWithActiveSession() {
     programDayId: "upper-a",
     startedAt: 0,
   });
+  return container;
+}
+
+async function containerWithActiveSessionAndShadows() {
+  const container = await containerWithActiveSession();
+  await container.shadows.seed(
+    SHADOW_ROSTER.map((s) => ({
+      id: s.id,
+      name: s.name,
+      muscle: s.muscle,
+      extractedAt: s.startsExtracted ? 0 : null,
+    })),
+  );
   return container;
 }
 
@@ -160,5 +174,115 @@ describe("logSet", () => {
     const sets = await container.training.getSetsForSession("session-1");
     expect(sets).toHaveLength(1);
     expect(sets[0]?.weight).toBe(80); // the first call's value, not the retry's
+  });
+});
+
+describe("logSet — shadow extraction", () => {
+  it("extracts the matching shadow on that muscle group's first PR", async () => {
+    const container = await containerWithActiveSessionAndShadows();
+    const before = await container.shadows.byId("tank");
+    expect(before?.extractedAt).toBeNull();
+
+    await logSet(container, {
+      sessionId: "session-1",
+      exerciseId: "barbell-row",
+      setIndex: 0,
+      reps: 8,
+      weight: 60,
+      completed: true,
+      clientActionId: "a",
+    });
+
+    const after = await container.shadows.byId("tank");
+    expect(after?.extractedAt).not.toBeNull();
+  });
+
+  it("REGRESSION: a non-PR set never extracts a shadow", async () => {
+    const container = await containerWithActiveSessionAndShadows();
+    // First log a genuine PR so there IS a historical best (and Tank is
+    // already extracted by it), then log a smaller set on the same
+    // exercise — it must not re-trigger anything.
+    await logSet(container, {
+      sessionId: "session-1",
+      exerciseId: "barbell-row",
+      setIndex: 0,
+      reps: 8,
+      weight: 60,
+      completed: true,
+      clientActionId: "a",
+    });
+
+    const result = await logSet(container, {
+      sessionId: "session-1",
+      exerciseId: "barbell-row",
+      setIndex: 1,
+      reps: 8,
+      weight: 40,
+      completed: true,
+      clientActionId: "b",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.events.some((e) => e.type === "ShadowArisen")).toBe(
+        false,
+      );
+    }
+  });
+
+  it("emits a ShadowArisen event carrying the shadow's name", async () => {
+    const container = await containerWithActiveSessionAndShadows();
+    const result = await logSet(container, {
+      sessionId: "session-1",
+      exerciseId: "barbell-row",
+      setIndex: 0,
+      reps: 8,
+      weight: 60,
+      completed: true,
+      clientActionId: "a",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const arisen = result.value.events.find((e) => e.type === "ShadowArisen");
+      expect(arisen).toMatchObject({ shadowId: "tank", shadowName: "Tank" });
+    }
+  });
+
+  it("does nothing to an already-extracted shadow on a later PR", async () => {
+    // bench-press is chest — Igris, seeded already extracted above.
+    const container = await containerWithActiveSessionAndShadows();
+    const result = await logSet(container, {
+      sessionId: "session-1",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 5,
+      weight: 100,
+      completed: true,
+      clientActionId: "a",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.events.some((e) => e.type === "ShadowArisen")).toBe(
+        false,
+      );
+    }
+  });
+
+  it("REGRESSION: does nothing when the shadow roster hasn't been seeded", async () => {
+    const container = await containerWithActiveSession(); // no shadows.seed call
+    const result = await logSet(container, {
+      sessionId: "session-1",
+      exerciseId: "barbell-row",
+      setIndex: 0,
+      reps: 8,
+      weight: 60,
+      completed: true,
+      clientActionId: "a",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.events.some((e) => e.type === "ShadowArisen")).toBe(
+        false,
+      );
+    }
   });
 });

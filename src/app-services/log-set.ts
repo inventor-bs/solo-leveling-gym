@@ -1,8 +1,10 @@
 import { ok, err, type Result } from "@/core/shared/result";
 import { kg, reps as makeReps } from "@/core/shared/units";
 import { estimateOneRepMax } from "@/core/training/pr";
+import { shadowForMuscle } from "@/core/shadow/roster";
 import type { DomainEvent } from "@/core/shared/events";
 import type { Container } from "@/server/container";
+import type { MuscleGroup } from "@/core/training/types";
 
 export type LogSetInput = {
   sessionId: string;
@@ -78,6 +80,20 @@ export async function logSet(
       // of guessing at it here.
       previousE1rm: kg(0),
     });
+
+    const exercise = await container.exercises.byId(input.exerciseId);
+    if (exercise) {
+      const shadowId = shadowForMuscle(exercise.muscle as MuscleGroup);
+      const shadow = await container.shadows.byId(shadowId);
+      if (shadow && shadow.extractedAt === null) {
+        await container.shadows.extract(shadowId, now);
+        events.push({
+          type: "ShadowArisen",
+          shadowId: shadow.id,
+          shadowName: shadow.name,
+        });
+      }
+    }
   }
 
   const result: LogSetResult = { isPr, events };
