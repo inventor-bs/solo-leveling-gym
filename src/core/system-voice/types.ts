@@ -6,6 +6,9 @@ export type SystemContext = {
   readonly todayProgramName: string | null;
   /** True only on a true rest day. Distinguishes "no lifting today" from "rest" so the voice doesn't tell a Hunter to recover on a running day. */
   readonly isRestDay: boolean;
+  /** Consecutive days of cleared Daily Quests. 0 means no active streak. */
+  readonly streakDays: number;
+  readonly dailyQuestDone: boolean;
   readonly recentPr: { exerciseName: string; newE1rmKg: number } | null;
 };
 

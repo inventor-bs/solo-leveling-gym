@@ -4,6 +4,7 @@ import { rankForLevel } from "@/core/hunter/progression";
 import { buildSystemMessage } from "@/core/system-voice/template-engine";
 import { seededRng } from "@/infra/rng/seeded-rng";
 import { toTrainingDay } from "@/core/shared/training-day";
+import { getQuestView } from "@/app-services/quest-view";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { RankBadge } from "@/ui/components/primitives/RankBadge";
 import { RunLogForm } from "@/ui/components/dungeon/RunLogForm";
@@ -25,6 +26,9 @@ export default async function DashboardPage() {
   const isRunDay = weekday === 2 || weekday === 4;
   const isRestDay = weekday === 7;
 
+  const questView = await getQuestView(container);
+  const quest = questView.ok ? questView.value : null;
+
   const voiceSeed = weekday * 1000 + hunter.level;
   const message = buildSystemMessage(
     {
@@ -33,6 +37,8 @@ export default async function DashboardPage() {
       rank: rankForLevel(hunter.level),
       todayProgramName: program?.programDay.name ?? null,
       isRestDay,
+      streakDays: quest?.streak ?? 0,
+      dailyQuestDone: quest?.complete ?? false,
       recentPr: null,
     },
     seededRng(voiceSeed),
@@ -59,6 +65,39 @@ export default async function DashboardPage() {
             {message.body}
           </p>
         </SystemPanel>
+
+        {quest && (
+          <SystemPanel header="DAILY QUEST">
+            <div className="p-4 space-y-3">
+              <div className="flex justify-between font-mono text-sm">
+                <span
+                  className={quest.complete ? "text-success" : "text-slate-300"}
+                >
+                  {quest.complete ? "✓ Cleared" : "Incomplete"}
+                </span>
+                <span className="text-system-blue/60">{quest.percent}%</span>
+              </div>
+              <div className="h-1.5 bg-shadow-mid rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-system-blue to-monarch-purple rounded-full"
+                  style={{ width: `${quest.percent}%` }}
+                />
+              </div>
+              {quest.streak > 0 && (
+                <p className="font-mono text-xs text-warning">
+                  🔥 {quest.streak} day streak
+                </p>
+              )}
+              <Link
+                href="/quests"
+                className="block text-center bg-system-blue/10 border border-system-blue/40 text-system-blue
+                  font-mono text-sm tracking-widest py-2 rounded hover:bg-system-blue/20 transition-colors"
+              >
+                ▸ OPEN QUEST LOG
+              </Link>
+            </div>
+          </SystemPanel>
+        )}
 
         {program && !isRestDay && (
           <SystemPanel

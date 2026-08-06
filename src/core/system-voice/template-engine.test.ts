@@ -29,6 +29,12 @@ function baseContext(patch: Partial<SystemContext> = {}): SystemContext {
     rank: "E",
     todayProgramName: "Upper A",
     isRestDay: false,
+    streakDays: 0,
+    // Defaults to true so pre-existing tests that don't care about the
+    // quest-pending branch still exercise the program/rest/run branches
+    // below it — only tests that explicitly set this to false test that
+    // branch's priority.
+    dailyQuestDone: true,
     recentPr: null,
     ...patch,
   };
@@ -108,5 +114,42 @@ describe("buildSystemMessage", () => {
     const a = buildSystemMessage(baseContext(), fakeRng(42));
     const b = buildSystemMessage(baseContext(), fakeRng(42));
     expect(a.body).toBe(b.body);
+  });
+});
+
+describe("daily quest and streak awareness", () => {
+  it("names the outstanding daily quest ahead of the day's program", () => {
+    const msg = buildSystemMessage(
+      baseContext({ dailyQuestDone: false, todayProgramName: "Upper A" }),
+      fakeRng(1),
+    );
+    expect(msg.body.toLowerCase()).toContain("daily quest");
+  });
+
+  it("reports a live streak with the real number once the quest is done", () => {
+    const msg = buildSystemMessage(
+      baseContext({ dailyQuestDone: true, streakDays: 6 }),
+      fakeRng(1),
+    );
+    expect(msg.body).toContain("6");
+  });
+
+  it("REGRESSION: never claims a streak when there is none", () => {
+    for (let seed = 0; seed < 20; seed++) {
+      const msg = buildSystemMessage(
+        baseContext({ dailyQuestDone: true, streakDays: 0 }),
+        fakeRng(seed),
+      );
+      expect(msg.body.toLowerCase()).not.toContain("streak");
+    }
+  });
+
+  it("REGRESSION: does not pluralize a one-day streak", () => {
+    const msg = buildSystemMessage(
+      baseContext({ dailyQuestDone: true, streakDays: 1 }),
+      fakeRng(1),
+    );
+    expect(msg.body).toContain("1 day.");
+    expect(msg.body).not.toContain("1 days");
   });
 });

@@ -22,6 +22,13 @@ function observation(context: SystemContext): string {
   if (context.recentPr) {
     return `${context.recentPr.exerciseName}: ${context.recentPr.newE1rmKg} kg. A new record.`;
   }
+  if (!context.dailyQuestDone) {
+    return "The Daily Quest is not complete.";
+  }
+  if (context.streakDays > 0) {
+    const unit = context.streakDays === 1 ? "day" : "days";
+    return `Daily Quest cleared. Streak: ${context.streakDays} ${unit}.`;
+  }
   if (context.todayProgramName) {
     return `Today's gate: ${context.todayProgramName}.`;
   }
@@ -34,6 +41,9 @@ function observation(context: SystemContext): string {
 function demand(context: SystemContext): string {
   if (context.recentPr) {
     return "Do not let this be the last time.";
+  }
+  if (!context.dailyQuestDone) {
+    return "Finish it before the day ends.";
   }
   if (context.todayProgramName) {
     return "Enter the dungeon.";
