@@ -4,11 +4,13 @@ import type { SystemContext, SystemMessage } from "./types";
 /**
  * [OPENING] + [OBSERVATION] + [DEMAND].
  *
- * Only two observation branches are wired: a recent PR, and the default.
- * The rest of the priority order (Penalty Zone, a weakening shadow, a
- * falling lift, an active streak) depends on systems that don't exist
- * until Phase 2/3. Adding one is adding a function to this list — the
- * composition and the voice rules below don't change.
+ * Penalty Zone awareness is now wired and takes the highest priority,
+ * ahead of even a fresh PR — and the System goes completely silent once
+ * `penaltySilent` is set. The rest of the priority order (a weakening
+ * shadow, a falling lift, an active streak's escalation) still depends
+ * on systems that don't exist until Phase 3. Adding one is adding a
+ * function to this list — the composition and the voice rules below
+ * don't change.
  */
 
 const OPENINGS = [
@@ -19,6 +21,9 @@ const OPENINGS = [
 ] as const;
 
 function observation(context: SystemContext): string {
+  if (context.penaltyActive) {
+    return "You are in the Penalty Zone.";
+  }
   if (context.recentPr) {
     return `${context.recentPr.exerciseName}: ${context.recentPr.newE1rmKg} kg. A new record.`;
   }
@@ -39,6 +44,9 @@ function observation(context: SystemContext): string {
 }
 
 function demand(context: SystemContext): string {
+  if (context.penaltyActive) {
+    return "Clear the Survival Quest to leave it.";
+  }
   if (context.recentPr) {
     return "Do not let this be the last time.";
   }
@@ -64,6 +72,9 @@ export function buildSystemMessage(
   context: SystemContext,
   rng: RngPort,
 ): SystemMessage {
+  if (context.penaltySilent) {
+    return { body: "", source: "template" };
+  }
   const parts = [pickOpening(rng), observation(context), demand(context)];
   return { body: parts.join(" "), source: "template" };
 }

@@ -36,6 +36,8 @@ function baseContext(patch: Partial<SystemContext> = {}): SystemContext {
     // branch's priority.
     dailyQuestDone: true,
     recentPr: null,
+    penaltyActive: false,
+    penaltySilent: false,
     ...patch,
   };
 }
@@ -151,5 +153,28 @@ describe("daily quest and streak awareness", () => {
     );
     expect(msg.body).toContain("1 day.");
     expect(msg.body).not.toContain("1 days");
+  });
+});
+
+describe("penalty awareness", () => {
+  it("leads with the penalty ahead of every other observation", () => {
+    const msg = buildSystemMessage(
+      baseContext({
+        penaltyActive: true,
+        recentPr: { exerciseName: "Bench Press", newE1rmKg: 90 },
+      }),
+      fakeRng(1),
+    );
+    expect(msg.body.toLowerCase()).toContain("penalty");
+  });
+
+  it("REGRESSION: says nothing at all once the System has gone silent", () => {
+    for (let seed = 0; seed < 10; seed++) {
+      const msg = buildSystemMessage(
+        baseContext({ penaltyActive: true, penaltySilent: true }),
+        fakeRng(seed),
+      );
+      expect(msg.body).toBe("");
+    }
   });
 });

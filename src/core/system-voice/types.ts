@@ -10,6 +10,10 @@ export type SystemContext = {
   readonly streakDays: number;
   readonly dailyQuestDone: boolean;
   readonly recentPr: { exerciseName: string; newE1rmKg: number } | null;
+  /** True while a Penalty Zone episode is open. Gates the highest-priority observation/demand branch. */
+  readonly penaltyActive: boolean;
+  /** True once the System has gone silent (day 7+ stuck). Gates total silence in buildSystemMessage. */
+  readonly penaltySilent: boolean;
 };
 
 export type SystemMessage = {
