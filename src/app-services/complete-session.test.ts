@@ -3,6 +3,8 @@ import { fixedClock } from "@/infra/clock/system-clock";
 import { makeTestDb } from "@/infra/db/testing/make-test-db";
 import { seedProgram } from "@/infra/db/seed/program";
 import { buildContainer } from "@/server/container";
+import { SHADOW_ROSTER } from "@/core/shadow/roster";
+import { expToNextLevel } from "@/core/hunter/progression";
 import { completeSession } from "./complete-session";
 
 async function containerWithLoggedSession() {
@@ -34,6 +36,19 @@ async function containerWithLoggedSession() {
     loggedAt: 0,
   });
   return container;
+}
+
+async function seedShadows(
+  container: Awaited<ReturnType<typeof containerWithLoggedSession>>,
+) {
+  await container.shadows.seed(
+    SHADOW_ROSTER.map((s) => ({
+      id: s.id,
+      name: s.name,
+      muscle: s.muscle,
+      extractedAt: s.startsExtracted ? 0 : null,
+    })),
+  );
 }
 
 describe("completeSession", () => {
@@ -130,5 +145,114 @@ describe("completeSession", () => {
     });
     const hunterAfterSecond = await container.hunters.get();
     expect(hunterAfterSecond?.gold).toBe(hunterAfterFirst?.gold);
+  });
+});
+
+describe("completeSession — shadow EXP", () => {
+  it("adds this session's per-muscle volume to the matching shadow", async () => {
+    const container = await containerWithLoggedSession();
+    await seedShadows(container);
+
+    await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+
+    const igris = await container.shadows.byId("igris");
+    expect(igris?.exp).toBe(480); // 6 reps x 80kg, the fixture's only set
+    expect(igris?.lastTrainedDay).toBe("2026-08-05");
+  });
+
+  it("REGRESSION: a muscle group with zero volume this session gets zero EXP and its lastTrainedDay stays untouched", async () => {
+    const container = await containerWithLoggedSession();
+    await seedShadows(container);
+
+    await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+
+    const tank = await container.shadows.byId("tank"); // back — never trained this session
+    expect(tank?.exp).toBe(0);
+    expect(tank?.lastTrainedDay).toBeNull();
+  });
+
+  it("extracts Bellion the moment the hunter first reaches S-Rank", async () => {
+    const container = await containerWithLoggedSession();
+    await seedShadows(container);
+    // Level 70 is the real S-Rank floor (RANK_THRESHOLDS). Push the hunter
+    // to level 69 with just under the EXP this session's fixed 350-EXP C-rank
+    // award needs to cross it, computed from the real threshold function so
+    // this doesn't depend on a guessed magic number.
+    const needed = expToNextLevel(69);
+    await container.hunters.update({
+      level: 69,
+      exp: Math.max(0, needed - 300),
+      rank: "A",
+    });
+
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    expect(result.ok).toBe(true);
+
+    const hunter = await container.hunters.get();
+    expect(hunter?.rank).toBe("S");
+
+    const bellion = await container.shadows.byId("bellion");
+    expect(bellion?.extractedAt).not.toBeNull();
+    if (result.ok) {
+      expect(
+        result.value.events.some(
+          (e) => e.type === "ShadowArisen" && e.shadowId === "bellion",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("does not re-extract Bellion on a later S-Rank session", async () => {
+    const container = await containerWithLoggedSession();
+    await seedShadows(container);
+    const needed = expToNextLevel(69);
+    await container.hunters.update({
+      level: 69,
+      exp: Math.max(0, needed - 300),
+      rank: "A",
+    });
+    await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+
+    await container.training.createSession({
+      id: "session-2",
+      day: "2026-08-06",
+      programDayId: "upper-a",
+      startedAt: 0,
+    });
+    await container.training.upsertSetLog({
+      id: "set-2",
+      sessionId: "session-2",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 6,
+      weight: 80,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+    const result = await completeSession(container, {
+      sessionId: "session-2",
+      clientActionId: "a2",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(
+        result.value.events.some(
+          (e) => e.type === "ShadowArisen" && e.shadowId === "bellion",
+        ),
+      ).toBe(false);
+    }
   });
 });

@@ -11,10 +11,15 @@ import {
   expForDungeonRank,
   type DungeonRank,
 } from "@/core/training/dungeon-rank";
-import { sessionVolumeLoad, averageVolumeLoad } from "@/core/training/volume";
+import {
+  sessionVolumeLoad,
+  averageVolumeLoad,
+  volumeByMuscle,
+} from "@/core/training/volume";
 import { applyExp, rankForLevel } from "@/core/hunter/progression";
 import { fatigueAfterSession } from "@/core/hunter/fatigue";
-import type { LoggedSet } from "@/core/training/types";
+import { shadowForMuscle } from "@/core/shadow/roster";
+import type { LoggedSet, MuscleGroup } from "@/core/training/types";
 import type { DomainEvent } from "@/core/shared/events";
 import type { Container } from "@/server/container";
 
@@ -64,6 +69,22 @@ export async function completeSession(
   }));
   const plannedVolume = sessionVolumeLoad(sets);
 
+  const exerciseRows = await container.exercises.all();
+  const catalog = new Map(
+    exerciseRows.map((e) => [
+      e.id,
+      {
+        id: e.id,
+        name: e.name,
+        muscle: e.muscle as MuscleGroup,
+        kind: e.kind as "compound" | "isolation",
+        isMainLift: e.isMainLift,
+        incrementKg: kg(e.incrementKg),
+      },
+    ]),
+  );
+  const volumeByGroup = volumeByMuscle(sets, catalog);
+
   const recentVolumes = await container.training.getRecentSessionVolumes(
     8,
     input.sessionId,
@@ -84,16 +105,30 @@ export async function completeSession(
     avgVolume,
   );
 
+  const newRank =
+    progression.levelsGained > 0
+      ? rankForLevel(progression.level)
+      : hunter.rank;
+
   await container.hunters.update({
     level: progression.level,
     exp: progression.exp,
     gold: hunter.gold + goldAwarded,
-    rank:
-      progression.levelsGained > 0
-        ? rankForLevel(progression.level)
-        : hunter.rank,
+    rank: newRank,
     fatigue: newFatigue,
   });
+
+  for (const [muscle, volume] of Object.entries(volumeByGroup) as [
+    MuscleGroup,
+    number,
+  ][]) {
+    if (volume <= 0 || muscle === "cardio") continue; // cardio only grows via log-run
+    await container.shadows.addExp(
+      shadowForMuscle(muscle),
+      volume,
+      session.day,
+    );
+  }
 
   const events: DomainEvent[] = [
     { type: "GoldGained", amount: makeGold(goldAwarded), source: "dungeon" },
@@ -108,6 +143,18 @@ export async function completeSession(
   ];
   if (progression.levelsGained > 0) {
     events.push({ type: "LevelUp", from: hunter.level, to: progression.level });
+  }
+
+  if (hunter.rank !== "S" && newRank === "S") {
+    const bellion = await container.shadows.byId("bellion");
+    if (bellion && bellion.extractedAt === null) {
+      await container.shadows.extract("bellion", now);
+      events.push({
+        type: "ShadowArisen",
+        shadowId: "bellion",
+        shadowName: "Bellion",
+      });
+    }
   }
 
   const result: CompleteSessionResult = {
