@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  gradeForExp,
-  weakenedExp,
-  WEAKEN_AFTER_DAYS,
-} from "./grade";
+import { gradeForExp, weakenedExp, WEAKEN_AFTER_DAYS } from "./grade";
 
 describe("gradeForExp", () => {
   it("starts at Normal with zero EXP", () => {
