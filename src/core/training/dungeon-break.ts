@@ -10,7 +10,10 @@ export function dungeonBreakMultiplier(missedSessions: number): number {
   const missed = Math.max(0, Math.floor(missedSessions));
   // Integer tenths: 1 + 2 * 0.2 is 1.4000000000000001 in binary floating
   // point, which would slip past a strict cap comparison.
-  const tenths = Math.min(10 + missed * 2, DUNGEON_BREAK_CAP * 10);
+  const tenths = Math.min(
+    10 + missed * DUNGEON_BREAK_PER_MISS * 10,
+    DUNGEON_BREAK_CAP * 10,
+  );
   return tenths / 10;
 }
 
