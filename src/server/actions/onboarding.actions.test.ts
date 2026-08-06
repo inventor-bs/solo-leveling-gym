@@ -76,4 +76,21 @@ describe("completeOnboardingAction", () => {
     const hunter = await containerModule.getContainer().hunters.get();
     expect(hunter?.name).toBe("Jin-Woo");
   });
+
+  it("REGRESSION: seeds all nine shadows, with only Igris extracted", async () => {
+    givenAuthenticated(true);
+    await completeOnboardingAction({
+      name: "Jin-Woo",
+      reasonForHunting: "For my family.",
+    });
+
+    const rows = await containerModule.getContainer().shadows.all();
+    expect(rows).toHaveLength(9);
+
+    const igris = rows.find((s) => s.id === "igris");
+    expect(igris?.extractedAt).not.toBeNull();
+
+    const others = rows.filter((s) => s.id !== "igris");
+    expect(others.every((s) => s.extractedAt === null)).toBe(true);
+  });
 });

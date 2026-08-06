@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { requireWriteAccess } from "@/server/auth/guard";
 import { getContainer } from "@/server/container";
+import { SHADOW_ROSTER } from "@/core/shadow/roster";
 
 const schema = z.object({
   name: z.string().min(1).max(64),
@@ -36,6 +37,16 @@ export async function completeOnboardingAction(
   await container.hunters.update({
     reasonForHunting: parsed.data.reasonForHunting,
   });
+
+  const now = container.clock.now();
+  await container.shadows.seed(
+    SHADOW_ROSTER.map((s) => ({
+      id: s.id,
+      name: s.name,
+      muscle: s.muscle,
+      extractedAt: s.startsExtracted ? now : null,
+    })),
+  );
 
   return { ok: true };
 }
