@@ -74,7 +74,10 @@ describe("runDailyReset", () => {
 
     expect(first.issuedToday).toBe(true);
     expect(second.issuedToday).toBe(false);
-    expect(second.yesterdayStatus).toBe("missed");
+    // First run judged yesterday as missed and opened a penalty; second run
+    // finds the penalty already open and skips judging entirely rather than
+    // re-reporting "missed".
+    expect(second.yesterdayStatus).toBe("skipped-penalty-active");
     expect(second.events.some((e) => e.type === "DailyQuestMissed")).toBe(
       false,
     );
@@ -88,5 +91,48 @@ describe("runDailyReset", () => {
     expect(summary.events.some((e) => e.type === "DailyQuestMissed")).toBe(
       false,
     );
+  });
+});
+
+describe("runDailyReset — penalty interaction", () => {
+  it("opens a penalty when yesterday's quest was missed", async () => {
+    await ensureDailyQuest(container, yesterday);
+    await container.hunters.update({ exp: 300 });
+
+    const summary = await runDailyReset(container);
+
+    expect(summary.penaltyOpened).toBe(true);
+    expect(await container.penalties.active()).not.toBeNull();
+    expect((await container.hunters.get())?.exp).toBe(270);
+  });
+
+  it("opens no penalty when yesterday was cleared", async () => {
+    await ensureDailyQuest(container, yesterday);
+    await container.quests.setStatus(yesterday, "completed", 1);
+
+    const summary = await runDailyReset(container);
+    expect(summary.penaltyOpened).toBe(false);
+    expect(await container.penalties.active()).toBeNull();
+  });
+
+  it("REGRESSION: does not judge the quest at all while a penalty is active", async () => {
+    // Five stuck days must leave exactly one Survival Quest owed, not five
+    // penalties and five EXP deductions.
+    await ensureDailyQuest(container, yesterday);
+    await container.hunters.update({ exp: 1000 });
+    await runDailyReset(container); // opens the penalty, exp -> 900
+
+    const second = await runDailyReset(container);
+    expect(second.yesterdayStatus).toBe("skipped-penalty-active");
+    expect(second.penaltyOpened).toBe(false);
+    expect((await container.hunters.get())?.exp).toBe(900);
+    expect(await container.penalties.countAll()).toBe(1);
+  });
+
+  it("still issues today's quest while a penalty is active", async () => {
+    await ensureDailyQuest(container, yesterday);
+    await runDailyReset(container);
+    const summary = await runDailyReset(container);
+    expect(await container.quests.byDay(summary.today)).not.toBeNull();
   });
 });
