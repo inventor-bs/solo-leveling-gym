@@ -7,7 +7,9 @@ import {
   logSetAction,
   completeSessionAction,
 } from "@/server/actions/training.actions";
+import type { ActionError } from "@/server/actions/action-result";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
+import { ActionErrorNotice } from "@/ui/components/primitives/ActionErrorNotice";
 
 type PlannedExercise = {
   exerciseId: string;
@@ -21,6 +23,12 @@ type PlannedExercise = {
 
 type SetState = { reps: number; weight: number; completed: boolean };
 
+/** Derived so the success payload stays in sync with the action itself. */
+type ClearedResult = Extract<
+  Awaited<ReturnType<typeof completeSessionAction>>,
+  { ok: true }
+>["value"];
+
 function DungeonContent() {
   const params = useSearchParams();
   const router = useRouter();
@@ -30,18 +38,22 @@ function DungeonContent() {
   const [plan, setPlan] = useState<PlannedExercise[]>([]);
   const [sets, setSets] = useState<Record<string, SetState[]>>({});
   const [loading, setLoading] = useState(true);
-  const [result, setResult] = useState<Awaited<
-    ReturnType<typeof completeSessionAction>
-  > | null>(null);
+  const [error, setError] = useState<ActionError | null>(null);
+  const [result, setResult] = useState<ClearedResult | null>(null);
 
   useEffect(() => {
     if (!programDayId) return;
     startSessionAction({ programDayId }).then((res) => {
-      setSessionId(res.sessionId);
-      setPlan(res.plan);
+      if (!res.ok) {
+        setError(res.error);
+        setLoading(false);
+        return;
+      }
+      setSessionId(res.value.sessionId);
+      setPlan(res.value.plan);
       setSets(
         Object.fromEntries(
-          res.plan.map((p) => [
+          res.value.plan.map((p) => [
             p.exerciseId,
             Array.from({ length: p.targetSets }, () => ({
               reps: p.suggestedReps,
@@ -60,7 +72,8 @@ function DungeonContent() {
       if (!sessionId) return;
       const current = sets[exerciseId]?.[setIndex];
       if (!current) return;
-      await logSetAction({
+      setError(null);
+      const res = await logSetAction({
         sessionId,
         exerciseId,
         setIndex,
@@ -68,6 +81,10 @@ function DungeonContent() {
         weight: current.weight,
         completed: true,
       });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
       setSets((prev) => ({
         ...prev,
         [exerciseId]: (prev[exerciseId] ?? []).map((s, i) =>
@@ -80,8 +97,13 @@ function DungeonContent() {
 
   async function complete() {
     if (!sessionId) return;
+    setError(null);
     const res = await completeSessionAction({ sessionId });
-    setResult(res);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    setResult(res.value);
   }
 
   if (!programDayId) {
@@ -96,6 +118,15 @@ function DungeonContent() {
     return (
       <div className="p-8 font-mono text-sm text-slate-400">
         Opening the gate...
+      </div>
+    );
+  }
+
+  // A failure before the plan loaded leaves nothing to render but the reason.
+  if (error && plan.length === 0) {
+    return (
+      <div className="p-6 md:p-8 max-w-2xl mx-auto">
+        <ActionErrorNotice error={error} />
       </div>
     );
   }
@@ -138,6 +169,8 @@ function DungeonContent() {
 
   return (
     <div className="p-6 md:p-8 max-w-2xl mx-auto space-y-6">
+      {error && <ActionErrorNotice error={error} />}
+
       {plan.map((exercise) => (
         <SystemPanel key={exercise.exerciseId} header={exercise.name}>
           <div className="p-4 space-y-2">

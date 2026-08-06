@@ -2,20 +2,28 @@
 
 import { useState, useTransition } from "react";
 import { logRunAction } from "@/server/actions/training.actions";
+import type { ActionError } from "@/server/actions/action-result";
+import { ActionErrorNotice } from "@/ui/components/primitives/ActionErrorNotice";
 
 export function RunLogForm({ day }: { day: string }) {
   const [km, setKm] = useState("");
   const [minutes, setMinutes] = useState("");
   const [done, setDone] = useState(false);
+  const [error, setError] = useState<ActionError | null>(null);
   const [pending, startTransition] = useTransition();
 
   function submit() {
     const distanceKm = Number(km);
     const durationSec = Number(minutes) * 60;
     if (!(distanceKm > 0) || !(durationSec > 0)) return;
+    setError(null);
     startTransition(async () => {
-      await logRunAction({ day, distanceKm, durationSec });
-      setDone(true);
+      const result = await logRunAction({ day, distanceKm, durationSec });
+      if (result.ok) {
+        setDone(true);
+      } else {
+        setError(result.error);
+      }
     });
   }
 
@@ -28,28 +36,31 @@ export function RunLogForm({ day }: { day: string }) {
   }
 
   return (
-    <div className="flex items-center gap-3 font-mono text-sm">
-      <input
-        type="number"
-        placeholder="km"
-        value={km}
-        onChange={(e) => setKm(e.target.value)}
-        className="w-20 bg-shadow-dark border border-system-blue/30 rounded px-2 py-1 text-white"
-      />
-      <input
-        type="number"
-        placeholder="min"
-        value={minutes}
-        onChange={(e) => setMinutes(e.target.value)}
-        className="w-20 bg-shadow-dark border border-system-blue/30 rounded px-2 py-1 text-white"
-      />
-      <button
-        onClick={submit}
-        disabled={pending}
-        className="flex-1 bg-system-blue/10 border border-system-blue/40 text-system-blue rounded py-1 hover:bg-system-blue/20 disabled:opacity-40"
-      >
-        {pending ? "LOGGING..." : "LOG RUN"}
-      </button>
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 font-mono text-sm">
+        <input
+          type="number"
+          placeholder="km"
+          value={km}
+          onChange={(e) => setKm(e.target.value)}
+          className="w-20 bg-shadow-dark border border-system-blue/30 rounded px-2 py-1 text-white"
+        />
+        <input
+          type="number"
+          placeholder="min"
+          value={minutes}
+          onChange={(e) => setMinutes(e.target.value)}
+          className="w-20 bg-shadow-dark border border-system-blue/30 rounded px-2 py-1 text-white"
+        />
+        <button
+          onClick={submit}
+          disabled={pending}
+          className="flex-1 bg-system-blue/10 border border-system-blue/40 text-system-blue rounded py-1 hover:bg-system-blue/20 disabled:opacity-40"
+        >
+          {pending ? "LOGGING..." : "LOG RUN"}
+        </button>
+      </div>
+      {error && <ActionErrorNotice error={error} />}
     </div>
   );
 }
