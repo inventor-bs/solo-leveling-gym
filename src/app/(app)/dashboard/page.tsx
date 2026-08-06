@@ -32,6 +32,7 @@ export default async function DashboardPage() {
       level: hunter.level,
       rank: rankForLevel(hunter.level),
       todayProgramName: program?.programDay.name ?? null,
+      isRestDay,
       recentPr: null,
     },
     seededRng(voiceSeed),

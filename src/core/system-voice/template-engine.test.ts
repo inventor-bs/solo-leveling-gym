@@ -28,6 +28,7 @@ function baseContext(patch: Partial<SystemContext> = {}): SystemContext {
     level: 2,
     rank: "E",
     todayProgramName: "Upper A",
+    isRestDay: false,
     recentPr: null,
     ...patch,
   };
@@ -78,11 +79,22 @@ describe("buildSystemMessage", () => {
     expect(msg.body).toContain("Lower A");
   });
 
-  it("references rest, not a program name, when there is none scheduled", () => {
+  it("references rest, not a program name, on a true rest day", () => {
     const msg = buildSystemMessage(
-      baseContext({ todayProgramName: null, recentPr: null }),
+      baseContext({ todayProgramName: null, isRestDay: true, recentPr: null }),
       fakeRng(3),
     );
+    expect(msg.body.toLowerCase()).not.toContain("upper");
+    expect(msg.body.toLowerCase()).not.toContain("lower");
+    expect(msg.body.toLowerCase()).toContain("rest");
+  });
+
+  it("REGRESSION: does not tell the Hunter to rest on a running day", () => {
+    const msg = buildSystemMessage(
+      baseContext({ todayProgramName: null, isRestDay: false, recentPr: null }),
+      fakeRng(3),
+    );
+    expect(msg.body.toLowerCase()).not.toContain("rest");
     expect(msg.body.toLowerCase()).not.toContain("upper");
     expect(msg.body.toLowerCase()).not.toContain("lower");
   });

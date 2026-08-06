@@ -25,7 +25,10 @@ function observation(context: SystemContext): string {
   if (context.todayProgramName) {
     return `Today's gate: ${context.todayProgramName}.`;
   }
-  return "No dungeon is scheduled today.";
+  if (context.isRestDay) {
+    return "No dungeon is scheduled today.";
+  }
+  return "Endurance training is scheduled today.";
 }
 
 function demand(context: SystemContext): string {
@@ -35,7 +38,10 @@ function demand(context: SystemContext): string {
   if (context.todayProgramName) {
     return "Enter the dungeon.";
   }
-  return "Rest is not weakness. Recover.";
+  if (context.isRestDay) {
+    return "Rest is not weakness. Recover.";
+  }
+  return "Log the distance when it is done.";
 }
 
 /** Picks an opening deterministically from the given RNG. */
