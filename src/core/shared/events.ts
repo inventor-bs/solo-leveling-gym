@@ -23,7 +23,11 @@ export type DomainEvent =
   | { type: "RunLogged"; distanceKm: number; durationSec: number }
   | { type: "QuestProgressLogged"; day: string }
   | { type: "DailyQuestCompleted"; day: string; streak: number }
-  | { type: "DailyQuestMissed"; day: string };
+  | { type: "DailyQuestMissed"; day: string }
+  | { type: "PenaltyStarted"; day: string; variantId: number; expLost: number }
+  | { type: "PenaltyCleared"; day: string; daysStuck: number }
+  | { type: "ReawakeningOffered"; dormantDays: number }
+  | { type: "DungeonBreak"; missedSessions: number; multiplier: number };
 
 export type DomainEventOfType<T extends DomainEvent["type"]> = Extract<
   DomainEvent,
