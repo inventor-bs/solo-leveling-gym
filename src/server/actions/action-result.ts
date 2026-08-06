@@ -14,7 +14,9 @@ export type ActionError =
   | "session-not-found"
   | "session-already-completed"
   | "hunter-not-found"
-  | "quest-not-found";
+  | "quest-not-found"
+  | "no-active-penalty"
+  | "survival-incomplete";
 
 export type ActionResult<T> =
   { ok: true; value: T } | { ok: false; error: ActionError };
@@ -29,4 +31,6 @@ export const ACTION_ERROR_MESSAGE: Record<ActionError, string> = {
   "session-already-completed": "This dungeon has already been cleared.",
   "hunter-not-found": "No Hunter has been registered yet.",
   "quest-not-found": "No quest has been issued for today yet.",
+  "no-active-penalty": "There is no penalty to escape.",
+  "survival-incomplete": "The Survival Quest is not finished yet.",
 };

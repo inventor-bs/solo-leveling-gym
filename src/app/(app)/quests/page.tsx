@@ -1,3 +1,4 @@
+import { redirectOwnerIfPenalised } from "@/server/penalty-guard";
 import { getContainer } from "@/server/container";
 import { getQuestView } from "@/app-services/quest-view";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
@@ -5,6 +6,7 @@ import { LockedFeature } from "@/ui/components/primitives/LockedFeature";
 import { QuestTracker } from "@/ui/components/quests/QuestTracker";
 
 export default async function QuestsPage() {
+  await redirectOwnerIfPenalised();
   const view = await getQuestView(getContainer());
   if (!view.ok) {
     return (

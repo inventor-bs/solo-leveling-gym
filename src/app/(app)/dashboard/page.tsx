@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirectOwnerIfPenalised } from "@/server/penalty-guard";
 import { getContainer } from "@/server/container";
 import { rankForLevel } from "@/core/hunter/progression";
 import { buildSystemMessage } from "@/core/system-voice/template-engine";
@@ -16,6 +17,7 @@ function isoWeekday(day: string): number {
 }
 
 export default async function DashboardPage() {
+  await redirectOwnerIfPenalised();
   const container = getContainer();
   const hunter = await container.hunters.get();
   if (!hunter) return null;

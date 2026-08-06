@@ -4,6 +4,8 @@ import { getContainer } from "@/server/container";
 import { hasWriteAccess } from "@/server/auth/guard";
 import { Sidebar } from "@/ui/components/layout/Sidebar";
 import { rankForLevel } from "@/core/hunter/progression";
+import { penaltyVariantFor } from "@/core/penalty/variants";
+import { PenaltyBanner } from "@/ui/components/penalty/PenaltyBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +38,9 @@ export default async function AppLayout({
     );
   }
 
+  const owner = await hasWriteAccess();
+  const activePenalty = owner ? null : await getContainer().penalties.active();
+
   return (
     <div className="flex min-h-screen">
       <Sidebar
@@ -45,7 +50,14 @@ export default async function AppLayout({
         currentExp={hunter.exp}
         gold={hunter.gold}
       />
-      <main className="flex-1 ml-0 md:ml-64 relative">{children}</main>
+      <main className="flex-1 ml-0 md:ml-64 relative">
+        {activePenalty && (
+          <PenaltyBanner
+            setting={penaltyVariantFor(activePenalty.variantId - 1).setting}
+          />
+        )}
+        {children}
+      </main>
     </div>
   );
 }
