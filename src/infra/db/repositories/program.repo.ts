@@ -49,4 +49,9 @@ export class ProgramRepo {
     const day = rows[0];
     return day ? this.withExercises(day) : null;
   }
+
+  /** The whole weekly lifting schedule, used to spot a skipped day. */
+  async allDays(): Promise<ProgramDayRow[]> {
+    return this.db.select().from(programDay).orderBy(asc(programDay.weekday));
+  }
 }

@@ -1,4 +1,4 @@
-import { eq, and, ne, isNotNull, desc } from "drizzle-orm";
+import { eq, and, ne, isNotNull, desc, gte, lte } from "drizzle-orm";
 import { kg, reps, type Kg } from "@/core/shared/units";
 import {
   toExercisePerformance,
@@ -233,5 +233,49 @@ export class TrainingRepo {
       .from(runLog)
       .where(eq(runLog.day, day));
     return rows.reduce((sum, r) => sum + r.km, 0);
+  }
+
+  /**
+   * The most recent day with real training on it — a completed session or a
+   * logged run. A started-but-abandoned session does not count: treating it
+   * as activity would reset the dormancy clock without any work behind it.
+   */
+  async lastActivityDay(): Promise<string | null> {
+    const sessions = await this.db
+      .select({ day: session.day })
+      .from(session)
+      .where(isNotNull(session.endedAt))
+      .orderBy(desc(session.day))
+      .limit(1);
+    const runs = await this.db
+      .select({ day: runLog.day })
+      .from(runLog)
+      .orderBy(desc(runLog.day))
+      .limit(1);
+
+    const candidates = [sessions[0]?.day, runs[0]?.day].filter(
+      (d): d is string => d !== undefined,
+    );
+    if (candidates.length === 0) return null;
+    return candidates.sort().at(-1) ?? null;
+  }
+
+  /** Days inside [from, to] that carry a completed session. */
+  async completedSessionDaysBetween(
+    from: string,
+    to: string,
+  ): Promise<string[]> {
+    const rows = await this.db
+      .selectDistinct({ day: session.day })
+      .from(session)
+      .where(
+        and(
+          isNotNull(session.endedAt),
+          gte(session.day, from),
+          lte(session.day, to),
+        ),
+      )
+      .orderBy(session.day);
+    return rows.map((r) => r.day);
   }
 }
