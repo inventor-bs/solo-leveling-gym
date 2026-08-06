@@ -1,4 +1,5 @@
 import { ok, type Result } from "@/core/shared/result";
+import { CARDIO_EXP_PER_KM } from "@/core/shadow/roster";
 import type { DomainEvent } from "@/core/shared/events";
 import type { Container } from "@/server/container";
 
@@ -34,16 +35,36 @@ export async function logRun(
     loggedAt: now,
   });
 
-  const result: LogRunResult = {
-    runId,
-    events: [
-      {
-        type: "RunLogged",
-        distanceKm: input.distanceKm,
-        durationSec: input.durationSec,
-      },
-    ],
-  };
+  const kaiselBefore = await container.shadows.byId("kaisel");
+  const kaiselArising =
+    kaiselBefore !== null && kaiselBefore.extractedAt === null;
+  if (kaiselBefore) {
+    if (kaiselArising) {
+      await container.shadows.extract("kaisel", now);
+    }
+    await container.shadows.addExp(
+      "kaisel",
+      input.distanceKm * CARDIO_EXP_PER_KM,
+      input.day,
+    );
+  }
+
+  const events: DomainEvent[] = [
+    {
+      type: "RunLogged",
+      distanceKm: input.distanceKm,
+      durationSec: input.durationSec,
+    },
+  ];
+  if (kaiselArising) {
+    events.push({
+      type: "ShadowArisen",
+      shadowId: "kaisel",
+      shadowName: "Kaisel",
+    });
+  }
+
+  const result: LogRunResult = { runId, events };
   await container.idempotency.remember(input.clientActionId, result, now);
   return ok(result);
 }
