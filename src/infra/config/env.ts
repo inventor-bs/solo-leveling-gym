@@ -7,6 +7,7 @@ const schema = z.object({
   SESSION_SECRET: z.string().min(32),
   GEMINI_API_KEY: z.string().optional(),
   HUNTER_TZ_OFFSET_MINUTES: z.coerce.number().int().default(420),
+  CRON_SECRET: z.string().min(16).optional(),
 });
 
 export type Env = z.infer<typeof schema>;

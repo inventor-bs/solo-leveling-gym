@@ -55,3 +55,8 @@ export function checkPin(input: string, expected: string): boolean {
   if (a.length !== b.length) return false;
   return timingSafeEqual(a, b);
 }
+
+/** Constant-time equality for any shared secret, not just the PIN. */
+export function secretsMatch(input: string, expected: string): boolean {
+  return checkPin(input, expected);
+}

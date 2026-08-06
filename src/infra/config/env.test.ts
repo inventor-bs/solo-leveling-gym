@@ -48,4 +48,14 @@ describe("parseEnv", () => {
       /TURSO_DATABASE_URL[\s\S]*HUNTER_PIN|HUNTER_PIN[\s\S]*SESSION_SECRET/,
     );
   });
+
+  it("treats CRON_SECRET as optional so a missing one cannot fail the build", () => {
+    expect(parseEnv(valid).CRON_SECRET).toBeUndefined();
+  });
+
+  it("rejects a CRON_SECRET too short to be worth having", () => {
+    expect(() => parseEnv({ ...valid, CRON_SECRET: "short" })).toThrow(
+      /CRON_SECRET/,
+    );
+  });
 });

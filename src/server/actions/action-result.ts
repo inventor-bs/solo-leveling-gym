@@ -13,7 +13,8 @@ export type ActionError =
   | "program-day-not-found"
   | "session-not-found"
   | "session-already-completed"
-  | "hunter-not-found";
+  | "hunter-not-found"
+  | "quest-not-found";
 
 export type ActionResult<T> =
   { ok: true; value: T } | { ok: false; error: ActionError };
@@ -27,4 +28,5 @@ export const ACTION_ERROR_MESSAGE: Record<ActionError, string> = {
   "session-not-found": "That session no longer exists.",
   "session-already-completed": "This dungeon has already been cleared.",
   "hunter-not-found": "No Hunter has been registered yet.",
+  "quest-not-found": "No quest has been issued for today yet.",
 };

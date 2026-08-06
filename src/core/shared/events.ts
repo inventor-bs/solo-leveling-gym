@@ -20,7 +20,10 @@ export type DomainEvent =
       goldAwarded: Gold;
       expAwarded: Exp;
     }
-  | { type: "RunLogged"; distanceKm: number; durationSec: number };
+  | { type: "RunLogged"; distanceKm: number; durationSec: number }
+  | { type: "QuestProgressLogged"; day: string }
+  | { type: "DailyQuestCompleted"; day: string; streak: number }
+  | { type: "DailyQuestMissed"; day: string };
 
 export type DomainEventOfType<T extends DomainEvent["type"]> = Extract<
   DomainEvent,

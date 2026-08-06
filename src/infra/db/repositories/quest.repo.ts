@@ -1,0 +1,88 @@
+import { eq, desc, sql } from "drizzle-orm";
+import type { Db } from "../client";
+import {
+  dailyQuest,
+  type DailyQuestRow,
+  type QuestStatus,
+} from "../schema/quest";
+
+export type CreateQuestInput = {
+  id: string;
+  day: string;
+  rank: string;
+  targetPushups: number;
+  targetSitups: number;
+  targetSquats: number;
+  targetRunKm: number;
+  createdAt: number;
+};
+
+export type ProgressDelta = {
+  pushups?: number;
+  situps?: number;
+  squats?: number;
+};
+
+export class QuestRepo {
+  constructor(private readonly db: Db) {}
+
+  async byDay(day: string): Promise<DailyQuestRow | null> {
+    const rows = await this.db
+      .select()
+      .from(dailyQuest)
+      .where(eq(dailyQuest.day, day))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  async create(input: CreateQuestInput): Promise<DailyQuestRow> {
+    await this.db.insert(dailyQuest).values(input).onConflictDoNothing();
+    const created = await this.byDay(input.day);
+    if (!created) {
+      throw new Error("QuestRepo.create: failed to read back after insert");
+    }
+    return created;
+  }
+
+  /**
+   * Increments in SQL rather than read-modify-write: two taps landing at
+   * once must not lose one of them.
+   */
+  async addProgress(day: string, delta: ProgressDelta): Promise<void> {
+    const pushups = delta.pushups ?? 0;
+    const situps = delta.situps ?? 0;
+    const squats = delta.squats ?? 0;
+    if (pushups === 0 && situps === 0 && squats === 0) return;
+
+    await this.db
+      .update(dailyQuest)
+      .set({
+        progressPushups: sql`${dailyQuest.progressPushups} + ${pushups}`,
+        progressSitups: sql`${dailyQuest.progressSitups} + ${situps}`,
+        progressSquats: sql`${dailyQuest.progressSquats} + ${squats}`,
+      })
+      .where(eq(dailyQuest.day, day));
+  }
+
+  async setStatus(day: string, status: QuestStatus, at: number): Promise<void> {
+    await this.db
+      .update(dailyQuest)
+      .set({ status, completedAt: at })
+      .where(eq(dailyQuest.day, day));
+  }
+
+  /** Newest first. `completed` is the stored verdict, not a live recomputation. */
+  async recentOutcomes(
+    limitDays: number,
+  ): Promise<{ day: string; completed: boolean }[]> {
+    const rows = await this.db
+      .select({ day: dailyQuest.day, status: dailyQuest.status })
+      .from(dailyQuest)
+      .orderBy(desc(dailyQuest.day))
+      .limit(limitDays);
+    return rows.map((r) => ({
+      day: r.day,
+      completed: r.status === "completed",
+    }));
+  }
+}

@@ -9,6 +9,7 @@ import { IdempotencyRepo } from "@/infra/db/repositories/idempotency.repo";
 import { ExerciseRepo } from "@/infra/db/repositories/exercise.repo";
 import { ProgramRepo } from "@/infra/db/repositories/program.repo";
 import { TrainingRepo } from "@/infra/db/repositories/training.repo";
+import { QuestRepo } from "@/infra/db/repositories/quest.repo";
 import { getEnv } from "@/infra/config/env";
 
 export type Container = {
@@ -21,6 +22,7 @@ export type Container = {
   exercises: ExerciseRepo;
   programs: ProgramRepo;
   training: TrainingRepo;
+  quests: QuestRepo;
   tzOffsetMinutes: number;
 };
 
@@ -51,6 +53,7 @@ export function buildContainer(seed: ContainerSeed = {}): Container {
     exercises: new ExerciseRepo(db),
     programs: new ProgramRepo(db),
     training: new TrainingRepo(db),
+    quests: new QuestRepo(db),
     tzOffsetMinutes: seed.tzOffsetMinutes ?? getEnv().HUNTER_TZ_OFFSET_MINUTES,
   };
 }

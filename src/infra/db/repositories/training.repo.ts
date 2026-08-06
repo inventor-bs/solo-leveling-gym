@@ -225,4 +225,13 @@ export class TrainingRepo {
     }
     return row;
   }
+
+  /** Total distance logged on a calendar day, across however many runs. */
+  async kmOnDay(day: string): Promise<number> {
+    const rows = await this.db
+      .select({ km: runLog.distanceKm })
+      .from(runLog)
+      .where(eq(runLog.day, day));
+    return rows.reduce((sum, r) => sum + r.km, 0);
+  }
 }
