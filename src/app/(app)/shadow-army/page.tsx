@@ -1,9 +1,11 @@
+import { redirectOwnerIfPenalised } from "@/server/penalty-guard";
 import { getContainer } from "@/server/container";
 import { getShadowArmyView } from "@/app-services/shadow-view";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { ShadowCard } from "@/ui/components/shadow-army/ShadowCard";
 
 export default async function ShadowArmyPage() {
+  await redirectOwnerIfPenalised();
   const view = await getShadowArmyView(getContainer());
 
   return (

@@ -52,7 +52,10 @@ describe("getShadowArmyView", () => {
   });
 
   it("REGRESSION: names the weakest currently-extracted shadow, ignoring un-extracted ones", async () => {
-    await container.shadows.addExp("igris", 500, "2026-08-01");
+    // 17 days before "today" clears WEAKEN_AFTER_DAYS, so this shadow has
+    // actually decayed — a genuine weakest candidate, not just "trained a
+    // while ago."
+    await container.shadows.addExp("igris", 500, "2026-07-20");
     const view = await getShadowArmyView(container);
     expect(view.weakest?.name).toBe("Igris");
   });
@@ -62,5 +65,25 @@ describe("getShadowArmyView", () => {
     // Igris was extracted but never trained (no addExp call) — lastTrainedDay
     // is null, so there is no meaningful "days since trained" to report.
     expect(view.weakest).toBeNull();
+  });
+
+  it("REGRESSION: a shadow trained today is not reported as weakest", async () => {
+    // Igris trained on the same training day the clock reports as "today" —
+    // daysSinceTrained is 0, so effectiveExp equals exp and weakened is
+    // false. It must not be surfaced as having weakened.
+    await container.shadows.addExp("igris", 500, "2026-08-06");
+    const view = await getShadowArmyView(container);
+    const igris = view.shadows.find((s) => s.id === "igris");
+    expect(igris?.daysSinceTrained).toBe(0);
+    expect(igris?.weakened).toBe(false);
+    expect(view.weakest).toBeNull();
+  });
+
+  it("Bellion has no grade even when extracted, per its no-ladder design", async () => {
+    await container.shadows.extract("bellion", 1);
+    const view = await getShadowArmyView(container);
+    const bellion = view.shadows.find((s) => s.id === "bellion");
+    expect(bellion?.extracted).toBe(true);
+    expect(bellion?.grade).toBeNull();
   });
 });

@@ -20,7 +20,7 @@ export type ShadowViewEntry = {
   muscle: string | null;
   extracted: boolean;
   grade: ShadowGrade | null;
-  exp: number;
+  effectiveExp: number;
   daysSinceTrained: number | null;
   weakened: boolean;
 };
@@ -46,7 +46,7 @@ export async function getShadowArmyView(
         muscle: row.muscle,
         extracted: false,
         grade: null,
-        exp: 0,
+        effectiveExp: 0,
         daysSinceTrained: null,
         weakened: false,
       };
@@ -61,13 +61,16 @@ export async function getShadowArmyView(
         ? row.exp
         : weakenedExp(row.exp, daysSinceTrained);
 
+    // Bellion has no grade ladder by design — it's extracted-or-not only.
+    const grade = row.muscle === null ? null : gradeForExp(effectiveExp);
+
     return {
       id: row.id,
       name: row.name,
       muscle: row.muscle,
       extracted: true,
-      grade: gradeForExp(effectiveExp),
-      exp: effectiveExp,
+      grade,
+      effectiveExp,
       daysSinceTrained,
       weakened: effectiveExp < row.exp,
     };
@@ -83,13 +86,11 @@ export async function getShadowArmyView(
       countsTowardArmy: e.muscle !== null,
     }));
 
-  const trained = entries.filter(
-    (e) => e.extracted && e.daysSinceTrained !== null,
-  );
+  const weakenedShadows = entries.filter((e) => e.extracted && e.weakened);
   const weakest =
-    trained.length === 0
+    weakenedShadows.length === 0
       ? null
-      : trained.reduce((a, b) =>
+      : weakenedShadows.reduce((a, b) =>
           (b.daysSinceTrained ?? 0) > (a.daysSinceTrained ?? 0) ? b : a,
         );
 

@@ -13,7 +13,7 @@ export class ShadowRepo {
   constructor(private readonly db: Db) {}
 
   async all(): Promise<ShadowRow[]> {
-    return this.db.select().from(shadow);
+    return this.db.select().from(shadow).orderBy(shadow.id);
   }
 
   async byId(id: string): Promise<ShadowRow | null> {

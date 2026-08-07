@@ -21,7 +21,9 @@ export function ShadowCard({ shadow }: { shadow: ShadowViewEntry }) {
     >
       <div className="text-2xl mb-1">◈</div>
       <p className="font-cinzel text-sm text-white font-bold">{shadow.name}</p>
-      <p className="font-mono text-xs text-system-blue/70">{shadow.grade}</p>
+      {shadow.grade !== null && (
+        <p className="font-mono text-xs text-system-blue/70">{shadow.grade}</p>
+      )}
       {shadow.weakened && (
         <p className="font-mono text-xs text-danger mt-1">
           {shadow.daysSinceTrained} days without training
