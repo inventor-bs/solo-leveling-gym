@@ -16,7 +16,9 @@ export type ActionError =
   | "hunter-not-found"
   | "quest-not-found"
   | "no-active-penalty"
-  | "survival-incomplete";
+  | "survival-incomplete"
+  | "title-not-found"
+  | "title-not-earned";
 
 export type ActionResult<T> =
   { ok: true; value: T } | { ok: false; error: ActionError };
@@ -33,4 +35,6 @@ export const ACTION_ERROR_MESSAGE: Record<ActionError, string> = {
   "quest-not-found": "No quest has been issued for today yet.",
   "no-active-penalty": "There is no penalty to escape.",
   "survival-incomplete": "The Survival Quest is not finished yet.",
+  "title-not-found": "That title does not exist.",
+  "title-not-earned": "That title has not been earned yet.",
 };
