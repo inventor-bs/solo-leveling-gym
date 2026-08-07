@@ -38,6 +38,7 @@ function baseContext(patch: Partial<SystemContext> = {}): SystemContext {
     recentPr: null,
     penaltyActive: false,
     penaltySilent: false,
+    weakestShadow: null,
     ...patch,
   };
 }
@@ -176,5 +177,41 @@ describe("penalty awareness", () => {
       );
       expect(msg.body).toBe("");
     }
+  });
+});
+
+describe("weakest shadow awareness", () => {
+  it("names a weakening shadow when nothing more urgent is happening", () => {
+    const msg = buildSystemMessage(
+      baseContext({
+        recentPr: null,
+        dailyQuestDone: true,
+        streakDays: 0,
+        penaltyActive: false,
+        weakestShadow: { name: "Iron", daysSinceTrained: 11 },
+      }),
+      fakeRng(1),
+    );
+    expect(msg.body).toContain("Iron");
+    expect(msg.body).toContain("11");
+  });
+
+  it("REGRESSION: a recent PR still takes priority over a weakening shadow", () => {
+    const msg = buildSystemMessage(
+      baseContext({
+        recentPr: { exerciseName: "Bench Press", newE1rmKg: 100 },
+        weakestShadow: { name: "Iron", daysSinceTrained: 11 },
+      }),
+      fakeRng(1),
+    );
+    expect(msg.body).not.toContain("Iron");
+  });
+
+  it("says nothing about shadows when none has weakened", () => {
+    const msg = buildSystemMessage(
+      baseContext({ recentPr: null, weakestShadow: null }),
+      fakeRng(1),
+    );
+    expect(msg.body.toLowerCase()).not.toContain("weaken");
   });
 });

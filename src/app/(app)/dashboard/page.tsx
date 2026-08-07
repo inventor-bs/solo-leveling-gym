@@ -7,6 +7,7 @@ import { seededRng } from "@/infra/rng/seeded-rng";
 import { toTrainingDay, isoWeekdayOf } from "@/core/shared/training-day";
 import { getQuestView } from "@/app-services/quest-view";
 import { getPenaltyView } from "@/app-services/penalty-view";
+import { getShadowArmyView } from "@/app-services/shadow-view";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { RankBadge } from "@/ui/components/primitives/RankBadge";
 import { RunLogForm } from "@/ui/components/dungeon/RunLogForm";
@@ -26,6 +27,7 @@ export default async function DashboardPage() {
   const questView = await getQuestView(container);
   const quest = questView.ok ? questView.value : null;
   const penaltyView = await getPenaltyView(container);
+  const shadowView = await getShadowArmyView(container);
 
   const voiceSeed = weekday * 1000 + hunter.level;
   const message = buildSystemMessage(
@@ -40,6 +42,7 @@ export default async function DashboardPage() {
       recentPr: null,
       penaltyActive: penaltyView !== null,
       penaltySilent: penaltyView?.systemSilent ?? false,
+      weakestShadow: shadowView.weakest,
     },
     seededRng(voiceSeed),
   );

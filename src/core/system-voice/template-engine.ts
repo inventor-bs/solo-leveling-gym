@@ -6,9 +6,10 @@ import type { SystemContext, SystemMessage } from "./types";
  *
  * Penalty Zone awareness is now wired and takes the highest priority,
  * ahead of even a fresh PR — and the System goes completely silent once
- * `penaltySilent` is set. The rest of the priority order (a weakening
- * shadow, a falling lift, an active streak's escalation) still depends
- * on systems that don't exist until Phase 3. Adding one is adding a
+ * `penaltySilent` is set. A weakening shadow is wired too, ranked below
+ * the daily quest and streak but above the day's schedule. The rest of
+ * the priority order (a falling lift, an active streak's escalation)
+ * still depends on systems that don't exist yet. Adding one is adding a
  * function to this list — the composition and the voice rules below
  * don't change.
  */
@@ -34,6 +35,9 @@ function observation(context: SystemContext): string {
     const unit = context.streakDays === 1 ? "day" : "days";
     return `Daily Quest cleared. Streak: ${context.streakDays} ${unit}.`;
   }
+  if (context.weakestShadow) {
+    return `${context.weakestShadow.name} has weakened. ${context.weakestShadow.daysSinceTrained} days without training.`;
+  }
   if (context.todayProgramName) {
     return `Today's gate: ${context.todayProgramName}.`;
   }
@@ -52,6 +56,9 @@ function demand(context: SystemContext): string {
   }
   if (!context.dailyQuestDone) {
     return "Finish it before the day ends.";
+  }
+  if (context.weakestShadow) {
+    return "Do not let a shadow die of neglect.";
   }
   if (context.todayProgramName) {
     return "Enter the dungeon.";

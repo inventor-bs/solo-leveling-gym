@@ -14,6 +14,8 @@ export type SystemContext = {
   readonly penaltyActive: boolean;
   /** True once the System has gone silent (day 7+ stuck). Gates total silence in buildSystemMessage. */
   readonly penaltySilent: boolean;
+  /** The extracted shadow that has gone longest without training, if any extracted shadow has a training history. Null otherwise. */
+  readonly weakestShadow: { name: string; daysSinceTrained: number } | null;
 };
 
 export type SystemMessage = {
