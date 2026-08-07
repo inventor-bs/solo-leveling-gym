@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { loginAction } from "@/server/actions/auth.actions";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 
@@ -9,7 +8,6 @@ export default function LoginPage() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
   const [pending, startTransition] = useTransition();
-  const router = useRouter();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -17,11 +15,10 @@ export default function LoginPage() {
     startTransition(async () => {
       const fd = new FormData();
       fd.set("pin", pin);
+      // On a correct PIN, loginAction redirects server-side and this call
+      // never resolves normally — only the failure path returns here.
       const result = await loginAction(fd);
-      if (result.ok) {
-        router.push("/dashboard");
-        router.refresh();
-      } else {
+      if (!result.ok) {
         setError(true);
       }
     });

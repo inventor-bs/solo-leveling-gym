@@ -1,7 +1,9 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { getEnv } from "@/infra/config/env";
+import { getContainer } from "@/server/container";
 import {
   checkPin,
   signSession,
@@ -9,6 +11,13 @@ import {
   SESSION_TTL_MS,
 } from "@/server/auth/session";
 
+/**
+ * Redirects here, server-side, rather than returning success and letting
+ * the client decide where to go. The destination depends on whether a
+ * hunter has been onboarded yet — only the server can answer that at the
+ * moment the session cookie is set. Deciding it here means the client
+ * never has to guess and correct itself.
+ */
 export async function loginAction(
   formData: FormData,
 ): Promise<{ ok: boolean }> {
@@ -33,5 +42,7 @@ export async function loginAction(
     maxAge: SESSION_TTL_MS / 1000,
     path: "/",
   });
-  return { ok: true };
+
+  const hunter = await getContainer().hunters.get();
+  redirect(hunter ? "/dashboard" : "/onboarding");
 }
