@@ -119,3 +119,73 @@ describe("logQuestProgress", () => {
     if (result.ok) expect(result.value.quest.progressPushups).toBe(10);
   });
 });
+
+describe("logQuestProgress — title awarding", () => {
+  it("earns Unyielding on the completion that closes a 30-day streak", async () => {
+    const { TITLE_CATALOG } = await import("@/core/title/catalog");
+    const { addDays } = await import("@/core/shared/training-day");
+    await container.titles.seed(
+      TITLE_CATALOG.map((t) => ({ id: t.id, name: t.name, earnedAt: null })),
+    );
+
+    // 29 completed days behind today, then today's quest issued but open.
+    for (let i = 1; i <= 29; i += 1) {
+      const past = addDays(day, -i);
+      await container.quests.create({
+        id: `q-${past}`,
+        day: past,
+        rank: "E",
+        targetPushups: 20,
+        targetSitups: 20,
+        targetSquats: 20,
+        targetRunKm: 1,
+        createdAt: 1,
+      });
+      await container.quests.setStatus(past, "completed", 1);
+    }
+    await ensureDailyQuest(container, day);
+    await container.training.createRun({
+      id: "r-streak",
+      day,
+      distanceKm: 5,
+      durationSec: 1800,
+      loggedAt: 1,
+    });
+
+    const result = await logQuestProgress(container, {
+      day,
+      pushups: 20,
+      situps: 20,
+      squats: 20,
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.streak).toBe(30);
+      expect(
+        result.value.events.some(
+          (e) => e.type === "TitleEarned" && e.titleId === "unyielding",
+        ),
+      ).toBe(true);
+    }
+    expect(
+      (await container.titles.byId("unyielding"))?.earnedAt,
+    ).not.toBeNull();
+  });
+
+  it("REGRESSION: logging progress without completing the quest earns nothing", async () => {
+    const { TITLE_CATALOG } = await import("@/core/title/catalog");
+    await container.titles.seed(
+      TITLE_CATALOG.map((t) => ({ id: t.id, name: t.name, earnedAt: null })),
+    );
+    await ensureDailyQuest(container, day);
+
+    const result = await logQuestProgress(container, { day, pushups: 5 });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.events.some((e) => e.type === "TitleEarned")).toBe(
+        false,
+      );
+    }
+  });
+});

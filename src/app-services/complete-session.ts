@@ -22,6 +22,7 @@ import { shadowForMuscle } from "@/core/shadow/roster";
 import type { LoggedSet, MuscleGroup } from "@/core/training/types";
 import type { DomainEvent } from "@/core/shared/events";
 import type { Container } from "@/server/container";
+import { awardEarnedTitles } from "./award-titles";
 
 export type CompleteSessionResult = {
   rank: DungeonRank;
@@ -156,6 +157,10 @@ export async function completeSession(
       });
     }
   }
+
+  // After training.completeSession stamped endedAt, so this session counts
+  // toward the morning-session total.
+  events.push(...(await awardEarnedTitles(container)));
 
   const result: CompleteSessionResult = {
     rank: dungeonRank,

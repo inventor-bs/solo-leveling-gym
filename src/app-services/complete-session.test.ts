@@ -256,3 +256,66 @@ describe("completeSession — shadow EXP", () => {
     }
   });
 });
+
+describe("completeSession — title awarding", () => {
+  it("earns Monarch of Dawn on the tenth session started before 07:00 local", async () => {
+    const container = await containerWithLoggedSession();
+    const { TITLE_CATALOG } = await import("@/core/title/catalog");
+    await container.titles.seed(
+      TITLE_CATALOG.map((t) => ({ id: t.id, name: t.name, earnedAt: null })),
+    );
+
+    // Nine morning sessions already done. 23:30 UTC is 06:30 local at UTC+7.
+    const morning = Date.parse("2026-08-01T23:30:00.000Z");
+    for (let i = 0; i < 9; i += 1) {
+      await container.training.createSession({
+        id: `dawn-${i}`,
+        day: "2026-08-02",
+        programDayId: "upper-a",
+        startedAt: morning + i,
+      });
+      await container.training.completeSession(
+        `dawn-${i}`,
+        morning + 1000,
+        "C",
+      );
+    }
+
+    // The fixture's session-1 starts at epoch 0, which is 07:00 local — the
+    // cutoff is exclusive, so it is not a morning session and completing it
+    // would never be the tenth. Add a session before the cutoff instead.
+    await container.training.createSession({
+      id: "dawn-10",
+      day: "2026-08-05",
+      programDayId: "upper-a",
+      startedAt: morning + 100,
+    });
+    const result = await completeSession(container, {
+      sessionId: "dawn-10",
+      clientActionId: "a1",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(
+        result.value.events.some(
+          (e) => e.type === "TitleEarned" && e.titleId === "monarch-of-dawn",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("REGRESSION: completing a session earns nothing when the roster is unseeded", async () => {
+    const container = await containerWithLoggedSession();
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.events.some((e) => e.type === "TitleEarned")).toBe(
+        false,
+      );
+    }
+  });
+});

@@ -6,6 +6,7 @@ import { isQuestComplete } from "@/core/quest/daily-quest";
 import { currentStreak } from "@/core/quest/streak";
 import type { DailyQuestRow } from "@/infra/db/schema/quest";
 import type { Container } from "@/server/container";
+import { awardEarnedTitles } from "./award-titles";
 
 /** Fixed reward for clearing the day's quest. */
 export const DAILY_QUEST_GOLD = 50;
@@ -100,6 +101,9 @@ export async function logQuestProgress(
       day: input.day,
       streak,
     });
+    // Only on completion: a streak can only move when a quest closes, and
+    // a rep-by-rep tap should not pay for three extra queries.
+    events.push(...(await awardEarnedTitles(container)));
   }
 
   const finalQuest = await container.quests.byDay(input.day);

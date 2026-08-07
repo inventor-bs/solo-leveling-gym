@@ -2,6 +2,7 @@ import { ok, err, type Result } from "@/core/shared/result";
 import type { DomainEvent } from "@/core/shared/events";
 import type { Container } from "@/server/container";
 import { getPenaltyView } from "./penalty-view";
+import { awardEarnedTitles } from "./award-titles";
 
 export type ExitPenaltyResult = { daysStuck: number; events: DomainEvent[] };
 
@@ -22,10 +23,11 @@ export async function exitPenalty(
 
   await container.penalties.close(view.penaltyId, container.clock.now());
 
-  return ok({
-    daysStuck: view.daysStuck,
-    events: [
-      { type: "PenaltyCleared", day: view.day, daysStuck: view.daysStuck },
-    ],
-  });
+  const events: DomainEvent[] = [
+    { type: "PenaltyCleared", day: view.day, daysStuck: view.daysStuck },
+  ];
+  // Run after close(), so this escape is already counted.
+  events.push(...(await awardEarnedTitles(container)));
+
+  return ok({ daysStuck: view.daysStuck, events });
 }

@@ -195,4 +195,49 @@ describe("exitPenalty", () => {
     await exitPenalty(container);
     expect((await container.hunters.get())?.exp).toBe(900);
   });
+
+  it("earns One Who Returned on the fifth escape", async () => {
+    const { TITLE_CATALOG } = await import("@/core/title/catalog");
+    await container.titles.seed(
+      TITLE_CATALOG.map((t) => ({ id: t.id, name: t.name, earnedAt: null })),
+    );
+    // Four escapes already behind the hunter, closed directly.
+    for (let i = 0; i < 4; i += 1) {
+      await container.penalties.create({
+        id: `old-${i}`,
+        startedDay: "2026-07-01",
+        startedAt: 10 + i,
+        reason: "daily-quest-missed",
+        variantId: 1,
+        expLost: 5,
+      });
+      await container.penalties.close(`old-${i}`, 20 + i);
+    }
+
+    const today = parseTrainingDay("2026-08-06");
+    await enterPenalty(container, today);
+    await ensureDailyQuest(container, today);
+    await container.quests.addProgress(today, {
+      pushups: 30,
+      situps: 30,
+      squats: 30,
+    });
+    await container.training.createRun({
+      id: "r-escape",
+      day: today,
+      distanceKm: 1.5,
+      durationSec: 500,
+      loggedAt: 1,
+    });
+
+    const result = await exitPenalty(container);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(
+        result.value.events.some(
+          (e) => e.type === "TitleEarned" && e.titleId === "one-who-returned",
+        ),
+      ).toBe(true);
+    }
+  });
 });
