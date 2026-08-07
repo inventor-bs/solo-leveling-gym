@@ -254,3 +254,128 @@ describe("TrainingRepo — run logging", () => {
     expect(r.distanceKm).toBe(5);
   });
 });
+
+describe("window and history queries", () => {
+  async function completedSession(
+    id: string,
+    day: string,
+    startedAt: number,
+    endedAt: number,
+    sets: { exerciseId: string; reps: number; weight: number }[],
+  ) {
+    await repo.createSession({
+      id,
+      day,
+      programDayId: "upper-a",
+      startedAt,
+    });
+    let i = 0;
+    for (const s of sets) {
+      await repo.upsertSetLog({
+        id: `${id}-set-${i}`,
+        sessionId: id,
+        exerciseId: s.exerciseId,
+        setIndex: i,
+        reps: s.reps,
+        weight: s.weight,
+        completed: true,
+        isPr: false,
+        loggedAt: startedAt,
+      });
+      i += 1;
+    }
+    await repo.completeSession(id, endedAt, "C");
+  }
+
+  it("completedSessionsBetween includes both endpoints and excludes what falls outside", async () => {
+    await completedSession("s1", "2026-07-10", 1, 2, []);
+    await completedSession("s2", "2026-07-11", 3, 4, []);
+    await completedSession("s3", "2026-08-07", 5, 6, []);
+
+    const rows = await repo.completedSessionsBetween(
+      "2026-07-11",
+      "2026-08-07",
+    );
+    expect(rows.map((r) => r.id).sort()).toEqual(["s2", "s3"]);
+  });
+
+  it("REGRESSION: completedSessionsBetween ignores a session that was started but never finished", async () => {
+    // An abandoned session is not training. Counting it would inflate both
+    // the VIT stat and the schedule-adherence half of INT.
+    await repo.createSession({
+      id: "open",
+      day: "2026-08-07",
+      programDayId: "upper-a",
+      startedAt: 1,
+    });
+    expect(
+      await repo.completedSessionsBetween("2026-08-01", "2026-08-07"),
+    ).toEqual([]);
+  });
+
+  it("runsBetween filters by day", async () => {
+    await repo.createRun({
+      id: "r1",
+      day: "2026-07-01",
+      distanceKm: 5,
+      durationSec: 1800,
+      loggedAt: 1,
+    });
+    await repo.createRun({
+      id: "r2",
+      day: "2026-08-05",
+      distanceKm: 3,
+      durationSec: 1000,
+      loggedAt: 2,
+    });
+    const rows = await repo.runsBetween("2026-08-01", "2026-08-07");
+    expect(rows.map((r) => r.id)).toEqual(["r2"]);
+  });
+
+  it("completedSessionStarts returns the start instant of every finished session", async () => {
+    await completedSession("s1", "2026-08-05", 1000, 2000, []);
+    await completedSession("s2", "2026-08-06", 3000, 4000, []);
+    await repo.createSession({
+      id: "open",
+      day: "2026-08-07",
+      programDayId: "upper-a",
+      startedAt: 5000,
+    });
+    expect(await repo.completedSessionStarts()).toEqual([1000, 3000]);
+  });
+
+  it("completedSessionCountSince counts only sessions finished strictly after the instant", async () => {
+    await completedSession("s1", "2026-08-05", 1000, 2000, []);
+    await completedSession("s2", "2026-08-06", 3000, 4000, []);
+    expect(await repo.completedSessionCountSince(0)).toBe(2);
+    expect(await repo.completedSessionCountSince(2000)).toBe(1);
+    expect(await repo.completedSessionCountSince(4000)).toBe(0);
+  });
+
+  it("e1rmHistory reports the best e1RM per completed session, newest day first", async () => {
+    await completedSession("s1", "2026-07-01", 1, 2, [
+      { exerciseId: "bench-press", reps: 5, weight: 80 },
+    ]);
+    await completedSession("s2", "2026-08-06", 3, 4, [
+      { exerciseId: "bench-press", reps: 3, weight: 90 },
+      { exerciseId: "bench-press", reps: 1, weight: 100 },
+    ]);
+
+    const history = await repo.e1rmHistory("bench-press");
+    expect(history.map((h) => h.day)).toEqual(["2026-08-06", "2026-07-01"]);
+    expect(history[0]?.e1rm).toBe(100); // the single at 100kg beats 90x3
+  });
+
+  it("REGRESSION: e1rmHistory drops days with no measurable e1RM", async () => {
+    // Bodyweight work has no meaningful e1RM. A zero row would drag the
+    // 4-week trend down as if the lift had collapsed.
+    await completedSession("s1", "2026-08-06", 1, 2, [
+      { exerciseId: "bench-press", reps: 20, weight: 0 },
+    ]);
+    expect(await repo.e1rmHistory("bench-press")).toEqual([]);
+  });
+
+  it("e1rmHistory is empty for an exercise that was never lifted", async () => {
+    expect(await repo.e1rmHistory("deadlift")).toEqual([]);
+  });
+});

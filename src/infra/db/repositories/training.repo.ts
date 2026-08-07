@@ -1,4 +1,15 @@
-import { eq, and, ne, isNotNull, desc, gte, lte } from "drizzle-orm";
+import {
+  eq,
+  and,
+  ne,
+  gt,
+  isNotNull,
+  desc,
+  asc,
+  gte,
+  lte,
+  sql,
+} from "drizzle-orm";
 import { kg, reps, type Kg } from "@/core/shared/units";
 import {
   toExercisePerformance,
@@ -293,5 +304,90 @@ export class TrainingRepo {
       )
       .orderBy(session.day);
     return rows.map((r) => r.day);
+  }
+
+  /** Completed sessions whose training day falls inside [from, to]. */
+  async completedSessionsBetween(
+    from: string,
+    to: string,
+  ): Promise<SessionRow[]> {
+    return this.db
+      .select()
+      .from(session)
+      .where(
+        and(
+          isNotNull(session.endedAt),
+          gte(session.day, from),
+          lte(session.day, to),
+        ),
+      )
+      .orderBy(asc(session.day));
+  }
+
+  /** Runs logged on a day inside [from, to]. */
+  async runsBetween(from: string, to: string): Promise<RunLogRow[]> {
+    return this.db
+      .select()
+      .from(runLog)
+      .where(and(gte(runLog.day, from), lte(runLog.day, to)))
+      .orderBy(asc(runLog.day));
+  }
+
+  /**
+   * The start instant of every completed session, oldest first. Returned raw
+   * so the caller can convert to the hunter's local hour — this layer has no
+   * timezone and must not guess one.
+   */
+  async completedSessionStarts(): Promise<number[]> {
+    const rows = await this.db
+      .select({ startedAt: session.startedAt })
+      .from(session)
+      .where(isNotNull(session.endedAt))
+      .orderBy(asc(session.startedAt));
+    return rows.map((r) => r.startedAt);
+  }
+
+  /** Sessions finished strictly after `at`. */
+  async completedSessionCountSince(at: number): Promise<number> {
+    const rows = await this.db
+      .select({ n: sql<number>`count(*)` })
+      .from(session)
+      .where(gt(session.endedAt, at));
+    return Number(rows[0]?.n ?? 0);
+  }
+
+  /**
+   * Best e1RM per completed session containing this exercise, newest day
+   * first. Days with no measurable e1RM — bodyweight work — are dropped
+   * rather than reported as zero, which would read as a collapsed lift.
+   *
+   * N+1 by design, matching the rest of this class: a single hunter's
+   * history for one exercise is small, and a GROUP BY that reimplemented
+   * the Epley formula in SQL would be a second copy of a rule that already
+   * has one home in core/training/pr.ts.
+   */
+  async e1rmHistory(
+    exerciseId: string,
+  ): Promise<{ day: string; e1rm: number }[]> {
+    const rows = await this.db
+      .selectDistinct({ sessionId: setLog.sessionId, day: session.day })
+      .from(setLog)
+      .innerJoin(session, eq(session.id, setLog.sessionId))
+      .where(
+        and(
+          eq(setLog.exerciseId, exerciseId),
+          eq(setLog.completed, true),
+          isNotNull(session.endedAt),
+        ),
+      )
+      .orderBy(desc(session.day));
+
+    const history: { day: string; e1rm: number }[] = [];
+    for (const row of rows) {
+      const sets = await this.getSetsForSession(row.sessionId);
+      const e1rm = bestE1rmForExercise(sets.map(toLoggedSet), exerciseId);
+      if (e1rm > 0) history.push({ day: row.day, e1rm });
+    }
+    return history;
   }
 }
