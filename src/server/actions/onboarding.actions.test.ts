@@ -93,4 +93,21 @@ describe("completeOnboardingAction", () => {
     const others = rows.filter((s) => s.id !== "igris");
     expect(others.every((s) => s.extractedAt === null)).toBe(true);
   });
+
+  it("seeds every title, all of them unearned", async () => {
+    givenAuthenticated(true);
+    await completeOnboardingAction({
+      name: "Jin-Woo",
+      reasonForHunting: "For my family.",
+    });
+
+    const rows = await containerModule.getContainer().titles.all();
+    expect(rows).toHaveLength(3);
+    expect(rows.every((t) => t.earnedAt === null)).toBe(true);
+    expect(rows.map((t) => t.id).sort()).toEqual([
+      "monarch-of-dawn",
+      "one-who-returned",
+      "unyielding",
+    ]);
+  });
 });

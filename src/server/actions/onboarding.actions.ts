@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireWriteAccess } from "@/server/auth/guard";
 import { getContainer } from "@/server/container";
 import { SHADOW_ROSTER } from "@/core/shadow/roster";
+import { TITLE_CATALOG } from "@/core/title/catalog";
 
 const schema = z.object({
   name: z.string().min(1).max(64),
@@ -46,6 +47,10 @@ export async function completeOnboardingAction(
       muscle: s.muscle,
       extractedAt: s.startsExtracted ? now : null,
     })),
+  );
+
+  await container.titles.seed(
+    TITLE_CATALOG.map((t) => ({ id: t.id, name: t.name, earnedAt: null })),
   );
 
   return { ok: true };

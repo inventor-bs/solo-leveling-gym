@@ -3,6 +3,8 @@ import { getDb } from "../client";
 import { seedProgram } from "./program";
 import { ShadowRepo } from "../repositories/shadow.repo";
 import { SHADOW_ROSTER } from "@/core/shadow/roster";
+import { TitleRepo } from "../repositories/title.repo";
+import { TITLE_CATALOG } from "@/core/title/catalog";
 
 /**
  * Runs on every deploy, after migrations. seedProgram and ShadowRepo.seed
@@ -23,6 +25,14 @@ async function main() {
       muscle: s.muscle,
       extractedAt: s.startsExtracted ? now : null,
     })),
+  );
+
+  // Seeded here as well as at onboarding so an already-onboarded production
+  // database — which will never run onboarding again — still gets the roster.
+  // onConflictDoNothing means a real earnedAt is never touched.
+  const titles = new TitleRepo(db);
+  await titles.seed(
+    TITLE_CATALOG.map((t) => ({ id: t.id, name: t.name, earnedAt: null })),
   );
 
   console.log("Seed complete.");
