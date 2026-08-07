@@ -3,8 +3,10 @@ import type { DomainEvent } from "@/core/shared/events";
 import type { TrainingDay } from "@/core/shared/training-day";
 import { expAfterPenalty } from "@/core/penalty/penalty";
 import { penaltyVariantFor } from "@/core/penalty/variants";
+import { penaltyExpLossMultiplier } from "@/core/title/buffs";
 import type { PenaltyRow } from "@/infra/db/schema/penalty";
 import type { Container } from "@/server/container";
+import { equippedTitleId } from "./equipped-title";
 
 export type EnterPenaltyResult = {
   penalty: PenaltyRow;
@@ -31,7 +33,11 @@ export async function enterPenalty(
   const hunter = await container.hunters.get();
   if (!hunter) return err({ type: "hunter-not-found" });
 
-  const remaining = expAfterPenalty(hunter.exp);
+  const equipped = await equippedTitleId(container, hunter);
+  const remaining = expAfterPenalty(
+    hunter.exp,
+    penaltyExpLossMultiplier(equipped),
+  );
   const expLost = hunter.exp - remaining;
   const variant = penaltyVariantFor(await container.penalties.countAll());
   const now = container.clock.now();

@@ -99,3 +99,48 @@ describe("enterPenalty", () => {
     }
   });
 });
+
+describe("enterPenalty — Unyielding", () => {
+  async function givenHunterWith(exp: number, title: string | null) {
+    await container.hunters.create({ name: "Jin-Woo", createdAt: 1 });
+    await container.hunters.update({ exp, title });
+  }
+
+  async function givenUnyieldingEarned() {
+    const { TITLE_CATALOG } = await import("@/core/title/catalog");
+    await container.titles.seed(
+      TITLE_CATALOG.map((t) => ({ id: t.id, name: t.name, earnedAt: null })),
+    );
+    await container.titles.earn("unyielding", 1);
+  }
+
+  it("REGRESSION: takes the full 10% when the title is earned but not worn", async () => {
+    // Earning a title does nothing on its own — only one is worn at a time,
+    // and an unequipped title must not pay out.
+    await givenUnyieldingEarned();
+    await givenHunterWith(1000, null);
+
+    await enterPenalty(container, parseTrainingDay("2026-08-06"));
+    expect((await container.hunters.get())?.exp).toBe(900);
+  });
+
+  it("takes 20% less of the EXP when Unyielding is worn", async () => {
+    await givenUnyieldingEarned();
+    await givenHunterWith(1000, "unyielding");
+
+    const result = await enterPenalty(
+      container,
+      parseTrainingDay("2026-08-06"),
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.expLost).toBe(80);
+    expect((await container.hunters.get())?.exp).toBe(920);
+  });
+
+  it("REGRESSION: a title worn without ever being earned changes nothing", async () => {
+    // No seed, no earn — just a title id sitting in the column.
+    await givenHunterWith(1000, "unyielding");
+    await enterPenalty(container, parseTrainingDay("2026-08-06"));
+    expect((await container.hunters.get())?.exp).toBe(900);
+  });
+});

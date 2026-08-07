@@ -30,6 +30,27 @@ describe("expAfterPenalty", () => {
     expect(result).toBeLessThan(500);
     expect(result).toBeGreaterThanOrEqual(0);
   });
+
+  it("takes the full 10% when no multiplier is given", () => {
+    expect(expAfterPenalty(1000)).toBe(900);
+    expect(expAfterPenalty(1000, 1)).toBe(900);
+  });
+
+  it("takes a fifth less of the loss with the Unyielding multiplier", () => {
+    // 10% of 1000 is 100; Unyielding cuts that loss to 80.
+    expect(expAfterPenalty(1000, 0.8)).toBe(920);
+  });
+
+  it("REGRESSION: still cannot push EXP below zero, whatever the multiplier", () => {
+    expect(expAfterPenalty(0, 0.8)).toBe(0);
+  });
+
+  it("REGRESSION: still has no level parameter, so it still cannot delevel", () => {
+    // Only currentExp is required — lossMultiplier is optional and defaulted,
+    // so Function.length stays 1. A second REQUIRED parameter (a level) would
+    // push it to 2, and a function that cannot see the level cannot lower it.
+    expect(expAfterPenalty.length).toBe(1);
+  });
 });
 
 describe("survivalMultiplier", () => {

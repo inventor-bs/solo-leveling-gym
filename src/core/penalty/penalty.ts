@@ -13,9 +13,25 @@ export const SYSTEM_SILENCE_DAY = 7;
  * Takes and returns only the within-level EXP pool. There is deliberately
  * no level parameter: a function that cannot see the level cannot lower it,
  * which is a stronger guarantee than a branch that promises not to.
+ *
+ * `lossMultiplier` scales how much of the 10% is actually taken. EXP is a
+ * progression number, and progression numbers may be modified — but only by
+ * something the hunter earned through training. The one caller that passes
+ * anything other than 1 is the Unyielding title, earned by a 30-day streak
+ * and impossible to buy. Nothing measured (e1RM, volume, PRs, the six stats)
+ * takes a modifier anywhere in this codebase, and that line does not move.
+ *
+ * The kept fraction is resolved in integer hundredths, for the same reason
+ * survivalMultiplier works in integer tenths: EXP_LOSS_RATE * 0.8 evaluates
+ * to 0.08000000000000002, which drags 1000 down to 919.9999999999999 and
+ * survives the floor below as a point the hunter never actually lost.
  */
-export function expAfterPenalty(currentExp: number): number {
-  return Math.max(0, Math.floor(currentExp * (1 - EXP_LOSS_RATE)));
+export function expAfterPenalty(
+  currentExp: number,
+  lossMultiplier = 1,
+): number {
+  const keptHundredths = 100 - Math.round(EXP_LOSS_RATE * lossMultiplier * 100);
+  return Math.max(0, Math.floor((currentExp * keptHundredths) / 100));
 }
 
 /**
