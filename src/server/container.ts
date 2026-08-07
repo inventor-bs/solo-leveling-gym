@@ -12,6 +12,7 @@ import { TrainingRepo } from "@/infra/db/repositories/training.repo";
 import { QuestRepo } from "@/infra/db/repositories/quest.repo";
 import { PenaltyRepo } from "@/infra/db/repositories/penalty.repo";
 import { ShadowRepo } from "@/infra/db/repositories/shadow.repo";
+import { TitleRepo } from "@/infra/db/repositories/title.repo";
 import { getEnv } from "@/infra/config/env";
 
 export type Container = {
@@ -27,6 +28,7 @@ export type Container = {
   quests: QuestRepo;
   penalties: PenaltyRepo;
   shadows: ShadowRepo;
+  titles: TitleRepo;
   tzOffsetMinutes: number;
 };
 
@@ -60,6 +62,7 @@ export function buildContainer(seed: ContainerSeed = {}): Container {
     quests: new QuestRepo(db),
     penalties: new PenaltyRepo(db),
     shadows: new ShadowRepo(db),
+    titles: new TitleRepo(db),
     tzOffsetMinutes: seed.tzOffsetMinutes ?? getEnv().HUNTER_TZ_OFFSET_MINUTES,
   };
 }

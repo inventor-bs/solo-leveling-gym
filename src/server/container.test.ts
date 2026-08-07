@@ -67,4 +67,11 @@ describe("buildContainer", () => {
     expect(c.newId()).toBe("id-1");
     expect(c.newId()).toBe("id-2");
   });
+
+  it("wires the shadow and title repositories", async () => {
+    const db = await makeTestDb();
+    const c = buildContainer({ db, tzOffsetMinutes: 420 });
+    expect(c.shadows).toBeDefined();
+    expect(c.titles).toBeDefined();
+  });
 });
