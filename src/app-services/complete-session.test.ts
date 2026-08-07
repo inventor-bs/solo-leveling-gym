@@ -319,3 +319,155 @@ describe("completeSession — title awarding", () => {
     }
   });
 });
+
+describe("completeSession — title buffs", () => {
+  async function equip(
+    container: Awaited<ReturnType<typeof containerWithLoggedSession>>,
+    id: string,
+  ) {
+    const { TITLE_CATALOG } = await import("@/core/title/catalog");
+    await container.titles.seed(
+      TITLE_CATALOG.map((t) => ({ id: t.id, name: t.name, earnedAt: null })),
+    );
+    await container.titles.earn(id, 1);
+    await container.hunters.update({ title: id });
+  }
+
+  it("pays the base C-rank gold and EXP with nothing equipped", async () => {
+    const container = await containerWithLoggedSession();
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.goldAwarded).toBe(70);
+      expect(result.value.expAwarded).toBe(350);
+    }
+  });
+
+  it("REGRESSION: Monarch of Dawn pays nothing extra on a session started after 07:00", async () => {
+    const container = await containerWithLoggedSession();
+    await equip(container, "monarch-of-dawn");
+    // The fixture starts session-1 at epoch 0, which is 07:00 local at UTC+7
+    // — the cutoff is exclusive, so this is not a morning session.
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.goldAwarded).toBe(70);
+  });
+
+  it("Monarch of Dawn pays 15% more gold on a session started before 07:00", async () => {
+    const container = await containerWithLoggedSession();
+    await equip(container, "monarch-of-dawn");
+    await container.training.createSession({
+      id: "dawn",
+      day: "2026-08-05",
+      programDayId: "upper-a",
+      // 23:30 UTC on the 4th is 06:30 local on the 5th.
+      startedAt: Date.parse("2026-08-04T23:30:00.000Z"),
+    });
+    await container.training.upsertSetLog({
+      id: "dawn-set",
+      sessionId: "dawn",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 6,
+      weight: 80,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+
+    const result = await completeSession(container, {
+      sessionId: "dawn",
+      clientActionId: "a1",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.goldAwarded).toBe(81); // round(70 * 1.15)
+      expect(result.value.expAwarded).toBe(350); // EXP is untouched
+    }
+  });
+
+  it("One Who Returned pays 10% more EXP on the first session after an escape", async () => {
+    const container = await containerWithLoggedSession();
+    await equip(container, "one-who-returned");
+    await container.penalties.create({
+      id: "p1",
+      startedDay: "2026-08-01",
+      startedAt: 10,
+      reason: "daily-quest-missed",
+      variantId: 1,
+      expLost: 5,
+    });
+    await container.penalties.close("p1", 20);
+
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.expAwarded).toBe(385); // round(350 * 1.1)
+      expect(result.value.goldAwarded).toBe(70); // gold is untouched
+    }
+  });
+
+  it("REGRESSION: One Who Returned pays the bonus once, not on every session afterwards", async () => {
+    // "+10% EXP after exiting" is a welcome-back boost. A permanent +10%
+    // would not be the small passive buff a title is supposed to be.
+    const container = await containerWithLoggedSession();
+    await equip(container, "one-who-returned");
+    await container.penalties.create({
+      id: "p1",
+      startedDay: "2026-08-01",
+      startedAt: 10,
+      reason: "daily-quest-missed",
+      variantId: 1,
+      expLost: 5,
+    });
+    await container.penalties.close("p1", 20);
+    await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+
+    await container.training.createSession({
+      id: "session-2",
+      day: "2026-08-06",
+      programDayId: "upper-a",
+      startedAt: 0,
+    });
+    await container.training.upsertSetLog({
+      id: "set-2",
+      sessionId: "session-2",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 6,
+      weight: 80,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+    const second = await completeSession(container, {
+      sessionId: "session-2",
+      clientActionId: "a2",
+    });
+    expect(second.ok).toBe(true);
+    if (second.ok) expect(second.value.expAwarded).toBe(350);
+  });
+
+  it("REGRESSION: One Who Returned pays nothing when the hunter has never been penalised", async () => {
+    const container = await containerWithLoggedSession();
+    await equip(container, "one-who-returned");
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.expAwarded).toBe(350);
+  });
+});

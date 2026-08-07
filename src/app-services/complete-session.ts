@@ -4,6 +4,7 @@ import {
   gold as makeGold,
   reps,
   kg,
+  epoch,
 } from "@/core/shared/units";
 import {
   dungeonRankFor,
@@ -19,10 +20,17 @@ import {
 import { applyExp, rankForLevel } from "@/core/hunter/progression";
 import { fatigueAfterSession } from "@/core/hunter/fatigue";
 import { shadowForMuscle } from "@/core/shadow/roster";
+import { localHourOf } from "@/core/shared/training-day";
+import {
+  sessionGoldMultiplier,
+  sessionExpMultiplier,
+} from "@/core/title/buffs";
+import { MORNING_BEFORE_HOUR } from "@/core/title/catalog";
 import type { LoggedSet, MuscleGroup } from "@/core/training/types";
 import type { DomainEvent } from "@/core/shared/events";
 import type { Container } from "@/server/container";
 import { awardEarnedTitles } from "./award-titles";
+import { equippedTitleId } from "./equipped-title";
 
 export type CompleteSessionResult = {
   rank: DungeonRank;
@@ -93,8 +101,33 @@ export async function completeSession(
   const avgVolume = averageVolumeLoad(recentVolumes);
 
   const dungeonRank = dungeonRankFor(plannedVolume, avgVolume);
-  const goldAwarded = goldForDungeonRank(dungeonRank);
-  const expAwarded = expForDungeonRank(dungeonRank);
+
+  const equipped = await equippedTitleId(container, hunter);
+
+  // Local hour, not UTC: a 06:30 session in Vietnam is stored at 23:30 UTC
+  // the previous day. The cutoff is exclusive — 07:00 sharp is not morning.
+  const startedInTheMorning =
+    localHourOf(epoch(session.startedAt), container.tzOffsetMinutes) <
+    MORNING_BEFORE_HOUR;
+
+  // Asked BEFORE training.completeSession stamps endedAt a few lines below,
+  // so "first session after the escape" means the one being logged right
+  // now rather than counting this session as its own predecessor.
+  const lastExitAt = await container.penalties.lastExitAt();
+  const firstSessionAfterExit =
+    lastExitAt !== null &&
+    (await container.training.completedSessionCountSince(lastExitAt)) === 0;
+
+  const goldAwarded = Math.round(
+    goldForDungeonRank(dungeonRank) *
+      sessionGoldMultiplier(equipped, startedInTheMorning),
+  );
+  const expAwarded = makeExp(
+    Math.round(
+      expForDungeonRank(dungeonRank) *
+        sessionExpMultiplier(equipped, firstSessionAfterExit),
+    ),
+  );
 
   const now = container.clock.now();
   await container.training.completeSession(input.sessionId, now, dungeonRank);
