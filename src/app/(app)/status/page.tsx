@@ -1,10 +1,118 @@
-import { LockedFeature } from "@/ui/components/primitives/LockedFeature";
+import { redirectOwnerIfPenalised } from "@/server/penalty-guard";
+import { getContainer } from "@/server/container";
+import { getStatusView } from "@/app-services/status-view";
+import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
+import { RankBadge } from "@/ui/components/primitives/RankBadge";
+import { StatRadar } from "@/ui/components/status/StatRadar";
+import { LiftTrendTable } from "@/ui/components/status/LiftTrendTable";
+import { TitleShelf } from "@/ui/components/status/TitleShelf";
 
-export default function StatusPage() {
+const STAT_ROWS = [
+  { key: "strength", label: "STR" },
+  { key: "agility", label: "AGI" },
+  { key: "vitality", label: "VIT" },
+  { key: "intelligence", label: "INT" },
+  { key: "perception", label: "PER" },
+  { key: "luck", label: "LUK" },
+] as const;
+
+export default async function StatusPage() {
+  await redirectOwnerIfPenalised();
+  const view = await getStatusView(getContainer());
+
+  if (!view) {
+    return (
+      <div className="relative min-h-screen p-6 md:p-8">
+        <div className="relative z-10 max-w-3xl mx-auto">
+          <SystemPanel>
+            <p className="p-4 font-mono text-sm text-slate-400">
+              No Hunter has been registered yet.
+            </p>
+          </SystemPanel>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <LockedFeature
-      title="HUNTER STATUS"
-      unlocksAt="The six-stat derivation lands in a later phase."
-    />
+    <div className="relative min-h-screen p-6 md:p-8">
+      <div className="relative z-10 max-w-3xl mx-auto space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <p className="font-mono text-xs text-system-blue/60 tracking-widest mb-1">
+              ◈ SYSTEM — HUNTER STATUS
+            </p>
+            <h1 className="font-cinzel text-3xl font-black text-white tracking-wide">
+              {view.name}
+            </h1>
+            <p className="font-mono text-xs text-slate-500 mt-1">
+              Lv {view.level} · {view.exp}/{view.expToNext} EXP · {view.gold}{" "}
+              gold
+            </p>
+          </div>
+          <RankBadge rank={view.rank} size="md" />
+        </div>
+
+        <SystemPanel header="STATS">
+          <div className="p-4 grid gap-4 md:grid-cols-2">
+            <StatRadar stats={view.stats} />
+            <div className="space-y-1 font-mono text-sm self-center">
+              {STAT_ROWS.map((row) => (
+                <div key={row.key} className="flex justify-between">
+                  <span className="text-slate-400">{row.label}</span>
+                  <span className="text-white">{view.stats[row.key]}</span>
+                </div>
+              ))}
+              {view.penaltyActive && (
+                <p className="pt-2 font-mono text-xs text-danger">
+                  Penalty Zone active — every stat is reading 15% low.
+                </p>
+              )}
+            </div>
+          </div>
+        </SystemPanel>
+
+        <SystemPanel header="HUNTER RECORD">
+          <div className="p-4 grid grid-cols-2 gap-3 font-mono text-xs">
+            <div className="flex justify-between">
+              <span className="text-slate-400">Class</span>
+              <span className="text-white">{view.className ?? "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Army Rank</span>
+              <span className="text-white">{view.armyRank ?? "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Fatigue</span>
+              <span
+                className={
+                  view.fatigueLevel === "critical"
+                    ? "text-danger"
+                    : view.fatigueLevel === "warning"
+                      ? "text-warning"
+                      : "text-white"
+                }
+              >
+                {view.fatigue}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Title</span>
+              <span className="text-white">
+                {view.titles.find((t) => t.equipped)?.name ?? "—"}
+              </span>
+            </div>
+          </div>
+        </SystemPanel>
+
+        <SystemPanel header="LIFT RECORD">
+          <LiftTrendTable lifts={view.lifts} />
+        </SystemPanel>
+
+        <SystemPanel header="TITLES">
+          <TitleShelf titles={view.titles} />
+        </SystemPanel>
+      </div>
+    </div>
   );
 }
