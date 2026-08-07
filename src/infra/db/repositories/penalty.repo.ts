@@ -1,4 +1,4 @@
-import { isNull, desc, eq, sql } from "drizzle-orm";
+import { isNull, isNotNull, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "../client";
 import { penalty, type PenaltyRow } from "../schema/penalty";
 
@@ -52,5 +52,29 @@ export class PenaltyRepo {
       .select({ n: sql<number>`count(*)` })
       .from(penalty);
     return Number(rows[0]?.n ?? 0);
+  }
+
+  /**
+   * How many episodes the hunter has escaped. A closed episode IS an exit —
+   * `close` is only ever called from exitPenalty, which refuses until the
+   * Survival Quest is done, so there is no other way for endedAt to be set.
+   */
+  async countExited(): Promise<number> {
+    const rows = await this.db
+      .select({ n: sql<number>`count(*)` })
+      .from(penalty)
+      .where(isNotNull(penalty.endedAt));
+    return Number(rows[0]?.n ?? 0);
+  }
+
+  /** When the hunter last escaped, or null if they never have. */
+  async lastExitAt(): Promise<number | null> {
+    const rows = await this.db
+      .select({ endedAt: penalty.endedAt })
+      .from(penalty)
+      .where(isNotNull(penalty.endedAt))
+      .orderBy(desc(penalty.endedAt))
+      .limit(1);
+    return rows[0]?.endedAt ?? null;
   }
 }

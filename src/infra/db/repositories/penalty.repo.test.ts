@@ -63,6 +63,53 @@ describe("PenaltyRepo", () => {
     });
     expect((await penalties.active())?.id).toBe("p2");
   });
+
+  describe("penalty exit history", () => {
+    it("counts nothing when no episode has ever been closed", async () => {
+      expect(await penalties.countExited()).toBe(0);
+      expect(await penalties.lastExitAt()).toBeNull();
+    });
+
+    it("REGRESSION: an open episode is not an exit", async () => {
+      // countAll() already counts every episode. Escaping is the closing of
+      // one, so an episode the hunter is still stuck inside must not count.
+      await penalties.create({
+        id: "p1",
+        startedDay: "2026-08-01",
+        startedAt: 100,
+        reason: "daily-quest-missed",
+        variantId: 1,
+        expLost: 10,
+      });
+      expect(await penalties.countAll()).toBe(1);
+      expect(await penalties.countExited()).toBe(0);
+      expect(await penalties.lastExitAt()).toBeNull();
+    });
+
+    it("counts each closed episode and reports the most recent close", async () => {
+      await penalties.create({
+        id: "p1",
+        startedDay: "2026-08-01",
+        startedAt: 100,
+        reason: "daily-quest-missed",
+        variantId: 1,
+        expLost: 10,
+      });
+      await penalties.close("p1", 200);
+      await penalties.create({
+        id: "p2",
+        startedDay: "2026-08-04",
+        startedAt: 300,
+        reason: "daily-quest-missed",
+        variantId: 2,
+        expLost: 20,
+      });
+      await penalties.close("p2", 400);
+
+      expect(await penalties.countExited()).toBe(2);
+      expect(await penalties.lastExitAt()).toBe(400);
+    });
+  });
 });
 
 describe("TrainingRepo activity lookups", () => {
