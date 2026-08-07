@@ -101,6 +101,18 @@ export function toTrainingDay(at: Epoch, tzOffsetMinutes: number): TrainingDay {
   return formatUtcParts(new Date(at + tzOffsetMinutes * MS_PER_MINUTE));
 }
 
+/**
+ * Hour of day, 0-23, in the hunter's local time.
+ *
+ * Lives here for the same reason toTrainingDay does: this is the only file
+ * allowed to turn an instant into a local calendar fact. The server runs
+ * UTC and the hunter does not, so reading a raw UTC hour would classify a
+ * 06:30 local session as 23:00 the day before.
+ */
+export function localHourOf(at: Epoch, tzOffsetMinutes: number): number {
+  return new Date(at + tzOffsetMinutes * MS_PER_MINUTE).getUTCHours();
+}
+
 /** The instant at 00:00:00.000 local time on that day. */
 export function trainingDayStart(
   day: TrainingDay,

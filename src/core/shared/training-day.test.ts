@@ -10,6 +10,7 @@ import {
   parseTrainingDay,
   isTrainingDay,
   InvalidTrainingDayError,
+  localHourOf,
   type TrainingDay,
 } from "./training-day";
 
@@ -228,5 +229,36 @@ describe("toTrainingDay always emits parseable output", () => {
       const day = toTrainingDay(at, ICT);
       expect(() => parseTrainingDay(day)).not.toThrow();
     }
+  });
+});
+
+describe("localHourOf", () => {
+  it("reads the hunter's local hour, not the server's", () => {
+    // 02:00 UTC is 09:00 at UTC+7.
+    expect(localHourOf(epoch(Date.parse("2026-08-06T02:00:00Z")), 420)).toBe(9);
+  });
+
+  it("REGRESSION: an early-morning session logged the previous UTC day still reads as morning", () => {
+    // 23:30 UTC on the 5th is 06:30 local on the 6th. Reading the raw UTC
+    // hour here would give 23, and every "before 7am" rule in the app would
+    // quietly stop firing in production while passing in a UTC test.
+    expect(localHourOf(epoch(Date.parse("2026-08-05T23:30:00Z")), 420)).toBe(6);
+  });
+
+  it("is the plain UTC hour at offset zero", () => {
+    expect(localHourOf(epoch(Date.parse("2026-08-06T13:45:00Z")), 0)).toBe(13);
+  });
+
+  it("handles a negative offset", () => {
+    // UTC-5: 02:00 UTC is 21:00 the previous local day.
+    expect(localHourOf(epoch(Date.parse("2026-08-06T02:00:00Z")), -300)).toBe(
+      21,
+    );
+  });
+
+  it("agrees with toTrainingDay about which day an instant belongs to", () => {
+    const at = epoch(Date.parse("2026-08-05T23:30:00Z"));
+    expect(toTrainingDay(at, 420)).toBe("2026-08-06");
+    expect(localHourOf(at, 420)).toBe(6);
   });
 });
