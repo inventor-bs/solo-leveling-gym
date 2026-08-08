@@ -144,8 +144,16 @@ describe("runDailyReset — penalty interaction", () => {
     expect(summary.penaltyOpened).toBe(true);
 
     const yesterdayRows = await container.events.between(yesterday, yesterday);
-    expect(yesterdayRows.some((r) => r.type === "DailyQuestMissed")).toBe(true);
-    expect(yesterdayRows.some((r) => r.type === "PenaltyStarted")).toBe(true);
+    // Exact counts, not .some(): enterPenalty persists PenaltyStarted itself
+    // (see enter-penalty.ts), so daily-reset must not persist it a second
+    // time when it folds enterPenalty's events into its own return value.
+    expect(
+      yesterdayRows.filter((r) => r.type === "DailyQuestMissed").length,
+    ).toBe(1);
+    expect(
+      yesterdayRows.filter((r) => r.type === "PenaltyStarted").length,
+    ).toBe(1);
+    expect(yesterdayRows.length).toBe(2);
 
     const today = parseTrainingDay(summary.today);
     const todayRows = await container.events.between(today, today);

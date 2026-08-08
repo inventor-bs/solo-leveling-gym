@@ -28,6 +28,12 @@ export async function runDailyReset(
   const today = toTrainingDay(container.clock.now(), container.tzOffsetMinutes);
   const yesterday = addDays(today, -1);
   const events: DomainEvent[] = [];
+  // Only events this function creates itself go here. A sub-call such as
+  // enterPenalty persists its own events before returning them, so folding
+  // its events into `events` (for the full picture returned to the caller)
+  // must not also fold them into what gets persisted below — that would
+  // write the same row twice.
+  const eventsToPersist: DomainEvent[] = [];
 
   // No punishment stacks on a punishment. While an episode is open the quest
   // is left unjudged entirely, so the debt stays at exactly one Survival Quest
@@ -76,16 +82,19 @@ export async function runDailyReset(
         yesterdayStatus,
         container.clock.now(),
       );
-      events.push(
-        complete
-          ? { type: "DailyQuestCompleted", day: yesterday, streak: 0 }
-          : { type: "DailyQuestMissed", day: yesterday },
-      );
+      const judgmentEvent: DomainEvent = complete
+        ? { type: "DailyQuestCompleted", day: yesterday, streak: 0 }
+        : { type: "DailyQuestMissed", day: yesterday };
+      events.push(judgmentEvent);
+      eventsToPersist.push(judgmentEvent);
 
       if (!complete) {
         const opened = await enterPenalty(container, yesterday);
         if (opened.ok) {
           penaltyOpened = true;
+          // enterPenalty already persisted its own events (see
+          // enter-penalty.ts) — fold them into the returned list for the
+          // caller, but not into eventsToPersist, or they'd be written twice.
           events.push(...opened.value.events);
         }
       }
@@ -95,7 +104,11 @@ export async function runDailyReset(
   const alreadyIssued = (await container.quests.byDay(today)) !== null;
   await ensureDailyQuest(container, today);
 
-  await container.events.record(events, yesterday, container.clock.now());
+  await container.events.record(
+    eventsToPersist,
+    yesterday,
+    container.clock.now(),
+  );
 
   return {
     today,
