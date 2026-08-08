@@ -6,6 +6,7 @@ import type { Container } from "@/server/container";
 import { ensureDailyQuest } from "./ensure-daily-quest";
 import { ensureNarrativeUnlocks } from "./ensure-narrative";
 import { enterPenalty } from "./enter-penalty";
+import { generateVoicePool } from "./generate-voice-pool";
 import { revealHiddenQuests } from "./reveal-hidden-quests";
 
 export type DailyResetSummary = {
@@ -16,6 +17,7 @@ export type DailyResetSummary = {
   penaltyOpened: boolean;
   fragmentsUnlocked: number;
   hiddenQuestsRevealed: number;
+  voiceMessagesGenerated: number;
   events: DomainEvent[];
 };
 
@@ -50,6 +52,7 @@ export async function runDailyReset(
    */
   let fragmentsUnlocked = 0;
   let hiddenQuestsRevealed = 0;
+  let voiceMessagesGenerated = 0;
   const runMilestones = async (): Promise<void> => {
     const narrativeEvents = await ensureNarrativeUnlocks(container);
     fragmentsUnlocked = narrativeEvents.length;
@@ -60,6 +63,10 @@ export async function runDailyReset(
       (e) => e.type === "HiddenQuestRevealed",
     ).length;
     events.push(...hiddenEvents);
+
+    // Runs last, so the day's messages describe a context that already
+    // reflects everything this reset changed.
+    voiceMessagesGenerated = (await generateVoicePool(container)).stored;
   };
 
   // No punishment stacks on a punishment. While an episode is open the quest
@@ -78,6 +85,7 @@ export async function runDailyReset(
       penaltyOpened: false,
       fragmentsUnlocked,
       hiddenQuestsRevealed,
+      voiceMessagesGenerated,
       events,
     };
   }
@@ -150,6 +158,7 @@ export async function runDailyReset(
     penaltyOpened,
     fragmentsUnlocked,
     hiddenQuestsRevealed,
+    voiceMessagesGenerated,
     events,
   };
 }
