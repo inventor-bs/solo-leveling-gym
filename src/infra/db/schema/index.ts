@@ -8,3 +8,4 @@ export * from "./penalty";
 export * from "./shadow";
 export * from "./title";
 export * from "./narrative";
+export * from "./hidden-quest";
