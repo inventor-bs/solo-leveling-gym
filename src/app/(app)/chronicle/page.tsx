@@ -3,6 +3,9 @@ import { getChronicleView } from "@/app-services/chronicle-view";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { Heatmap } from "@/ui/components/chronicle/Heatmap";
 import { EventTimeline } from "@/ui/components/chronicle/EventTimeline";
+import { WeeklyVolumeChart } from "@/ui/components/chronicle/WeeklyVolumeChart";
+import { LiftProgressChart } from "@/ui/components/chronicle/LiftProgressChart";
+import { MuscleVolumeChart } from "@/ui/components/chronicle/MuscleVolumeChart";
 
 export default async function ChroniclePage() {
   const view = await getChronicleView(getContainer());
@@ -28,6 +31,24 @@ export default async function ChroniclePage() {
         <SystemPanel header="EVENT LOG">
           <div className="p-4">
             <EventTimeline entries={view.timeline} />
+          </div>
+        </SystemPanel>
+
+        <SystemPanel header="WEEKLY VOLUME">
+          <div className="p-4">
+            <WeeklyVolumeChart weeks={view.weeklyVolume} />
+          </div>
+        </SystemPanel>
+
+        <SystemPanel header="MAIN LIFTS">
+          <div className="p-4">
+            <LiftProgressChart lifts={view.liftProgress} />
+          </div>
+        </SystemPanel>
+
+        <SystemPanel header="VOLUME BY MUSCLE GROUP">
+          <div className="p-4">
+            <MuscleVolumeChart muscleVolume={view.muscleVolume} />
           </div>
         </SystemPanel>
       </div>
