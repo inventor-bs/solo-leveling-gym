@@ -16,6 +16,8 @@ import { TitleRepo } from "@/infra/db/repositories/title.repo";
 import { EventLogRepo } from "@/infra/db/repositories/event-log.repo";
 import { NarrativeRepo } from "@/infra/db/repositories/narrative.repo";
 import { HiddenQuestRepo } from "@/infra/db/repositories/hidden-quest.repo";
+import { SystemMessageRepo } from "@/infra/db/repositories/system-message.repo";
+import { VoiceQuotaRepo } from "@/infra/db/repositories/voice-quota.repo";
 import { getEnv } from "@/infra/config/env";
 
 export type Container = {
@@ -35,6 +37,8 @@ export type Container = {
   events: EventLogRepo;
   narrative: NarrativeRepo;
   hiddenQuests: HiddenQuestRepo;
+  systemMessages: SystemMessageRepo;
+  voiceQuota: VoiceQuotaRepo;
   tzOffsetMinutes: number;
 };
 
@@ -72,6 +76,8 @@ export function buildContainer(seed: ContainerSeed = {}): Container {
     events: new EventLogRepo(db),
     narrative: new NarrativeRepo(db),
     hiddenQuests: new HiddenQuestRepo(db),
+    systemMessages: new SystemMessageRepo(db),
+    voiceQuota: new VoiceQuotaRepo(db),
     tzOffsetMinutes: seed.tzOffsetMinutes ?? getEnv().HUNTER_TZ_OFFSET_MINUTES,
   };
 }

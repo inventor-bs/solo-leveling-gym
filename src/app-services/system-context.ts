@@ -17,6 +17,8 @@ const RECENT_WINDOW_DAYS = 7;
 const HISTORY_WINDOW_DAYS = 30;
 /** How many lifts the voice is allowed to name in one direction. */
 const TREND_NAMES = 3;
+/** How many of its own recent messages the voice is shown, so it can avoid repeating itself. */
+const MESSAGE_HISTORY = 5;
 
 /**
  * The one place the System's picture of the hunter is assembled.
@@ -114,8 +116,6 @@ export async function buildSystemContext(
     arcStage: narrativeView.arcStage,
     unlockedFragments: narrativeView.fragments.map((f) => f.id),
 
-    // Filled in once the message pool exists; an empty history is correct
-    // for a day on which nothing has been said yet.
-    lastMessages: [],
+    lastMessages: await container.systemMessages.recentBodies(MESSAGE_HISTORY),
   };
 }

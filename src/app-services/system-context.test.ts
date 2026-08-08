@@ -175,4 +175,20 @@ describe("buildSystemContext", () => {
     ].map((l) => l.name);
     expect(namedAnywhere).not.toContain("Lat Pulldown");
   });
+
+  it("carries what the voice recently said, so it stops repeating itself", async () => {
+    await container.hunters.create({ name: "Jin-Woo", createdAt: NOW });
+    await container.systemMessages.insert({
+      day: "2026-08-07",
+      kind: "briefing",
+      body: "Hunter. The Daily Quest is not complete.",
+      severity: "warning",
+      source: "gemini",
+      createdAt: 5,
+    });
+    const ctx = await buildSystemContext(container);
+    expect(ctx?.lastMessages).toEqual([
+      "Hunter. The Daily Quest is not complete.",
+    ]);
+  });
 });
