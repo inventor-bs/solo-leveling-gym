@@ -165,4 +165,23 @@ describe("moderateDraft", () => {
     );
     expect(result).toEqual({ ok: false, error: { type: "voice-rule" } });
   });
+
+  it("REGRESSION: reads a comma-grouped number as one value, not two", () => {
+    const result = moderate(
+      draft({ body: "Hunter. Distance: 1,000 km total. Continue." }),
+      [1000],
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("REGRESSION: still rejects a comma-grouped number that is not actually allowed", () => {
+    const result = moderate(
+      draft({ body: "Hunter. Distance: 1,000 km total. Continue." }),
+      [999],
+    );
+    expect(result).toEqual({
+      ok: false,
+      error: { type: "hallucinated-number", value: 1000 },
+    });
+  });
 });

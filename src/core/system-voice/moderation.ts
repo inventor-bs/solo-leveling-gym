@@ -35,9 +35,11 @@ const PICTOGRAPH = /\p{Extended_Pictographic}/u;
 /**
  * A leading "-" only counts as a negative sign when it is not itself
  * preceded by a digit — otherwise "10-15 reps" would misparse its second
- * endpoint as -15 instead of the range separator it actually is.
+ * endpoint as -15 instead of the range separator it actually is. Commas
+ * are accepted as thousand separators so "1,000" is read as one number,
+ * not silently split into "1" and "0".
  */
-const NUMBER = /(?<!\d)-?\d+(?:\.\d+)?/g;
+const NUMBER = /(?<!\d)-?\d+(?:,\d{3})*(?:\.\d+)?/g;
 
 function sentencesOf(text: string): string[] {
   return text.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 0);
@@ -52,7 +54,7 @@ function firstUnallowedNumber(
   allowed: readonly number[],
 ): number | null {
   for (const match of text.match(NUMBER) ?? []) {
-    const value = Number(match);
+    const value = Number(match.replace(/,/g, ""));
     if (Number.isNaN(value)) continue;
     if (!allowed.some((a) => Math.abs(a - value) < 1e-9)) return value;
   }

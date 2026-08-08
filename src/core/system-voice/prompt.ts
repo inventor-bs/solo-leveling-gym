@@ -81,9 +81,9 @@ function factsBlock(context: SystemContext): string {
     `daily quest complete: ${context.dailyQuestDone ? "yes" : "no"}`,
     "",
     "[RECENT]",
-    `sessions in the last 7 days: ${context.sessionsLast7d}`,
-    `missed quest days in the last 30: ${context.missedDays30d}`,
-    `penalty episodes in the last 30 days: ${context.penaltyCount30d}`,
+    `sessions this week: ${context.sessionsLast7d}`,
+    `missed quest days this month: ${context.missedDays30d}`,
+    `penalty episodes this month: ${context.penaltyCount30d}`,
     `currently in the penalty zone: ${context.penaltyActive ? "yes" : "no"}`,
     "",
     "[TRENDS]",
@@ -98,7 +98,7 @@ function factsBlock(context: SystemContext): string {
       context.liftsDown.length === 0
         ? "none"
         : context.liftsDown
-            .map((l) => `${l.name} -${Math.abs(l.deltaKg)} kg`)
+            .map((l) => `${l.name} down ${Math.abs(l.deltaKg)} kg`)
             .join(", ")
     }`,
     `latest record: ${

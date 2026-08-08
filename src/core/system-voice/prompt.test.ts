@@ -123,4 +123,18 @@ describe("buildVoicePlan", () => {
       buildVoicePlan("briefing", ctx()),
     );
   });
+
+  it("REGRESSION: every number the FACTS block shows is in the allowed whitelist, matching what the moderation gate will actually parse", () => {
+    const plan = buildVoicePlan(
+      "briefing",
+      ctx({ liftsDown: [{ name: "Squat", deltaKg: -7.5 }] }),
+    );
+    const numbersInPrompt =
+      plan.request.userPrompt.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+    for (const n of numbersInPrompt) {
+      expect(plan.allowedNumbers.some((a) => Math.abs(a - n) < 1e-9)).toBe(
+        true,
+      );
+    }
+  });
 });

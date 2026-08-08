@@ -3,6 +3,8 @@ import { makeTestDb } from "@/infra/db/testing/make-test-db";
 import { buildContainer, type Container } from "@/server/container";
 import { fixedClock } from "@/infra/clock/system-clock";
 import { parseTrainingDay } from "@/core/shared/training-day";
+import { seedProgram } from "@/infra/db/seed/program";
+import type { SystemVoicePort } from "@/ports/system-voice.port";
 import { ensureDailyQuest } from "./ensure-daily-quest";
 import { runDailyReset } from "./daily-reset";
 
@@ -208,5 +210,64 @@ describe("narrative milestones", () => {
     const summary = await runDailyReset(c);
     expect(summary.yesterdayStatus).toBe("skipped-penalty-active");
     expect(summary.fragmentsUnlocked).toBe(1);
+  });
+});
+
+describe("the composed daily reset", () => {
+  it("advances the narrative arc, reveals the Seventh Day hidden quest, and generates the voice pool together, in one run", async () => {
+    const db = await makeTestDb();
+    await seedProgram(db);
+    const stubVoice: SystemVoicePort = {
+      generate: async () => ({
+        body: "Hunter. Continue.",
+        severity: "info",
+        title: null,
+      }),
+    };
+    const c = buildContainer({
+      db,
+      clock: fixedClock("2026-08-05T17:05:00.000Z"), // "today" = 2026-08-06 ICT
+      tzOffsetMinutes: 420,
+      voice: stubVoice,
+    });
+    await c.hunters.create({
+      name: "Jin-Woo",
+      createdAt: Date.parse("2026-07-30T02:00:00.000Z"), // 7 days before "today"
+    });
+    await c.training.createSession({
+      id: "s1",
+      day: "2026-07-31",
+      programDayId: "upper-a",
+      startedAt: 1,
+    });
+    await c.training.completeSession("s1", 2, "C");
+
+    const summary = await runDailyReset(c);
+
+    expect(summary.fragmentsUnlocked).toBe(1);
+    expect(summary.hiddenQuestsRevealed).toBe(1);
+    expect(summary.voiceMessagesGenerated).toBe(2);
+
+    expect(await c.narrative.unlockedIds()).toEqual(["first-anomaly"]);
+    expect(await c.hiddenQuests.byId("the-seventh-day")).not.toBeNull();
+    expect(
+      await c.systemMessages.byDayAndKind("2026-08-06", "briefing"),
+    ).not.toBeNull();
+    expect(
+      await c.systemMessages.byDayAndKind("2026-08-06", "quest"),
+    ).not.toBeNull();
+
+    const events = await c.events.between(
+      "2026-08-06" as never,
+      "2026-08-06" as never,
+    );
+    expect(events.map((e) => e.type)).toContain("NarrativeFragmentUnlocked");
+    expect(events.map((e) => e.type)).toContain("HiddenQuestRevealed");
+
+    // A second run on the same day changes nothing further.
+    const second = await runDailyReset(c);
+    expect(second.fragmentsUnlocked).toBe(0);
+    expect(second.hiddenQuestsRevealed).toBe(0);
+    expect(second.voiceMessagesGenerated).toBe(0);
   });
 });
