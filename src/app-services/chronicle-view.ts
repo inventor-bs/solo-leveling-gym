@@ -13,7 +13,7 @@ import {
   toTimelineEntries,
   type TimelineEntry,
 } from "@/core/chronicle/timeline";
-import { volumeByMuscle } from "@/core/training/volume";
+import { sessionVolumeLoad, volumeByMuscle } from "@/core/training/volume";
 import type {
   MuscleGroup,
   ExerciseDef,
@@ -76,7 +76,29 @@ export async function getChronicleView(
   const exerciseRows = await container.exercises.all();
   const catalog = toCatalogMap(exerciseRows);
 
-  const dailyVolume = await container.training.dailyVolumeBetween(from, today);
+  // Single pass over completed sessions and their sets, feeding both the
+  // per-day volume map (heatmap) and the flat set list (muscle breakdown)
+  // below — fetching each session's sets once instead of twice.
+  const completedSessions = await container.training.completedSessionsBetween(
+    from,
+    today,
+  );
+  const dailyVolume = new Map<TrainingDay, number>();
+  const allSets: LoggedSet[] = [];
+  for (const s of completedSessions) {
+    const rows = await container.training.getSetsForSession(s.id);
+    const sets: LoggedSet[] = rows.map((r) => ({
+      exerciseId: r.exerciseId,
+      setIndex: r.setIndex,
+      reps: reps(r.reps),
+      weight: kg(r.weight),
+      completed: r.completed,
+    }));
+    allSets.push(...sets);
+    const day = s.day as TrainingDay;
+    dailyVolume.set(day, (dailyVolume.get(day) ?? 0) + sessionVolumeLoad(sets));
+  }
+
   const penaltyRows = await container.penalties.between(from, today);
   const penaltyRanges: PenaltyRange[] = penaltyRows.map((p) => ({
     start: p.startedDay as TrainingDay,
@@ -87,9 +109,7 @@ export async function getChronicleView(
   }));
   const heatmap = buildHeatmap({
     today,
-    dailyVolume: new Map(
-      Array.from(dailyVolume.entries()).map(([d, v]) => [d as TrainingDay, v]),
-    ),
+    dailyVolume,
     penaltyRanges,
   });
 
@@ -125,23 +145,6 @@ export async function getChronicleView(
     });
   }
 
-  const completedSessions = await container.training.completedSessionsBetween(
-    from,
-    today,
-  );
-  const allSets: LoggedSet[] = [];
-  for (const s of completedSessions) {
-    const rows = await container.training.getSetsForSession(s.id);
-    for (const r of rows) {
-      allSets.push({
-        exerciseId: r.exerciseId,
-        setIndex: r.setIndex,
-        reps: reps(r.reps),
-        weight: kg(r.weight),
-        completed: r.completed,
-      });
-    }
-  }
   const muscleVolume = volumeByMuscle(allSets, catalog);
 
   return { heatmap, timeline, weeklyVolume, liftProgress, muscleVolume };

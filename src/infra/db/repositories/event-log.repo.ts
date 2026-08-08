@@ -33,12 +33,21 @@ export class EventLogRepo {
     await this.db.insert(eventLog).values(rows);
   }
 
-  /** Every event in [from, to], inclusive, oldest first. */
+  /**
+   * Every event in [from, to], inclusive, oldest first. Ordered by `day`
+   * before `occurredAt`: daily-reset deliberately stamps yesterday's judged
+   * events with today's `occurredAt`, so a late cron run can give an
+   * earlier day's event a later `occurredAt` than a day that follows it.
+   * Sorting on `occurredAt` alone would put that event out of day order in
+   * the timeline; `day` (a lexicographically sortable `YYYY-MM-DD` string)
+   * is the primary key here, with `occurredAt` only breaking ties within a
+   * single day.
+   */
   async between(from: TrainingDay, to: TrainingDay): Promise<EventLogRow[]> {
     return this.db
       .select()
       .from(eventLog)
       .where(and(gte(eventLog.day, from), lte(eventLog.day, to)))
-      .orderBy(asc(eventLog.occurredAt));
+      .orderBy(asc(eventLog.day), asc(eventLog.occurredAt));
   }
 }

@@ -124,4 +124,26 @@ describe("EventLogRepo", () => {
     );
     expect(rows.map((r) => r.occurredAt)).toEqual([100, 200]);
   });
+
+  it("REGRESSION: orders by day first, even when a later day's event has an earlier occurredAt", async () => {
+    // daily-reset deliberately stamps yesterday's judged events with TODAY's
+    // occurredAt, so occurredAt alone is not a reliable timeline order — a
+    // late cron run can give an earlier day a LATER occurredAt than a day
+    // that follows it. The timeline must still read oldest-day-first.
+    await events.record(
+      [{ type: "LevelUp", from: 2, to: 3 }],
+      "2026-08-08" as TrainingDay,
+      100,
+    );
+    await events.record(
+      [{ type: "LevelUp", from: 1, to: 2 }],
+      "2026-08-07" as TrainingDay,
+      200,
+    );
+    const rows = await events.between(
+      "2026-08-01" as TrainingDay,
+      "2026-08-31" as TrainingDay,
+    );
+    expect(rows.map((r) => r.day)).toEqual(["2026-08-07", "2026-08-08"]);
+  });
 });

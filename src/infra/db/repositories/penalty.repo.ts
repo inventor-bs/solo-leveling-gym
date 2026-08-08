@@ -1,4 +1,4 @@
-import { isNull, isNotNull, desc, eq, sql } from "drizzle-orm";
+import { isNull, isNotNull, desc, eq, lte, sql } from "drizzle-orm";
 import type { Db } from "../client";
 import { penalty, type PenaltyRow } from "../schema/penalty";
 
@@ -79,19 +79,22 @@ export class PenaltyRepo {
   }
 
   /**
-   * Every episode that started on or before `to` — including a still-open
-   * one, unconditionally. This does not filter on `endedAt` at all: an
-   * open episode's end day isn't knowable without converting its epoch
-   * `endedAt` through the hunter's timezone offset, which this repo has no
-   * access to (only `db`) — that conversion, and the overlap check against
-   * `from`, belong to the caller, which already has tzOffsetMinutes.
+   * Every episode that started on or before `to` — open or closed, and
+   * regardless of how its `startedDay` compares to `from`. A closed episode
+   * can start before `from` and still end inside [from, to], so filtering
+   * on `startedDay >= from` here would silently drop rows the caller needs.
+   * This does not filter on `endedAt` at all: an episode's end day isn't
+   * knowable without converting its epoch `endedAt` through the hunter's
+   * timezone offset, which this repo has no access to (only `db`) — that
+   * conversion, and the exact overlap check against `from`, belong to the
+   * caller, which already has tzOffsetMinutes. Episodes entirely before
+   * `from` (closed with no overlap at all) can also come back here; that is
+   * an accepted over-fetch since penalty episodes are rare in this
+   * single-user app, and the caller's overlap check filters them out.
+   * `from` is kept in the signature — unused in the query itself — to match
+   * the `between(from, to)` shape of the other repos' range queries.
    */
-  async between(from: string, to: string): Promise<PenaltyRow[]> {
-    return this.db
-      .select()
-      .from(penalty)
-      .where(
-        sql`${penalty.startedDay} <= ${to} AND (${penalty.startedDay} >= ${from} OR ${isNull(penalty.endedAt)})`,
-      );
+  async between(_from: string, to: string): Promise<PenaltyRow[]> {
+    return this.db.select().from(penalty).where(lte(penalty.startedDay, to));
   }
 }

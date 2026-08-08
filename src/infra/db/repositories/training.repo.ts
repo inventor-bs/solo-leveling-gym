@@ -390,23 +390,4 @@ export class TrainingRepo {
     }
     return history;
   }
-
-  /**
-   * Total volume load per calendar day, for every completed session in
-   * [from, to]. N+1 by design, same tradeoff as bestHistoricalE1rm above —
-   * this runs once per Chronicle page load, not per set.
-   */
-  async dailyVolumeBetween(
-    from: string,
-    to: string,
-  ): Promise<Map<string, number>> {
-    const sessions = await this.completedSessionsBetween(from, to);
-    const byDay = new Map<string, number>();
-    for (const s of sessions) {
-      const sets = await this.getSetsForSession(s.id);
-      const volume = sessionVolumeLoad(sets.map(toLoggedSet));
-      byDay.set(s.day, (byDay.get(s.day) ?? 0) + volume);
-    }
-    return byDay;
-  }
 }

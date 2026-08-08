@@ -135,17 +135,35 @@ describe("PenaltyRepo", () => {
       expect(rows.map((r) => r.id)).toEqual(["p1"]);
     });
 
-    it("excludes an episode that started entirely outside the range", async () => {
+    it("excludes an episode that started entirely after the range", async () => {
       await penalties.create({
         ...base,
         id: "p1",
-        startedDay: "2020-01-01",
+        startedDay: "2026-09-01",
         startedAt: 1,
       });
       await penalties.close("p1", 2);
 
       const rows = await penalties.between("2026-08-01", "2026-08-10");
       expect(rows).toEqual([]);
+    });
+
+    it("REGRESSION: includes a closed episode that started before the range but ended inside it", async () => {
+      // startedDay predates `from` and the old predicate's `startedDay >= from`
+      // clause dropped this row entirely, even though the episode's real span
+      // (through 2025-08-20) covers days inside the queried window. The caller
+      // resolves the exact overlap once it has converted endedAt through the
+      // hunter's timezone offset — this layer must not filter the row out first.
+      await penalties.create({
+        ...base,
+        id: "p1",
+        startedDay: "2025-08-01",
+        startedAt: 1,
+      });
+      await penalties.close("p1", 2_000);
+
+      const rows = await penalties.between("2025-08-09", "2025-08-20");
+      expect(rows.map((r) => r.id)).toEqual(["p1"]);
     });
   });
 });
