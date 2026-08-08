@@ -95,6 +95,8 @@ export async function runDailyReset(
   const alreadyIssued = (await container.quests.byDay(today)) !== null;
   await ensureDailyQuest(container, today);
 
+  await container.events.record(events, yesterday, container.clock.now());
+
   return {
     today,
     yesterday,

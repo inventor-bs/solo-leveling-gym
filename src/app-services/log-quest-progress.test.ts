@@ -118,6 +118,45 @@ describe("logQuestProgress", () => {
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.quest.progressPushups).toBe(10);
   });
+
+  it("persists QuestProgressLogged on every call, and DailyQuestCompleted only on completion", async () => {
+    await ensureDailyQuest(container, day);
+    await container.training.createRun({
+      id: "r1",
+      day,
+      distanceKm: 1,
+      durationSec: 400,
+      loggedAt: 5,
+    });
+
+    const partial = await logQuestProgress(container, { day, pushups: 5 });
+    expect(partial.ok).toBe(true);
+
+    const rowsAfterPartial = await container.events.between(day, day);
+    expect(rowsAfterPartial.some((r) => r.type === "QuestProgressLogged")).toBe(
+      true,
+    );
+    expect(rowsAfterPartial.some((r) => r.type === "DailyQuestCompleted")).toBe(
+      false,
+    );
+
+    const completing = await logQuestProgress(container, {
+      day,
+      pushups: 15,
+      situps: 20,
+      squats: 20,
+    });
+    expect(completing.ok).toBe(true);
+
+    const rowsAfterCompletion = await container.events.between(day, day);
+    expect(
+      rowsAfterCompletion.filter((r) => r.type === "QuestProgressLogged")
+        .length,
+    ).toBe(2);
+    expect(
+      rowsAfterCompletion.some((r) => r.type === "DailyQuestCompleted"),
+    ).toBe(true);
+  });
 });
 
 describe("logQuestProgress — title awarding", () => {

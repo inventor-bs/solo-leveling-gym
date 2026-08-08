@@ -240,4 +240,27 @@ describe("exitPenalty", () => {
       ).toBe(true);
     }
   });
+
+  it("persists the PenaltyCleared event to the event log", async () => {
+    const today = parseTrainingDay("2026-08-06");
+    await enterPenalty(container, today);
+    await ensureDailyQuest(container, today);
+    await container.quests.addProgress(today, {
+      pushups: 30,
+      situps: 30,
+      squats: 30,
+    });
+    await container.training.createRun({
+      id: "r1",
+      day: today,
+      distanceKm: 1.5,
+      durationSec: 500,
+      loggedAt: 1,
+    });
+
+    const result = await exitPenalty(container);
+    expect(result.ok).toBe(true);
+    const rows = await container.events.between(today, today);
+    expect(rows.some((r) => r.type === "PenaltyCleared")).toBe(true);
+  });
 });

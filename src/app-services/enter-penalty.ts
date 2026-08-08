@@ -55,9 +55,14 @@ export async function enterPenalty(
     expLost,
   });
 
+  const events: DomainEvent[] = [
+    { type: "PenaltyStarted", day, variantId: variant.id, expLost },
+  ];
+  await container.events.record(events, day, now);
+
   return ok({
     penalty: row,
     expLost,
-    events: [{ type: "PenaltyStarted", day, variantId: variant.id, expLost }],
+    events,
   });
 }

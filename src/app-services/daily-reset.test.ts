@@ -135,4 +135,20 @@ describe("runDailyReset — penalty interaction", () => {
     const summary = await runDailyReset(container);
     expect(await container.quests.byDay(summary.today)).not.toBeNull();
   });
+
+  it("persists yesterday's judgment events under yesterday's day, not today's", async () => {
+    await ensureDailyQuest(container, yesterday);
+    await container.hunters.update({ exp: 300 });
+
+    const summary = await runDailyReset(container);
+    expect(summary.penaltyOpened).toBe(true);
+
+    const yesterdayRows = await container.events.between(yesterday, yesterday);
+    expect(yesterdayRows.some((r) => r.type === "DailyQuestMissed")).toBe(true);
+    expect(yesterdayRows.some((r) => r.type === "PenaltyStarted")).toBe(true);
+
+    const today = parseTrainingDay(summary.today);
+    const todayRows = await container.events.between(today, today);
+    expect(todayRows.length).toBe(0);
+  });
 });

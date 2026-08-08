@@ -98,6 +98,14 @@ describe("enterPenalty", () => {
       expect(started).toMatchObject({ variantId: 1, expLost: 20 });
     }
   });
+
+  it("persists the PenaltyStarted event to the event log", async () => {
+    await container.hunters.create({ name: "Jin-Woo", createdAt: 1 });
+    const result = await enterPenalty(container, day);
+    expect(result.ok).toBe(true);
+    const rows = await container.events.between(day, day);
+    expect(rows.some((r) => r.type === "PenaltyStarted")).toBe(true);
+  });
 });
 
 describe("enterPenalty — Unyielding", () => {

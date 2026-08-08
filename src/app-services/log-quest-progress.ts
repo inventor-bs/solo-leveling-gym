@@ -65,6 +65,7 @@ export async function logQuestProgress(
     },
   );
 
+  const now = container.clock.now();
   const events: DomainEvent[] = [
     { type: "QuestProgressLogged", day: input.day },
   ];
@@ -76,7 +77,6 @@ export async function logQuestProgress(
     const hunter = await container.hunters.get();
     if (!hunter) return err({ type: "hunter-not-found" });
 
-    const now = container.clock.now();
     await container.quests.setStatus(input.day, "completed", now);
     await container.hunters.update({ gold: hunter.gold + DAILY_QUEST_GOLD });
     events.push({
@@ -108,6 +108,8 @@ export async function logQuestProgress(
 
   const finalQuest = await container.quests.byDay(input.day);
   if (!finalQuest) return err({ type: "quest-not-found" });
+
+  await container.events.record(events, input.day, now);
 
   return ok({ quest: finalQuest, completed: complete, streak, events });
 }
