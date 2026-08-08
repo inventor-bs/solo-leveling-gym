@@ -2,12 +2,10 @@ import Link from "next/link";
 import { redirectOwnerIfPenalised } from "@/server/penalty-guard";
 import { getContainer } from "@/server/container";
 import { rankForLevel } from "@/core/hunter/progression";
-import { buildSystemMessage } from "@/core/system-voice/template-engine";
-import { buildSystemContext } from "@/app-services/system-context";
-import { seededRng } from "@/infra/rng/seeded-rng";
 import { toTrainingDay, isoWeekdayOf } from "@/core/shared/training-day";
 import { getQuestView } from "@/app-services/quest-view";
 import { getNarrativeView } from "@/app-services/narrative-view";
+import { getSystemMessage } from "@/app-services/system-voice-view";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { RankBadge } from "@/ui/components/primitives/RankBadge";
 import { RunLogForm } from "@/ui/components/dungeon/RunLogForm";
@@ -29,11 +27,7 @@ export default async function DashboardPage() {
   const quest = questView.ok ? questView.value : null;
   const narrativeView = await getNarrativeView(container);
 
-  const voiceSeed = weekday * 1000 + hunter.level;
-  const context = await buildSystemContext(container);
-  const message = context
-    ? buildSystemMessage(context, seededRng(voiceSeed))
-    : null;
+  const message = await getSystemMessage(container, "briefing");
 
   return (
     <div className="relative min-h-screen p-6 md:p-8">
@@ -52,7 +46,15 @@ export default async function DashboardPage() {
         </div>
 
         {message && (
-          <SystemPanel glowColor="blue">
+          <SystemPanel
+            glowColor={
+              message.severity === "critical"
+                ? "danger"
+                : message.severity === "warning"
+                  ? "gold"
+                  : "blue"
+            }
+          >
             <p className="p-4 font-mono text-sm text-slate-300 leading-relaxed">
               {message.body === "" ? "[ ... ]" : message.body}
             </p>

@@ -2,6 +2,7 @@ import { redirectOwnerIfPenalised } from "@/server/penalty-guard";
 import { getContainer } from "@/server/container";
 import { getQuestView } from "@/app-services/quest-view";
 import { getHiddenQuestView } from "@/app-services/hidden-quest-view";
+import { getSystemMessage } from "@/app-services/system-voice-view";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { LockedFeature } from "@/ui/components/primitives/LockedFeature";
 import { QuestTracker } from "@/ui/components/quests/QuestTracker";
@@ -12,6 +13,7 @@ export default async function QuestsPage() {
   const container = getContainer();
   const view = await getQuestView(container);
   const hiddenQuests = await getHiddenQuestView(container);
+  const message = await getSystemMessage(container, "quest");
   if (!view.ok) {
     return (
       <LockedFeature
@@ -40,9 +42,7 @@ export default async function QuestsPage() {
 
         <SystemPanel glowColor={q.complete ? "purple" : "blue"}>
           <p className="p-4 font-mono text-sm text-slate-300 leading-relaxed">
-            {q.complete
-              ? "Today's quest is cleared. The streak holds."
-              : "Complete the training below before the day ends."}
+            {message === null || message.body === "" ? "[ ... ]" : message.body}
           </p>
         </SystemPanel>
 
