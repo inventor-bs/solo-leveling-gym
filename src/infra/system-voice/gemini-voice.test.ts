@@ -113,4 +113,24 @@ describe("createGeminiVoice", () => {
     const headers = init?.headers as Record<string, string>;
     expect(headers["x-goog-api-key"]).toBe("my-test-key");
   });
+
+  it("REGRESSION: requests the current GA flash model with thinking held to a minimum", async () => {
+    respondWith('{"body":"Hunter. Continue.","severity":"info","title":null}');
+    const voice = createGeminiVoice("key")!;
+    await voice.generate(request);
+
+    const [url, init] = vi.mocked(fetch).mock.calls[0]!;
+    expect(String(url)).toContain("gemini-3.6-flash:generateContent");
+    const body = JSON.parse(init?.body as string) as {
+      generationConfig: {
+        thinkingConfig?: { thinkingLevel?: string };
+        maxOutputTokens: number;
+      };
+    };
+    expect(body.generationConfig.thinkingConfig?.thinkingLevel).toBe("minimal");
+    // A "thinking" model spends most of its budget on invisible reasoning
+    // unless told otherwise; 256 was sized for a model with no thinking
+    // step at all and truncates a real response even at minimal thinking.
+    expect(body.generationConfig.maxOutputTokens).toBeGreaterThanOrEqual(512);
+  });
 });

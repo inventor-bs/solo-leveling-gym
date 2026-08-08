@@ -9,9 +9,12 @@ import {
 /**
  * One constant, deliberately. Provider model names move; every failure mode
  * of getting this wrong ends at the template fallback, so a stale value
- * costs the day's generated voice and nothing else.
+ * costs the day's generated voice and nothing else. Confirmed via live
+ * request on 2026-08-09: gemini-2.5-flash (and gemini-2.0-flash before it)
+ * had already gone dark ("no longer available to new users") in the time
+ * between shipping and this check.
  */
-export const GEMINI_MODEL = "gemini-2.5-flash";
+export const GEMINI_MODEL = "gemini-3.6-flash";
 
 /**
  * A ceiling, not a target. This runs inside the daily reset, and a request
@@ -79,7 +82,12 @@ export function createGeminiVoice(
               ],
               generationConfig: {
                 temperature: 0.9,
-                maxOutputTokens: 256,
+                // This model spends tokens on invisible reasoning by
+                // default; "minimal" is the lowest setting it accepts
+                // (thinkingBudget: 0 is rejected outright), and the ceiling
+                // below is sized for what survives after that reasoning.
+                thinkingConfig: { thinkingLevel: "minimal" },
+                maxOutputTokens: 512,
                 responseMimeType: "application/json",
               },
             }),
