@@ -14,6 +14,7 @@ import {
   BookOpen,
   Shield,
   ChevronRight,
+  FileText,
 } from "lucide-react";
 import { expToNextLevel } from "@/core/hunter/progression";
 
@@ -27,6 +28,7 @@ const NAV = [
   { href: "/store", icon: ShoppingBag, label: "Store", sub: "Exchange" },
   { href: "/skills", icon: Zap, label: "Skills", sub: "Abilities" },
   { href: "/chronicle", icon: BookOpen, label: "Chronicle", sub: "History" },
+  { href: "/archive", icon: FileText, label: "Archive", sub: "Records" },
 ];
 
 const RANK_COLORS: Record<string, string> = {
