@@ -1,6 +1,7 @@
 export * from "./hunter";
 export * from "./system";
 export * from "./catalog";
+export * from "./event-log";
 export * from "./training";
 export * from "./quest";
 export * from "./penalty";
