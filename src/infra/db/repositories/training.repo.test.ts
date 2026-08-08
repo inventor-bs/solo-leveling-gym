@@ -379,3 +379,120 @@ describe("window and history queries", () => {
     expect(await repo.e1rmHistory("deadlift")).toEqual([]);
   });
 });
+
+describe("dailyVolumeBetween", () => {
+  it("sums volume per calendar day across completed sessions in range", async () => {
+    await repo.createSession({
+      id: "s1",
+      day: "2026-07-20",
+      programDayId: "upper-a",
+      startedAt: 1,
+    });
+    await repo.upsertSetLog({
+      id: "s1-bench-press-0",
+      sessionId: "s1",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 5,
+      weight: 100,
+      completed: true,
+      isPr: false,
+      loggedAt: 1,
+    });
+    await repo.completeSession("s1", 2, "C");
+
+    await repo.createSession({
+      id: "s2",
+      day: "2026-07-20",
+      programDayId: "upper-a",
+      startedAt: 3,
+    });
+    await repo.upsertSetLog({
+      id: "s2-barbell-row-0",
+      sessionId: "s2",
+      exerciseId: "barbell-row",
+      setIndex: 0,
+      reps: 8,
+      weight: 50,
+      completed: true,
+      isPr: false,
+      loggedAt: 3,
+    });
+    await repo.completeSession("s2", 4, "C");
+
+    await repo.createSession({
+      id: "s3",
+      day: "2026-07-21",
+      programDayId: "upper-a",
+      startedAt: 5,
+    });
+    await repo.upsertSetLog({
+      id: "s3-overhead-press-0",
+      sessionId: "s3",
+      exerciseId: "overhead-press",
+      setIndex: 0,
+      reps: 6,
+      weight: 40,
+      completed: true,
+      isPr: false,
+      loggedAt: 5,
+    });
+    await repo.completeSession("s3", 6, "C");
+
+    const byDay = await repo.dailyVolumeBetween("2026-07-20", "2026-07-21");
+    expect(byDay).toEqual(
+      new Map([
+        ["2026-07-20", 5 * 100 + 8 * 50],
+        ["2026-07-21", 6 * 40],
+      ]),
+    );
+  });
+
+  it("REGRESSION: excludes a session with no endedAt — it hasn't happened yet", async () => {
+    await repo.createSession({
+      id: "s1",
+      day: "2026-07-20",
+      programDayId: "upper-a",
+      startedAt: 1,
+    });
+    await repo.upsertSetLog({
+      id: "s1-bench-press-0",
+      sessionId: "s1",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 5,
+      weight: 100,
+      completed: true,
+      isPr: false,
+      loggedAt: 1,
+    });
+    await repo.completeSession("s1", 2, "C");
+
+    await repo.createSession({
+      id: "open",
+      day: "2026-07-20",
+      programDayId: "upper-a",
+      startedAt: 3,
+    });
+    await repo.upsertSetLog({
+      id: "open-bench-press-0",
+      sessionId: "open",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 10,
+      weight: 999,
+      completed: true,
+      isPr: false,
+      loggedAt: 3,
+    });
+
+    const byDay = await repo.dailyVolumeBetween("2026-07-20", "2026-07-20");
+    expect(byDay).toEqual(new Map([["2026-07-20", 5 * 100]]));
+  });
+
+  it("returns an empty map when nothing is in range", async () => {
+    expect(await repo.dailyVolumeBetween("2020-01-01", "2020-01-31")).toEqual(
+      new Map(),
+    );
+  });
+});

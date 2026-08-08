@@ -77,4 +77,21 @@ export class PenaltyRepo {
       .limit(1);
     return rows[0]?.endedAt ?? null;
   }
+
+  /**
+   * Every episode that started on or before `to` — including a still-open
+   * one, unconditionally. This does not filter on `endedAt` at all: an
+   * open episode's end day isn't knowable without converting its epoch
+   * `endedAt` through the hunter's timezone offset, which this repo has no
+   * access to (only `db`) — that conversion, and the overlap check against
+   * `from`, belong to the caller, which already has tzOffsetMinutes.
+   */
+  async between(from: string, to: string): Promise<PenaltyRow[]> {
+    return this.db
+      .select()
+      .from(penalty)
+      .where(
+        sql`${penalty.startedDay} <= ${to} AND (${penalty.startedDay} >= ${from} OR ${isNull(penalty.endedAt)})`,
+      );
+  }
 }

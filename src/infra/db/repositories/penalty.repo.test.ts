@@ -110,6 +110,44 @@ describe("PenaltyRepo", () => {
       expect(await penalties.lastExitAt()).toBe(400);
     });
   });
+
+  describe("between", () => {
+    it("returns a closed episode that started inside the range", async () => {
+      await penalties.create(base);
+      await penalties.close("p1", 5_000);
+
+      const rows = await penalties.between("2026-08-01", "2026-08-10");
+      expect(rows.map((r) => r.id)).toEqual(["p1"]);
+    });
+
+    it("REGRESSION: includes a still-open episode (endedAt null) regardless of range", async () => {
+      // Started well before the queried window and never closed. The caller
+      // (Task 8) resolves whether it overlaps once it has a real end day —
+      // this query must not silently drop it just because startedDay < from.
+      await penalties.create({
+        ...base,
+        id: "p1",
+        startedDay: "2020-01-01",
+        startedAt: 1,
+      });
+
+      const rows = await penalties.between("2026-08-01", "2026-08-10");
+      expect(rows.map((r) => r.id)).toEqual(["p1"]);
+    });
+
+    it("excludes an episode that started entirely outside the range", async () => {
+      await penalties.create({
+        ...base,
+        id: "p1",
+        startedDay: "2020-01-01",
+        startedAt: 1,
+      });
+      await penalties.close("p1", 2);
+
+      const rows = await penalties.between("2026-08-01", "2026-08-10");
+      expect(rows).toEqual([]);
+    });
+  });
 });
 
 describe("TrainingRepo activity lookups", () => {
