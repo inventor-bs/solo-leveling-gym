@@ -2,6 +2,7 @@ import { getContainer } from "@/server/container";
 import { getChronicleView } from "@/app-services/chronicle-view";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { Heatmap } from "@/ui/components/chronicle/Heatmap";
+import { EventTimeline } from "@/ui/components/chronicle/EventTimeline";
 
 export default async function ChroniclePage() {
   const view = await getChronicleView(getContainer());
@@ -21,6 +22,12 @@ export default async function ChroniclePage() {
         <SystemPanel header="365 DAYS">
           <div className="p-4">
             <Heatmap cells={view.heatmap} />
+          </div>
+        </SystemPanel>
+
+        <SystemPanel header="EVENT LOG">
+          <div className="p-4">
+            <EventTimeline entries={view.timeline} />
           </div>
         </SystemPanel>
       </div>
