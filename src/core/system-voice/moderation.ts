@@ -32,7 +32,12 @@ const MARKDOWN = /[*_`#>]/g;
 const MARKUP = /[<>]/;
 /** Emoji and other pictographs. */
 const PICTOGRAPH = /\p{Extended_Pictographic}/u;
-const NUMBER = /-?\d+(?:\.\d+)?/g;
+/**
+ * A leading "-" only counts as a negative sign when it is not itself
+ * preceded by a digit — otherwise "10-15 reps" would misparse its second
+ * endpoint as -15 instead of the range separator it actually is.
+ */
+const NUMBER = /(?<!\d)-?\d+(?:\.\d+)?/g;
 
 function sentencesOf(text: string): string[] {
   return text.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 0);
@@ -63,11 +68,13 @@ function firstUnallowedNumber(
  * each of these passes:
  *
  *   markup      — a tag is a strong signal of injection, so it is refused
- *                 rather than cleaned; markdown emphasis is merely stripped
+ *                 rather than cleaned, on both body and title; markdown
+ *                 emphasis is merely stripped from either
  *   length      — cut at a sentence boundary, never mid-clause, then
  *                 refused if what is left is still over the limits
- *   voice rules — no emoji, at most one exclamation mark, must address the
- *                 reader as Hunter
+ *   voice rules — no emoji, at most one exclamation mark, on both body and
+ *                 title; the body must also address the reader as Hunter
+ *                 (the title carries no such address requirement)
  *   identity    — must not contain anything on the forbidden list
  *   numbers     — every numeral must exist in the context the model was
  *                 given. One fabricated figure is enough to make every
@@ -82,6 +89,9 @@ export function moderateDraft(
 ): Result<ModeratedMessage, ModerationRejection> {
   const raw = input.draft.body ?? "";
   if (MARKUP.test(raw)) return err({ type: "markup" });
+  if (input.draft.title !== null && MARKUP.test(input.draft.title)) {
+    return err({ type: "markup" });
+  }
 
   const stripped = raw.replace(MARKDOWN, "").replace(/\s+/g, " ").trim();
   if (stripped.length === 0) return err({ type: "empty" });
@@ -99,6 +109,11 @@ export function moderateDraft(
     input.draft.title === null
       ? null
       : input.draft.title.replace(MARKDOWN, "").trim();
+
+  if (title !== null) {
+    if (PICTOGRAPH.test(title)) return err({ type: "voice-rule" });
+    if (title.split("!").length - 1 > 1) return err({ type: "voice-rule" });
+  }
 
   const checked = title === null ? body : `${body} ${title}`;
   for (const forbidden of input.forbiddenText) {

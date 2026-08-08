@@ -122,4 +122,47 @@ describe("moderateDraft", () => {
       error: { type: "hallucinated-number", value: 140 },
     });
   });
+
+  it("rejects markup in the title outright rather than trying to clean it", () => {
+    const result = moderate(
+      draft({
+        title: "<script>alert(1)</script>",
+        body: "Hunter. Continue. Now.",
+      }),
+      [],
+    );
+    expect(result).toEqual({ ok: false, error: { type: "markup" } });
+  });
+
+  it("does not misread the second endpoint of a range as a negative number", () => {
+    const result = moderate(
+      draft({ body: "Hunter. Squat for 10-15 reps. Continue." }),
+      [10, 15],
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("still parses a genuine leading negative number as negative", () => {
+    const result = moderate(
+      draft({ body: "Hunter. Down -5 kg from last week. Continue." }),
+      [-5],
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects a title carrying an emoji", () => {
+    const result = moderate(
+      draft({ title: "🔥🔥🔥", body: "Hunter. Continue. Now." }),
+      [],
+    );
+    expect(result).toEqual({ ok: false, error: { type: "voice-rule" } });
+  });
+
+  it("rejects a title with more than one exclamation mark", () => {
+    const result = moderate(
+      draft({ title: "Now!!!", body: "Hunter. Continue. Now." }),
+      [],
+    );
+    expect(result).toEqual({ ok: false, error: { type: "voice-rule" } });
+  });
 });
