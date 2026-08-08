@@ -1,13 +1,17 @@
 import { redirectOwnerIfPenalised } from "@/server/penalty-guard";
 import { getContainer } from "@/server/container";
 import { getQuestView } from "@/app-services/quest-view";
+import { getHiddenQuestView } from "@/app-services/hidden-quest-view";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { LockedFeature } from "@/ui/components/primitives/LockedFeature";
 import { QuestTracker } from "@/ui/components/quests/QuestTracker";
+import { HiddenQuestCard } from "@/ui/components/quests/HiddenQuestCard";
 
 export default async function QuestsPage() {
   await redirectOwnerIfPenalised();
-  const view = await getQuestView(getContainer());
+  const container = getContainer();
+  const view = await getQuestView(container);
+  const hiddenQuests = await getHiddenQuestView(container);
   if (!view.ok) {
     return (
       <LockedFeature
@@ -79,6 +83,16 @@ export default async function QuestsPage() {
               : `${q.streak} consecutive day${q.streak === 1 ? "" : "s"}.`}
           </p>
         </SystemPanel>
+
+        {hiddenQuests.map((h) => (
+          <HiddenQuestCard
+            key={h.id}
+            name={h.name}
+            revealLine={h.revealLine}
+            goldAwarded={h.goldAwarded}
+            revealedDay={h.revealedDay}
+          />
+        ))}
       </div>
     </div>
   );
