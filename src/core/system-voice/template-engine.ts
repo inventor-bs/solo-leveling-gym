@@ -79,11 +79,15 @@ export function buildSystemMessage(
   context: SystemContext,
   rng: RngPort,
 ): SystemMessage {
+  // `severity` is not derived yet — that is Task 15's job, once the
+  // template branches below know how to grade their own urgency. This
+  // cast keeps the type migration in this task from forcing that logic
+  // early; the field is genuinely absent at runtime until Task 15 lands.
   if (context.penaltySilent) {
-    return { body: "", source: "template" };
+    return { body: "", source: "template" } as SystemMessage;
   }
   const parts = [pickOpening(rng), observation(context), demand(context)];
-  return { body: parts.join(" "), source: "template" };
+  return { body: parts.join(" "), source: "template" } as SystemMessage;
 }
 
 export type { SystemContext, SystemMessage };

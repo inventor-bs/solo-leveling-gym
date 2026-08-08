@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { RngPort } from "@/ports/rng.port";
 import { buildSystemMessage, type SystemContext } from "./template-engine";
+import { VOICE_POOL_KINDS } from "./types";
 
 /**
  * A tiny local RngPort fake — deliberately NOT `@/infra/rng/seeded-rng`.
@@ -27,18 +28,32 @@ function baseContext(patch: Partial<SystemContext> = {}): SystemContext {
     hunterName: "Jin-Woo",
     level: 2,
     rank: "E",
-    todayProgramName: "Upper A",
-    isRestDay: false,
+    title: null,
+    className: null,
     streakDays: 0,
+    fatigue: 0,
+    reasonForHunting: null,
+    todayProgramName: "Upper A",
+    todayMainLift: "Bench Press",
+    isRestDay: false,
     // Defaults to true so pre-existing tests that don't care about the
     // quest-pending branch still exercise the program/rest/run branches
     // below it — only tests that explicitly set this to false test that
     // branch's priority.
     dailyQuestDone: true,
+    sessionsLast7d: 0,
+    missedDays30d: 0,
+    penaltyCount30d: 0,
+    liftsUp: [],
+    liftsDown: [],
     recentPr: null,
     penaltyActive: false,
     penaltySilent: false,
     weakestShadow: null,
+    armyRank: null,
+    arcStage: "dormant",
+    unlockedFragments: [],
+    lastMessages: [],
     ...patch,
   };
 }
@@ -213,5 +228,16 @@ describe("weakest shadow awareness", () => {
       fakeRng(1),
     );
     expect(msg.body.toLowerCase()).not.toContain("weaken");
+  });
+});
+
+describe("voice kinds and message shape", () => {
+  it("pools only the kinds this app actually renders", () => {
+    expect([...VOICE_POOL_KINDS]).toEqual(["briefing", "quest"]);
+  });
+
+  it("carries a severity alongside every body", () => {
+    const msg = buildSystemMessage(baseContext(), fakeRng(1));
+    expect(["info", "warning", "critical"]).toContain(msg.severity);
   });
 });
