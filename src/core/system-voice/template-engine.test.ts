@@ -280,6 +280,42 @@ describe("falling lift awareness", () => {
     const msg = buildSystemMessage(baseContext({ liftsDown: [] }), fakeRng(1));
     expect(msg.body.toLowerCase()).not.toContain("fallen");
   });
+
+  it("REGRESSION: a falling lift still outranks an active streak", () => {
+    const msg = buildSystemMessage(
+      baseContext({
+        liftsDown: [{ name: "Squat", deltaKg: -5 }],
+        streakDays: 6,
+      }),
+      fakeRng(1),
+    );
+    expect(msg.body).toContain("Squat");
+    expect(msg.body.toLowerCase()).not.toContain("streak");
+  });
+
+  it("REGRESSION: a penalty still outranks a weakening shadow", () => {
+    const msg = buildSystemMessage(
+      baseContext({
+        penaltyActive: true,
+        weakestShadow: { name: "Iron", daysSinceTrained: 11 },
+      }),
+      fakeRng(1),
+    );
+    expect(msg.body.toLowerCase()).toContain("penalty");
+    expect(msg.body).not.toContain("Iron");
+  });
+
+  it("REGRESSION: a penalty still outranks a falling lift", () => {
+    const msg = buildSystemMessage(
+      baseContext({
+        penaltyActive: true,
+        liftsDown: [{ name: "Squat", deltaKg: -5 }],
+      }),
+      fakeRng(1),
+    );
+    expect(msg.body.toLowerCase()).toContain("penalty");
+    expect(msg.body).not.toContain("Squat");
+  });
 });
 
 describe("severity", () => {
