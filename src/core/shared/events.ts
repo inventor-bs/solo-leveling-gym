@@ -30,7 +30,13 @@ export type DomainEvent =
   | { type: "DungeonBreak"; missedSessions: number; multiplier: number }
   | { type: "ShadowArisen"; shadowId: string; shadowName: string }
   | { type: "TitleEarned"; titleId: string; titleName: string }
-  | { type: "NarrativeFragmentUnlocked"; fragmentId: string; ordinal: number };
+  | { type: "NarrativeFragmentUnlocked"; fragmentId: string; ordinal: number }
+  | {
+      type: "HiddenQuestRevealed";
+      questId: string;
+      questName: string;
+      goldAwarded: Gold;
+    };
 
 export type DomainEventOfType<T extends DomainEvent["type"]> = Extract<
   DomainEvent,

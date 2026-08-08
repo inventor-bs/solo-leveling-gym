@@ -6,6 +6,7 @@ import type { Container } from "@/server/container";
 import { ensureDailyQuest } from "./ensure-daily-quest";
 import { ensureNarrativeUnlocks } from "./ensure-narrative";
 import { enterPenalty } from "./enter-penalty";
+import { revealHiddenQuests } from "./reveal-hidden-quests";
 
 export type DailyResetSummary = {
   today: string;
@@ -14,6 +15,7 @@ export type DailyResetSummary = {
   issuedToday: boolean;
   penaltyOpened: boolean;
   fragmentsUnlocked: number;
+  hiddenQuestsRevealed: number;
   events: DomainEvent[];
 };
 
@@ -47,10 +49,17 @@ export async function runDailyReset(
    * — that would write each row twice.
    */
   let fragmentsUnlocked = 0;
+  let hiddenQuestsRevealed = 0;
   const runMilestones = async (): Promise<void> => {
     const narrativeEvents = await ensureNarrativeUnlocks(container);
     fragmentsUnlocked = narrativeEvents.length;
     events.push(...narrativeEvents);
+
+    const hiddenEvents = await revealHiddenQuests(container);
+    hiddenQuestsRevealed = hiddenEvents.filter(
+      (e) => e.type === "HiddenQuestRevealed",
+    ).length;
+    events.push(...hiddenEvents);
   };
 
   // No punishment stacks on a punishment. While an episode is open the quest
@@ -68,6 +77,7 @@ export async function runDailyReset(
       issuedToday: !alreadyIssued,
       penaltyOpened: false,
       fragmentsUnlocked,
+      hiddenQuestsRevealed,
       events,
     };
   }
@@ -139,6 +149,7 @@ export async function runDailyReset(
     issuedToday: !alreadyIssued,
     penaltyOpened,
     fragmentsUnlocked,
+    hiddenQuestsRevealed,
     events,
   };
 }
