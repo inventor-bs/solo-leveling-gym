@@ -14,6 +14,7 @@ import { PenaltyRepo } from "@/infra/db/repositories/penalty.repo";
 import { ShadowRepo } from "@/infra/db/repositories/shadow.repo";
 import { TitleRepo } from "@/infra/db/repositories/title.repo";
 import { EventLogRepo } from "@/infra/db/repositories/event-log.repo";
+import { NarrativeRepo } from "@/infra/db/repositories/narrative.repo";
 import { getEnv } from "@/infra/config/env";
 
 export type Container = {
@@ -31,6 +32,7 @@ export type Container = {
   shadows: ShadowRepo;
   titles: TitleRepo;
   events: EventLogRepo;
+  narrative: NarrativeRepo;
   tzOffsetMinutes: number;
 };
 
@@ -66,6 +68,7 @@ export function buildContainer(seed: ContainerSeed = {}): Container {
     shadows: new ShadowRepo(db),
     titles: new TitleRepo(db),
     events: new EventLogRepo(db),
+    narrative: new NarrativeRepo(db),
     tzOffsetMinutes: seed.tzOffsetMinutes ?? getEnv().HUNTER_TZ_OFFSET_MINUTES,
   };
 }
