@@ -4,6 +4,7 @@ import { isQuestComplete } from "@/core/quest/daily-quest";
 import type { QuestStatus } from "@/infra/db/schema/quest";
 import type { Container } from "@/server/container";
 import { ensureDailyQuest } from "./ensure-daily-quest";
+import { ensureNarrativeUnlocks } from "./ensure-narrative";
 import { enterPenalty } from "./enter-penalty";
 
 export type DailyResetSummary = {
@@ -12,6 +13,7 @@ export type DailyResetSummary = {
   yesterdayStatus: QuestStatus | "none" | "skipped-penalty-active";
   issuedToday: boolean;
   penaltyOpened: boolean;
+  fragmentsUnlocked: number;
   events: DomainEvent[];
 };
 
@@ -35,6 +37,22 @@ export async function runDailyReset(
   // write the same row twice.
   const eventsToPersist: DomainEvent[] = [];
 
+  /**
+   * Milestone work that must run on EVERY reset, including days the quest
+   * is left unjudged because a penalty episode is open. The story is not a
+   * reward and must not be withheld by the Penalty Zone.
+   *
+   * These sub-calls persist their own events, so their results are folded
+   * into `events` for the caller's benefit but never into `eventsToPersist`
+   * — that would write each row twice.
+   */
+  let fragmentsUnlocked = 0;
+  const runMilestones = async (): Promise<void> => {
+    const narrativeEvents = await ensureNarrativeUnlocks(container);
+    fragmentsUnlocked = narrativeEvents.length;
+    events.push(...narrativeEvents);
+  };
+
   // No punishment stacks on a punishment. While an episode is open the quest
   // is left unjudged entirely, so the debt stays at exactly one Survival Quest
   // however long the hunter is stuck.
@@ -42,12 +60,14 @@ export async function runDailyReset(
   if (activePenalty) {
     const alreadyIssued = (await container.quests.byDay(today)) !== null;
     await ensureDailyQuest(container, today);
+    await runMilestones();
     return {
       today,
       yesterday,
       yesterdayStatus: "skipped-penalty-active",
       issuedToday: !alreadyIssued,
       penaltyOpened: false,
+      fragmentsUnlocked,
       events,
     };
   }
@@ -110,12 +130,15 @@ export async function runDailyReset(
     container.clock.now(),
   );
 
+  await runMilestones();
+
   return {
     today,
     yesterday,
     yesterdayStatus,
     issuedToday: !alreadyIssued,
     penaltyOpened,
+    fragmentsUnlocked,
     events,
   };
 }

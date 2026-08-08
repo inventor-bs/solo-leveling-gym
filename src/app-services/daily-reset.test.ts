@@ -157,6 +157,56 @@ describe("runDailyReset — penalty interaction", () => {
 
     const today = parseTrainingDay(summary.today);
     const todayRows = await container.events.between(today, today);
-    expect(todayRows.length).toBe(0);
+    // Not an exact-length check: this hunter's createdAt is old enough that
+    // ensureNarrativeUnlocks legitimately unlocks a fragment under today on
+    // this same call. What this test actually guards is that yesterday's
+    // judgment events specifically do not leak into today's log.
+    expect(todayRows.some((r) => r.type === "DailyQuestMissed")).toBe(false);
+    expect(todayRows.some((r) => r.type === "PenaltyStarted")).toBe(false);
+  });
+});
+
+describe("narrative milestones", () => {
+  it("advances the arc from the daily reset", async () => {
+    const db = await makeTestDb();
+    const c = buildContainer({
+      db,
+      clock: fixedClock("2026-08-05T17:05:00.000Z"),
+      tzOffsetMinutes: 420,
+    });
+    // 2026-07-30 ICT: seven days before the reset's "today" of 2026-08-06.
+    await c.hunters.create({
+      name: "Jin-Woo",
+      createdAt: Date.parse("2026-07-30T02:00:00.000Z"),
+    });
+
+    const summary = await runDailyReset(c);
+    expect(summary.fragmentsUnlocked).toBe(1);
+    expect(await c.narrative.unlockedIds()).toEqual(["first-anomaly"]);
+  });
+
+  it("REGRESSION: still advances the arc while a penalty episode is open", async () => {
+    const db = await makeTestDb();
+    const c = buildContainer({
+      db,
+      clock: fixedClock("2026-08-05T17:05:00.000Z"),
+      tzOffsetMinutes: 420,
+    });
+    await c.hunters.create({
+      name: "Jin-Woo",
+      createdAt: Date.parse("2026-07-30T02:00:00.000Z"),
+    });
+    await c.penalties.create({
+      id: "p1",
+      startedDay: "2026-08-04",
+      startedAt: 1,
+      reason: "daily-quest-missed",
+      variantId: 1,
+      expLost: 0,
+    });
+
+    const summary = await runDailyReset(c);
+    expect(summary.yesterdayStatus).toBe("skipped-penalty-active");
+    expect(summary.fragmentsUnlocked).toBe(1);
   });
 });
