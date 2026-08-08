@@ -8,9 +8,11 @@ import { toTrainingDay, isoWeekdayOf } from "@/core/shared/training-day";
 import { getQuestView } from "@/app-services/quest-view";
 import { getPenaltyView } from "@/app-services/penalty-view";
 import { getShadowArmyView } from "@/app-services/shadow-view";
+import { getNarrativeView } from "@/app-services/narrative-view";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { RankBadge } from "@/ui/components/primitives/RankBadge";
 import { RunLogForm } from "@/ui/components/dungeon/RunLogForm";
+import { FragmentCard } from "@/ui/components/narrative/FragmentCard";
 
 export default async function DashboardPage() {
   await redirectOwnerIfPenalised();
@@ -28,6 +30,7 @@ export default async function DashboardPage() {
   const quest = questView.ok ? questView.value : null;
   const penaltyView = await getPenaltyView(container);
   const shadowView = await getShadowArmyView(container);
+  const narrativeView = await getNarrativeView(container);
 
   const voiceSeed = weekday * 1000 + hunter.level;
   const message = buildSystemMessage(
@@ -68,6 +71,23 @@ export default async function DashboardPage() {
             {message.body}
           </p>
         </SystemPanel>
+
+        {/* The arc surfaces on the HUD only on the day it advances. After
+            that the record lives on the Archive page and the HUD moves on —
+            a permanent story panel would compete with today's training. */}
+        {narrativeView.unlockedToday && (
+          <div className="space-y-2">
+            <p className="font-mono text-xs text-monarch-purple/70 tracking-widest">
+              ◈ ANOMALOUS RECORD RECOVERED
+            </p>
+            <FragmentCard
+              ordinal={narrativeView.unlockedToday.ordinal}
+              title={narrativeView.unlockedToday.title}
+              body={narrativeView.unlockedToday.body}
+              unlockedDay={narrativeView.unlockedToday.unlockedDay}
+            />
+          </div>
+        )}
 
         {quest && (
           <SystemPanel header="DAILY QUEST">
