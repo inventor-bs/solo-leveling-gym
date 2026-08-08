@@ -2,6 +2,7 @@ import { ok, type Result } from "@/core/shared/result";
 import { CARDIO_EXP_PER_KM } from "@/core/shadow/roster";
 import type { DomainEvent } from "@/core/shared/events";
 import type { Container } from "@/server/container";
+import type { TrainingDay } from "@/core/shared/training-day";
 
 export type LogRunInput = {
   day: string;
@@ -66,5 +67,6 @@ export async function logRun(
 
   const result: LogRunResult = { runId, events };
   await container.idempotency.remember(input.clientActionId, result, now);
+  await container.events.record(events, input.day as TrainingDay, now);
   return ok(result);
 }

@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { and, gte, lte, asc } from "drizzle-orm";
 import type { Db } from "../client";
 import { eventLog, type EventLogRow } from "../schema/event-log";
@@ -14,10 +15,15 @@ export class EventLogRepo {
     at: number,
   ): Promise<void> {
     if (events.length === 0) return;
-    const rows = events.map((event, i) => {
+    const rows = events.map((event) => {
       const { type, ...payload } = event;
       return {
-        id: `${at}-${i}-${type}`,
+        // A deterministic id built from (at, index, type) collides whenever
+        // two calls in the same batch context share an instant — exactly
+        // what a fixed test clock produces for two sequential writes, and
+        // what real back-to-back writes could produce too. A random id has
+        // no such collision risk; nothing reads this id back by value.
+        id: randomUUID(),
         day,
         type,
         payload: JSON.stringify(payload),

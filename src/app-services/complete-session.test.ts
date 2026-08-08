@@ -5,6 +5,7 @@ import { seedProgram } from "@/infra/db/seed/program";
 import { buildContainer } from "@/server/container";
 import { SHADOW_ROSTER } from "@/core/shadow/roster";
 import { expToNextLevel } from "@/core/hunter/progression";
+import type { TrainingDay } from "@/core/shared/training-day";
 import { completeSession } from "./complete-session";
 
 async function containerWithLoggedSession() {
@@ -469,5 +470,22 @@ describe("completeSession — title buffs", () => {
     });
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.expAwarded).toBe(350);
+  });
+});
+
+describe("completeSession — event persistence", () => {
+  it("persists SessionCompleted and every other event this call produces", async () => {
+    const container = await containerWithLoggedSession();
+    await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    const rows = await container.events.between(
+      "2026-08-05" as TrainingDay,
+      "2026-08-05" as TrainingDay,
+    );
+    expect(rows.some((r) => r.type === "SessionCompleted")).toBe(true);
+    expect(rows.some((r) => r.type === "GoldGained")).toBe(true);
+    expect(rows.some((r) => r.type === "ExpGained")).toBe(true);
   });
 });

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { fixedClock } from "@/infra/clock/system-clock";
 import { makeTestDb } from "@/infra/db/testing/make-test-db";
 import { buildContainer } from "@/server/container";
+import type { TrainingDay } from "@/core/shared/training-day";
 import { logRun } from "./log-run";
 
 async function testContainer() {
@@ -137,5 +138,22 @@ describe("logRun", () => {
         false,
       );
     }
+  });
+});
+
+describe("logRun — event persistence", () => {
+  it("persists the RunLogged event to the event log", async () => {
+    const container = await testContainer();
+    await logRun(container, {
+      day: "2026-08-05",
+      distanceKm: 5,
+      durationSec: 1800,
+      clientActionId: "a",
+    });
+    const rows = await container.events.between(
+      "2026-08-05" as TrainingDay,
+      "2026-08-05" as TrainingDay,
+    );
+    expect(rows.some((r) => r.type === "RunLogged")).toBe(true);
   });
 });

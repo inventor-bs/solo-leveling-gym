@@ -5,6 +5,7 @@ import { shadowForMuscle } from "@/core/shadow/roster";
 import type { DomainEvent } from "@/core/shared/events";
 import type { Container } from "@/server/container";
 import type { MuscleGroup } from "@/core/training/types";
+import type { TrainingDay } from "@/core/shared/training-day";
 
 export type LogSetInput = {
   sessionId: string;
@@ -98,5 +99,6 @@ export async function logSet(
 
   const result: LogSetResult = { isPr, events };
   await container.idempotency.remember(input.clientActionId, result, now);
+  await container.events.record(events, session.day as TrainingDay, now);
   return ok(result);
 }

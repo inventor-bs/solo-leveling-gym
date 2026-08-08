@@ -29,6 +29,7 @@ import { MORNING_BEFORE_HOUR } from "@/core/title/catalog";
 import type { LoggedSet, MuscleGroup } from "@/core/training/types";
 import type { DomainEvent } from "@/core/shared/events";
 import type { Container } from "@/server/container";
+import type { TrainingDay } from "@/core/shared/training-day";
 import { awardEarnedTitles } from "./award-titles";
 import { equippedTitleId } from "./equipped-title";
 
@@ -203,5 +204,6 @@ export async function completeSession(
     events,
   };
   await container.idempotency.remember(input.clientActionId, result, now);
+  await container.events.record(events, session.day as TrainingDay, now);
   return ok(result);
 }

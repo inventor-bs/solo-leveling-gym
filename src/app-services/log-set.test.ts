@@ -4,6 +4,7 @@ import { makeTestDb } from "@/infra/db/testing/make-test-db";
 import { seedProgram } from "@/infra/db/seed/program";
 import { buildContainer } from "@/server/container";
 import { SHADOW_ROSTER } from "@/core/shadow/roster";
+import type { TrainingDay } from "@/core/shared/training-day";
 import { logSet } from "./log-set";
 
 async function containerWithActiveSession() {
@@ -299,5 +300,25 @@ describe("logSet — shadow extraction", () => {
         false,
       );
     }
+  });
+});
+
+describe("logSet — event persistence", () => {
+  it("persists the logged event(s) to the event log", async () => {
+    const container = await containerWithActiveSession();
+    await logSet(container, {
+      sessionId: "session-1",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 6,
+      weight: 80,
+      completed: true,
+      clientActionId: "a",
+    });
+    const rows = await container.events.between(
+      "2026-08-05" as TrainingDay,
+      "2026-08-05" as TrainingDay,
+    );
+    expect(rows.some((r) => r.type === "SetLogged")).toBe(true);
   });
 });
