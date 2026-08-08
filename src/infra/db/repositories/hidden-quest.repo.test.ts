@@ -39,4 +39,13 @@ describe("HiddenQuestRepo", () => {
     expect(row?.goldAwarded).toBe(90);
     expect(row?.revealedAt).toBe(1000);
   });
+
+  it("REGRESSION: only one of several truly concurrent callers is told it won, even with identical payloads", async () => {
+    const attempts = Array.from({ length: 5 }, () => repo.reveal(input));
+    const results = await Promise.all(attempts);
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(await repo.byId(input.id)).toMatchObject({
+      goldAwarded: input.goldAwarded,
+    });
+  });
 });

@@ -30,21 +30,25 @@ export class HiddenQuestRepo {
   }
 
   /**
-   * Returns true only for the call that actually wrote the row.
+   * Returns true only for the call whose own insert actually wrote the row.
    *
    * The caller pays gold on the strength of that boolean, so a
    * check-then-insert would leave a window where the daily cron and a page
-   * read both see "not revealed" and both pay. Inserting first and then
-   * comparing the stored instant against the one this call passed closes
-   * it: whichever call wrote the row is the only one whose instant is
-   * there to find.
+   * read both see "not revealed" and both pay. Comparing stored values
+   * against the input isn't safe either — two concurrent callers can pass
+   * identical payloads (e.g. both derived from the same clock reading), so
+   * a re-read-and-compare would tell both of them they won. `.returning()`
+   * on an insert with `onConflictDoNothing` only yields a row for the call
+   * whose insert actually committed one; on conflict it yields nothing, no
+   * matter what that call's payload was. That ties the boolean to this
+   * call's own insert outcome instead of to payload equality.
    */
   async reveal(input: RevealHiddenQuestInput): Promise<boolean> {
-    await this.db
+    const inserted = await this.db
       .insert(hiddenQuest)
       .values(input)
-      .onConflictDoNothing({ target: hiddenQuest.id });
-    const row = await this.byId(input.id);
-    return row !== null && row.revealedAt === input.revealedAt;
+      .onConflictDoNothing({ target: hiddenQuest.id })
+      .returning({ id: hiddenQuest.id });
+    return inserted.length > 0;
   }
 }
