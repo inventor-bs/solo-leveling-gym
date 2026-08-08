@@ -4,14 +4,15 @@ import type { SystemContext, SystemMessage, VoiceSeverity } from "./types";
 /**
  * [OPENING] + [OBSERVATION] + [DEMAND].
  *
- * Penalty Zone awareness is now wired and takes the highest priority,
- * ahead of even a fresh PR — and the System goes completely silent once
- * `penaltySilent` is set. A weakening shadow is wired too, ranked below
- * the daily quest and streak but above the day's schedule. The rest of
- * the priority order (a falling lift, an active streak's escalation)
- * still depends on systems that don't exist yet. Adding one is adding a
- * function to this list — the composition and the voice rules below
- * don't change.
+ * This is the base layer, not a fallback. It always says something true
+ * about what is actually happening, it needs no network, and it is what
+ * runs during a test, an outage, or a day with no API key configured.
+ *
+ * The branch order below is the priority order, and it is deliberate: the
+ * things that are decaying come before the things that are going well. An
+ * engine that congratulates a record while a shadow rots is doing the one
+ * thing the voice rules forbid. Adding a new observation is adding a branch
+ * at the right height in this list — nothing else changes.
  */
 
 const OPENINGS = [
@@ -21,52 +22,101 @@ const OPENINGS = [
   "The System is watching.",
 ] as const;
 
-function observation(context: SystemContext): string {
-  if (context.penaltyActive) {
-    return "You are in the Penalty Zone.";
-  }
-  if (context.recentPr) {
-    return `${context.recentPr.exerciseName}: ${context.recentPr.newE1rmKg} kg. A new record.`;
-  }
-  if (!context.dailyQuestDone) {
-    return "The Daily Quest is not complete.";
-  }
-  if (context.streakDays > 0) {
-    const unit = context.streakDays === 1 ? "day" : "days";
-    return `Daily Quest cleared. Streak: ${context.streakDays} ${unit}.`;
-  }
-  if (context.weakestShadow) {
-    return `${context.weakestShadow.name} has weakened. ${context.weakestShadow.daysSinceTrained} days without training.`;
-  }
-  if (context.todayProgramName) {
-    return `Today's gate: ${context.todayProgramName}.`;
-  }
-  if (context.isRestDay) {
-    return "No dungeon is scheduled today.";
-  }
-  return "Endurance training is scheduled today.";
+/** Which branch fired. Keeps observation, demand, and severity in lockstep. */
+type Branch =
+  | "penalty"
+  | "shadow"
+  | "lift-down"
+  | "quest"
+  | "streak"
+  | "pr"
+  | "program"
+  | "rest"
+  | "run";
+
+function branchFor(context: SystemContext): Branch {
+  if (context.penaltyActive) return "penalty";
+  if (context.weakestShadow) return "shadow";
+  if (context.liftsDown.length > 0) return "lift-down";
+  if (!context.dailyQuestDone) return "quest";
+  if (context.streakDays > 0) return "streak";
+  if (context.recentPr) return "pr";
+  if (context.todayProgramName) return "program";
+  if (context.isRestDay) return "rest";
+  return "run";
 }
 
-function demand(context: SystemContext): string {
-  if (context.penaltyActive) {
-    return "Clear the Survival Quest to leave it.";
+/** The steepest fall, so the message names the lift that matters most. */
+function steepestFall(
+  context: SystemContext,
+): { name: string; deltaKg: number } | null {
+  let worst: { name: string; deltaKg: number } | null = null;
+  for (const lift of context.liftsDown) {
+    if (worst === null || lift.deltaKg < worst.deltaKg) worst = lift;
   }
-  if (context.recentPr) {
-    return "Do not let this be the last time.";
+  return worst;
+}
+
+function observation(context: SystemContext, branch: Branch): string {
+  switch (branch) {
+    case "penalty":
+      return "You are in the Penalty Zone.";
+    case "shadow": {
+      const s = context.weakestShadow!;
+      return `${s.name} has weakened. ${s.daysSinceTrained} days without training.`;
+    }
+    case "lift-down": {
+      const worst = steepestFall(context)!;
+      return `${worst.name} has fallen ${Math.abs(worst.deltaKg)} kg from your peak.`;
+    }
+    case "quest":
+      return "The Daily Quest is not complete.";
+    case "streak": {
+      const unit = context.streakDays === 1 ? "day" : "days";
+      return `Daily Quest cleared. Streak: ${context.streakDays} ${unit}.`;
+    }
+    case "pr": {
+      const pr = context.recentPr!;
+      return `${pr.exerciseName}: ${pr.newE1rmKg} kg. A new record.`;
+    }
+    case "program":
+      return `Today's gate: ${context.todayProgramName}.`;
+    case "rest":
+      return "No dungeon is scheduled today.";
+    case "run":
+      return "Endurance training is scheduled today.";
   }
-  if (!context.dailyQuestDone) {
-    return "Finish it before the day ends.";
+}
+
+function demand(branch: Branch): string {
+  switch (branch) {
+    case "penalty":
+      return "Clear the Survival Quest to leave it.";
+    case "shadow":
+      return "Do not let a shadow die of neglect.";
+    case "lift-down":
+      return "Take it back.";
+    case "quest":
+      return "Finish it before the day ends.";
+    case "streak":
+      return "Do not break it today.";
+    case "pr":
+      return "Do not let this be the last time.";
+    case "program":
+      return "Enter the dungeon.";
+    case "rest":
+      return "Rest is not weakness. Recover.";
+    case "run":
+      return "Log the distance when it is done.";
   }
-  if (context.weakestShadow) {
-    return "Do not let a shadow die of neglect.";
+}
+
+function severityFor(branch: Branch): VoiceSeverity {
+  if (branch === "penalty") return "critical";
+  if (branch === "shadow" || branch === "lift-down" || branch === "quest") {
+    return "warning";
   }
-  if (context.todayProgramName) {
-    return "Enter the dungeon.";
-  }
-  if (context.isRestDay) {
-    return "Rest is not weakness. Recover.";
-  }
-  return "Log the distance when it is done.";
+  return "info";
 }
 
 /** Picks an opening deterministically from the given RNG. */
@@ -79,24 +129,21 @@ export function buildSystemMessage(
   context: SystemContext,
   rng: RngPort,
 ): SystemMessage {
-  // `severity` is not derived yet — that is Task 15's job, once the
-  // template branches below know how to grade their own urgency. The cast
-  // is scoped to just this field so `body` and `source` stay under normal
-  // structural type-checking; the field is genuinely absent at runtime
-  // until Task 15 lands.
+  const branch = branchFor(context);
+  const severity = severityFor(branch);
+
+  // Silence is a state, not an absent message: the caller still needs to
+  // know how bad things are in order to render the empty panel correctly.
   if (context.penaltySilent) {
-    return {
-      body: "",
-      source: "template",
-      severity: undefined as unknown as VoiceSeverity,
-    };
+    return { body: "", severity, source: "template" };
   }
-  const parts = [pickOpening(rng), observation(context), demand(context)];
-  return {
-    body: parts.join(" "),
-    source: "template",
-    severity: undefined as unknown as VoiceSeverity,
-  };
+
+  const parts = [
+    pickOpening(rng),
+    observation(context, branch),
+    demand(branch),
+  ];
+  return { body: parts.join(" "), severity, source: "template" };
 }
 
 export type { SystemContext, SystemMessage };

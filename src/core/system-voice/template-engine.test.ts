@@ -211,7 +211,11 @@ describe("weakest shadow awareness", () => {
     expect(msg.body).toContain("11");
   });
 
-  it("REGRESSION: a recent PR still takes priority over a weakening shadow", () => {
+  it("REGRESSION: a weakening shadow now outranks a recent PR", () => {
+    // Inverted from the order this engine originally shipped with. That
+    // order was the order features arrived in, not a designed order, and it
+    // produced the one thing the voice rules forbid: congratulation while
+    // something is rotting. Neglect is the urgent fact; the record is not.
     const msg = buildSystemMessage(
       baseContext({
         recentPr: { exerciseName: "Bench Press", newE1rmKg: 100 },
@@ -219,7 +223,8 @@ describe("weakest shadow awareness", () => {
       }),
       fakeRng(1),
     );
-    expect(msg.body).not.toContain("Iron");
+    expect(msg.body).toContain("Iron");
+    expect(msg.body).not.toContain("Bench Press");
   });
 
   it("says nothing about shadows when none has weakened", () => {
@@ -239,5 +244,82 @@ describe("voice kinds and message shape", () => {
   it("carries a severity alongside every body", () => {
     const msg = buildSystemMessage(baseContext(), fakeRng(1));
     expect(["info", "warning", "critical"]).toContain(msg.severity);
+  });
+});
+
+describe("falling lift awareness", () => {
+  it("names the lift that has fallen furthest, with the real number", () => {
+    const msg = buildSystemMessage(
+      baseContext({
+        liftsDown: [
+          { name: "Squat", deltaKg: -7.5 },
+          { name: "Row", deltaKg: -2 },
+        ],
+        recentPr: { exerciseName: "Bench Press", newE1rmKg: 100 },
+      }),
+      fakeRng(1),
+    );
+    expect(msg.body).toContain("Squat");
+    expect(msg.body).toContain("7.5");
+    expect(msg.body).not.toContain("Bench Press");
+  });
+
+  it("REGRESSION: a weakening shadow still outranks a falling lift", () => {
+    const msg = buildSystemMessage(
+      baseContext({
+        liftsDown: [{ name: "Squat", deltaKg: -7.5 }],
+        weakestShadow: { name: "Iron", daysSinceTrained: 11 },
+      }),
+      fakeRng(1),
+    );
+    expect(msg.body).toContain("Iron");
+    expect(msg.body).not.toContain("Squat");
+  });
+
+  it("says nothing about a falling lift when nothing has fallen", () => {
+    const msg = buildSystemMessage(baseContext({ liftsDown: [] }), fakeRng(1));
+    expect(msg.body.toLowerCase()).not.toContain("fallen");
+  });
+});
+
+describe("severity", () => {
+  it("is critical inside the Penalty Zone", () => {
+    expect(
+      buildSystemMessage(baseContext({ penaltyActive: true }), fakeRng(1))
+        .severity,
+    ).toBe("critical");
+  });
+
+  it("is a warning when something is decaying or outstanding", () => {
+    expect(
+      buildSystemMessage(
+        baseContext({ weakestShadow: { name: "Iron", daysSinceTrained: 11 } }),
+        fakeRng(1),
+      ).severity,
+    ).toBe("warning");
+    expect(
+      buildSystemMessage(
+        baseContext({ liftsDown: [{ name: "Squat", deltaKg: -5 }] }),
+        fakeRng(1),
+      ).severity,
+    ).toBe("warning");
+    expect(
+      buildSystemMessage(baseContext({ dailyQuestDone: false }), fakeRng(1))
+        .severity,
+    ).toBe("warning");
+  });
+
+  it("is info on an ordinary day", () => {
+    expect(buildSystemMessage(baseContext(), fakeRng(1)).severity).toBe("info");
+  });
+
+  it("REGRESSION: a silent System still returns a well-formed message", () => {
+    const msg = buildSystemMessage(
+      baseContext({ penaltyActive: true, penaltySilent: true }),
+      fakeRng(1),
+    );
+    expect(msg.body).toBe("");
+    expect(msg.severity).toBe("critical");
+    expect(msg.source).toBe("template");
   });
 });
