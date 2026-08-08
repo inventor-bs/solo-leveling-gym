@@ -3,11 +3,10 @@ import { redirectOwnerIfPenalised } from "@/server/penalty-guard";
 import { getContainer } from "@/server/container";
 import { rankForLevel } from "@/core/hunter/progression";
 import { buildSystemMessage } from "@/core/system-voice/template-engine";
+import { buildSystemContext } from "@/app-services/system-context";
 import { seededRng } from "@/infra/rng/seeded-rng";
 import { toTrainingDay, isoWeekdayOf } from "@/core/shared/training-day";
 import { getQuestView } from "@/app-services/quest-view";
-import { getPenaltyView } from "@/app-services/penalty-view";
-import { getShadowArmyView } from "@/app-services/shadow-view";
 import { getNarrativeView } from "@/app-services/narrative-view";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { RankBadge } from "@/ui/components/primitives/RankBadge";
@@ -28,43 +27,13 @@ export default async function DashboardPage() {
 
   const questView = await getQuestView(container);
   const quest = questView.ok ? questView.value : null;
-  const penaltyView = await getPenaltyView(container);
-  const shadowView = await getShadowArmyView(container);
   const narrativeView = await getNarrativeView(container);
 
   const voiceSeed = weekday * 1000 + hunter.level;
-  const message = buildSystemMessage(
-    {
-      hunterName: hunter.name,
-      level: hunter.level,
-      rank: rankForLevel(hunter.level),
-      title: hunter.title,
-      className: hunter.className,
-      streakDays: quest?.streak ?? 0,
-      fatigue: hunter.fatigue,
-      reasonForHunting: hunter.reasonForHunting,
-      todayProgramName: program?.programDay.name ?? null,
-      todayMainLift:
-        program?.exercises.find((e) => e.exercise.isMainLift)?.exercise.name ??
-        null,
-      isRestDay,
-      dailyQuestDone: quest?.complete ?? false,
-      sessionsLast7d: 0,
-      missedDays30d: 0,
-      penaltyCount30d: 0,
-      liftsUp: [],
-      liftsDown: [],
-      recentPr: null,
-      penaltyActive: penaltyView !== null,
-      penaltySilent: penaltyView?.systemSilent ?? false,
-      weakestShadow: shadowView.weakest,
-      armyRank: shadowView.armyRank,
-      arcStage: narrativeView.arcStage,
-      unlockedFragments: narrativeView.fragments.map((f) => f.id),
-      lastMessages: [],
-    },
-    seededRng(voiceSeed),
-  );
+  const context = await buildSystemContext(container);
+  const message = context
+    ? buildSystemMessage(context, seededRng(voiceSeed))
+    : null;
 
   return (
     <div className="relative min-h-screen p-6 md:p-8">
@@ -82,11 +51,13 @@ export default async function DashboardPage() {
           <RankBadge rank={rankForLevel(hunter.level)} size="md" />
         </div>
 
-        <SystemPanel glowColor="blue">
-          <p className="p-4 font-mono text-sm text-slate-300 leading-relaxed">
-            {message.body}
-          </p>
-        </SystemPanel>
+        {message && (
+          <SystemPanel glowColor="blue">
+            <p className="p-4 font-mono text-sm text-slate-300 leading-relaxed">
+              {message.body === "" ? "[ ... ]" : message.body}
+            </p>
+          </SystemPanel>
+        )}
 
         {/* The arc surfaces on the HUD only on the day it advances. After
             that the record lives on the Archive page and the HUD moves on —
