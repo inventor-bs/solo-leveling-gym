@@ -1,5 +1,5 @@
 import type { RngPort } from "@/ports/rng.port";
-import type { SystemContext, SystemMessage } from "./types";
+import type { SystemContext, SystemMessage, VoiceSeverity } from "./types";
 
 /**
  * [OPENING] + [OBSERVATION] + [DEMAND].
@@ -80,14 +80,23 @@ export function buildSystemMessage(
   rng: RngPort,
 ): SystemMessage {
   // `severity` is not derived yet — that is Task 15's job, once the
-  // template branches below know how to grade their own urgency. This
-  // cast keeps the type migration in this task from forcing that logic
-  // early; the field is genuinely absent at runtime until Task 15 lands.
+  // template branches below know how to grade their own urgency. The cast
+  // is scoped to just this field so `body` and `source` stay under normal
+  // structural type-checking; the field is genuinely absent at runtime
+  // until Task 15 lands.
   if (context.penaltySilent) {
-    return { body: "", source: "template" } as SystemMessage;
+    return {
+      body: "",
+      source: "template",
+      severity: undefined as unknown as VoiceSeverity,
+    };
   }
   const parts = [pickOpening(rng), observation(context), demand(context)];
-  return { body: parts.join(" "), source: "template" } as SystemMessage;
+  return {
+    body: parts.join(" "),
+    source: "template",
+    severity: undefined as unknown as VoiceSeverity,
+  };
 }
 
 export type { SystemContext, SystemMessage };
