@@ -19,6 +19,8 @@ import { HiddenQuestRepo } from "@/infra/db/repositories/hidden-quest.repo";
 import { SystemMessageRepo } from "@/infra/db/repositories/system-message.repo";
 import { VoiceQuotaRepo } from "@/infra/db/repositories/voice-quota.repo";
 import { getEnv } from "@/infra/config/env";
+import type { SystemVoicePort } from "@/ports/system-voice.port";
+import { createGeminiVoice } from "@/infra/system-voice/gemini-voice";
 
 export type Container = {
   db: Db;
@@ -39,6 +41,8 @@ export type Container = {
   hiddenQuests: HiddenQuestRepo;
   systemMessages: SystemMessageRepo;
   voiceQuota: VoiceQuotaRepo;
+  /** Null whenever no provider is configured — the supported default. */
+  voice: SystemVoicePort | null;
   tzOffsetMinutes: number;
 };
 
@@ -47,6 +51,7 @@ type ContainerSeed = {
   clock?: ClockPort;
   rng?: RngPort;
   newId?: () => string;
+  voice?: SystemVoicePort | null;
   tzOffsetMinutes?: number;
 };
 
@@ -78,6 +83,9 @@ export function buildContainer(seed: ContainerSeed = {}): Container {
     hiddenQuests: new HiddenQuestRepo(db),
     systemMessages: new SystemMessageRepo(db),
     voiceQuota: new VoiceQuotaRepo(db),
+    // Defaults to null rather than reading env, so a test that passes no
+    // seed lands on the no-provider path — the one that must never break.
+    voice: seed.voice ?? null,
     tzOffsetMinutes: seed.tzOffsetMinutes ?? getEnv().HUNTER_TZ_OFFSET_MINUTES,
   };
 }
@@ -87,7 +95,9 @@ let cached: Container | null = null;
 /** Production container. Lazily initialized, same pattern as getEnv()/getDb(). */
 export function getContainer(): Container {
   if (cached === null) {
-    cached = buildContainer();
+    cached = buildContainer({
+      voice: createGeminiVoice(getEnv().GEMINI_API_KEY),
+    });
   }
   return cached;
 }
