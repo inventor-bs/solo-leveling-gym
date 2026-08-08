@@ -101,4 +101,16 @@ describe("createGeminiVoice", () => {
       expect.not.stringContaining("super-secret-key") as never,
     );
   });
+
+  it("REGRESSION: sends the API key via the x-goog-api-key header, never in the URL", async () => {
+    respondWith('{"body":"Hunter. Continue.","severity":"info","title":null}');
+    const voice = createGeminiVoice("my-test-key")!;
+    await voice.generate(request);
+
+    const [url, init] = vi.mocked(fetch).mock.calls[0]!;
+    expect(String(url)).not.toContain("my-test-key");
+    expect(String(url)).not.toContain("key=");
+    const headers = init?.headers as Record<string, string>;
+    expect(headers["x-goog-api-key"]).toBe("my-test-key");
+  });
 });
