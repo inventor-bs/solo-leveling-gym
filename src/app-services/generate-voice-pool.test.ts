@@ -8,7 +8,10 @@ import {
   type SystemVoicePort,
   type VoiceDraft,
 } from "@/ports/system-voice.port";
-import { DAILY_REQUEST_LIMIT } from "@/core/system-voice/quota";
+import {
+  DAILY_REQUEST_LIMIT,
+  FAILURE_THRESHOLD,
+} from "@/core/system-voice/quota";
 import { generateVoicePool } from "./generate-voice-pool";
 import { runDailyReset } from "./daily-reset";
 
@@ -135,6 +138,40 @@ describe("generateVoicePool", () => {
       tripped: false,
     });
     expect((await generateVoicePool(container)).attempted).toBe(0);
+  });
+
+  it("REGRESSION: a breaker tripped by the first kind's attempt stops the second kind in the same run", async () => {
+    const container = await makeContainer(alwaysFails);
+    await container.voiceQuota.save(TODAY, {
+      requests: 0,
+      consecutiveFailures: FAILURE_THRESHOLD - 1, // one more failure trips it
+      tripped: false,
+    });
+
+    const summary = await generateVoicePool(container);
+
+    // Only the first kind (VOICE_POOL_KINDS[0]) was attempted; the second
+    // never ran because the first attempt's failure tripped the breaker.
+    expect(summary.attempted).toBe(1);
+    expect(summary.failed).toBe(1);
+    const quota = await container.voiceQuota.forDay(TODAY);
+    expect(quota.tripped).toBe(true);
+  });
+
+  it("REGRESSION: hitting the ceiling on the first kind's attempt stops the second kind in the same run", async () => {
+    const container = await makeContainer(voiceReturning({}));
+    await container.voiceQuota.save(TODAY, {
+      requests: DAILY_REQUEST_LIMIT - 1, // one more request reaches the ceiling
+      consecutiveFailures: 0,
+      tripped: false,
+    });
+
+    const summary = await generateVoicePool(container);
+
+    expect(summary.attempted).toBe(1);
+    expect(summary.stored).toBe(1);
+    const quota = await container.voiceQuota.forDay(TODAY);
+    expect(quota.requests).toBe(DAILY_REQUEST_LIMIT);
   });
 
   it("REGRESSION: a second run on the same day does not refill a filled slot", async () => {
