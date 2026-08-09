@@ -1,4 +1,5 @@
 import type { Exp, Gold, Kg } from "./units";
+import type { EquipmentGrade, EquipmentSlot } from "@/core/economy/pricing";
 
 /**
  * A domain event is a return value from core, NOT an infrastructure concept.
@@ -36,7 +37,34 @@ export type DomainEvent =
       questId: string;
       questName: string;
       goldAwarded: Gold;
-    };
+    }
+  | { type: "GoldSpent"; amount: Gold; source: string }
+  | {
+      type: "EquipmentDropped";
+      slot: EquipmentSlot;
+      name: string;
+      grade: EquipmentGrade;
+      /** The grade this drop displaced, or null when the slot was empty. */
+      replacedGrade: EquipmentGrade | null;
+    }
+  | { type: "RedGateCleared"; day: string }
+  | { type: "RedGateFailed"; day: string }
+  | { type: "BossRaidCleared"; day: string; prCount: number }
+  | { type: "DemonCastleFloorCleared"; floor: number }
+  /**
+   * The three weekly events carry `weekStart` — the Monday of the week they
+   * describe — rather than the day they were computed on, and are persisted
+   * stamped with that day. That is what makes a repeated cron run idempotent:
+   * the reset looks for an existing row on `weekStart` before paying again.
+   */
+  | { type: "PerfectWeek"; weekStart: string; goldAwarded: Gold }
+  | {
+      type: "WagerWon";
+      weekStart: string;
+      stakeGold: Gold;
+      payoutGold: Gold;
+    }
+  | { type: "WagerLost"; weekStart: string; stakeGold: Gold };
 
 export type DomainEventOfType<T extends DomainEvent["type"]> = Extract<
   DomainEvent,
