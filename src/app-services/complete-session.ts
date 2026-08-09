@@ -34,6 +34,16 @@ import {
   isEquipmentGrade,
 } from "@/core/economy/equipment";
 import type { EquipmentGrade } from "@/core/economy/pricing";
+import {
+  bossRaidGoldPerPr,
+  demonCastleTargetVolume,
+  isChallengeType,
+  redGateRewardMultiplier,
+  redGateTargetVolume,
+  volumeTargetMet,
+  type ChallengeType,
+} from "@/core/economy/challenges";
+import { toTrainingDay } from "@/core/shared/training-day";
 import type { LoggedSet, MuscleGroup } from "@/core/training/types";
 import type { DomainEvent } from "@/core/shared/events";
 import type { Container } from "@/server/container";
@@ -41,6 +51,12 @@ import type { TrainingDay } from "@/core/shared/training-day";
 import type { Kg } from "@/core/shared/units";
 import { awardEarnedTitles } from "./award-titles";
 import { equippedTitleId } from "./equipped-title";
+
+export type ChallengeOutcome = {
+  type: ChallengeType;
+  floor: number | null;
+  cleared: boolean;
+};
 
 export type CompleteSessionResult = {
   rank: DungeonRank;
@@ -51,6 +67,8 @@ export type CompleteSessionResult = {
   prGold: number;
   /** Gold paid for every level this session's EXP crossed. */
   levelUpGold: number;
+  /** The bought challenge this session resolved, or null if none was pending. */
+  challenge: ChallengeOutcome | null;
   events: DomainEvent[];
 };
 
@@ -129,7 +147,73 @@ export async function completeSession(
     );
   }
   const prs = detectPrs(sets, previousBests);
-  const prGold = goldForPrs(prs.length);
+
+  // Resolve whatever challenge was bought, before any reward is computed —
+  // the gold and EXP multipliers below depend on the verdict.
+  //
+  // A challenge is only honoured on the training day it was bought. Anything
+  // older is expired here rather than left to rot: the gold is already gone,
+  // and letting it sit would silently apply to some future session.
+  const pending = await container.store.pendingChallenge();
+  const challengeEvents: DomainEvent[] = [];
+  let challenge: ChallengeOutcome | null = null;
+  let redGateCleared = false;
+  let bossRaidCleared = false;
+
+  if (pending !== null && isChallengeType(pending.type)) {
+    const purchasedDay = toTrainingDay(
+      epoch(pending.purchasedAt),
+      container.tzOffsetMinutes,
+    );
+    const sameDay = purchasedDay === session.day;
+
+    if (!sameDay) {
+      if (pending.type === "red-gate") {
+        challengeEvents.push({ type: "RedGateFailed", day: purchasedDay });
+      }
+    } else if (pending.type === "red-gate") {
+      redGateCleared = volumeTargetMet(
+        plannedVolume,
+        redGateTargetVolume(avgVolume),
+        avgVolume,
+      );
+      challenge = { type: "red-gate", floor: null, cleared: redGateCleared };
+      challengeEvents.push(
+        redGateCleared
+          ? { type: "RedGateCleared", day: session.day }
+          : { type: "RedGateFailed", day: session.day },
+      );
+    } else if (pending.type === "boss-raid") {
+      bossRaidCleared = prs.length >= 1;
+      challenge = { type: "boss-raid", floor: null, cleared: bossRaidCleared };
+      if (bossRaidCleared) {
+        challengeEvents.push({
+          type: "BossRaidCleared",
+          day: session.day,
+          prCount: prs.length,
+        });
+      }
+    } else {
+      const floor = pending.floor ?? 1;
+      const cleared = volumeTargetMet(
+        plannedVolume,
+        demonCastleTargetVolume(avgVolume, floor),
+        avgVolume,
+      );
+      challenge = { type: "demon-castle", floor, cleared };
+      if (cleared) {
+        await container.store.setHighestFloorCleared(floor);
+        challengeEvents.push({ type: "DemonCastleFloorCleared", floor });
+      }
+    }
+
+    // Consumed either way. Buying the target is the whole transaction;
+    // missing it costs the gold and nothing more.
+    await container.store.clearPendingChallenge();
+  }
+
+  const prGold = goldForPrs(prs.length, bossRaidGoldPerPr(bossRaidCleared));
+  const challengeMultiplier = redGateRewardMultiplier(redGateCleared);
 
   const equipped = await equippedTitleId(container, hunter);
   const weaponGrade = await gradeInSlot(container, "weapon");
@@ -151,13 +235,15 @@ export async function completeSession(
 
   const rankGold = Math.round(
     goldForDungeonRank(dungeonRank) *
-      sessionGoldMultiplier(equipped, startedInTheMorning),
+      sessionGoldMultiplier(equipped, startedInTheMorning) *
+      challengeMultiplier,
   );
   const expAwarded = makeExp(
     Math.round(
       expForDungeonRank(dungeonRank) *
         sessionExpMultiplier(equipped, firstSessionAfterExit) *
-        equipmentExpMultiplier(weaponGrade, volumeByGroup.back),
+        equipmentExpMultiplier(weaponGrade, volumeByGroup.back) *
+        challengeMultiplier,
     ),
   );
 
@@ -223,6 +309,7 @@ export async function completeSession(
   if (progression.levelsGained > 0) {
     events.push({ type: "LevelUp", from: hunter.level, to: progression.level });
   }
+  events.push(...challengeEvents);
 
   if (hunter.rank !== "S" && newRank === "S") {
     const bellion = await container.shadows.byId("bellion");
@@ -247,6 +334,7 @@ export async function completeSession(
     levelsGained: progression.levelsGained,
     prGold,
     levelUpGold,
+    challenge,
     events,
   };
   await container.idempotency.remember(input.clientActionId, result, now);

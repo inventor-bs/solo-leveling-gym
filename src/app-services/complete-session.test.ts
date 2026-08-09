@@ -6,6 +6,7 @@ import { buildContainer } from "@/server/container";
 import { SHADOW_ROSTER } from "@/core/shadow/roster";
 import { expToNextLevel } from "@/core/hunter/progression";
 import type { TrainingDay } from "@/core/shared/training-day";
+import type { Container } from "@/server/container";
 import { completeSession } from "./complete-session";
 
 async function containerWithLoggedSession() {
@@ -730,5 +731,222 @@ describe("completeSession — equipment buffs", () => {
     // A hand-edited row must not be able to hand out a buff, the same rule
     // equippedTitleId already enforces for hunter.title.
     expect(result.ok).toBe(true);
+  });
+});
+
+describe("completeSession — challenge resolution", () => {
+  /** Eight prior sessions of 1000 volume each, so avgVolume is a real 1000. */
+  async function withVolumeHistory(container: Container, avgEach = 1_000) {
+    for (let i = 0; i < 8; i += 1) {
+      await container.training.createSession({
+        id: `hist-${i}`,
+        day: "2026-08-01",
+        programDayId: "upper-a",
+        startedAt: i,
+      });
+      await container.training.upsertSetLog({
+        id: `hist-set-${i}`,
+        sessionId: `hist-${i}`,
+        exerciseId: "bench-press",
+        setIndex: 0,
+        reps: 10,
+        weight: avgEach / 10,
+        completed: true,
+        isPr: false,
+        loggedAt: i,
+      });
+      await container.training.completeSession(`hist-${i}`, i + 1, "C");
+    }
+  }
+
+  it("quadruples gold and EXP when a Red Gate's volume target is met", async () => {
+    const container = await containerWithLoggedSession();
+    await withVolumeHistory(container);
+    // The live session logs 6 x 80 = 480... replace it with a big one.
+    await container.training.upsertSetLog({
+      id: "set-1",
+      sessionId: "session-1",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 20,
+      weight: 100,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+    await container.store.setPendingChallenge({
+      type: "red-gate",
+      purchasedAt: container.clock.now(),
+      floor: null,
+    });
+
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    expect(result.value.challenge).toEqual({
+      type: "red-gate",
+      floor: null,
+      cleared: true,
+    });
+    expect(result.value.events.map((e) => e.type)).toContain("RedGateCleared");
+    // 2000 volume against a 1000 average is a 2.0 ratio, so A-rank: 120 gold
+    // and 600 EXP at the base rate, both multiplied by four.
+    expect(result.value.expAwarded).toBe(2_400);
+  });
+
+  it("pays nothing extra and reports failure when the Red Gate target is missed", async () => {
+    const container = await containerWithLoggedSession();
+    await withVolumeHistory(container);
+    await container.store.setPendingChallenge({
+      type: "red-gate",
+      purchasedAt: container.clock.now(),
+      floor: null,
+    });
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    expect(result.value.challenge?.cleared).toBe(false);
+    expect(result.value.events.map((e) => e.type)).toContain("RedGateFailed");
+    expect(await container.store.pendingChallenge()).toBeNull();
+  });
+
+  it("never clears a Red Gate on a database with no volume history", async () => {
+    // 1.5 x 0 is 0, which every session trivially reaches. An unmeasurable
+    // target is not a cleared one.
+    const container = await containerWithLoggedSession();
+    await container.store.setPendingChallenge({
+      type: "red-gate",
+      purchasedAt: container.clock.now(),
+      floor: null,
+    });
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    expect(result.value.challenge?.cleared).toBe(false);
+  });
+
+  it("expires a challenge bought on an earlier day without honouring it", async () => {
+    const container = await containerWithLoggedSession();
+    await withVolumeHistory(container);
+    await container.store.setPendingChallenge({
+      type: "red-gate",
+      // One full day before the session's training day.
+      purchasedAt: container.clock.now() - 86_400_000,
+      floor: null,
+    });
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    expect(result.value.challenge).toBeNull();
+    expect(result.value.events.map((e) => e.type)).toContain("RedGateFailed");
+    expect(await container.store.pendingChallenge()).toBeNull();
+  });
+
+  it("pays 300 per PR when a Boss Raid produced at least one", async () => {
+    const container = await containerWithLoggedSession();
+    await container.store.setPendingChallenge({
+      type: "boss-raid",
+      purchasedAt: container.clock.now(),
+      floor: null,
+    });
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    expect(result.value.prGold).toBe(300);
+    expect(result.value.challenge?.cleared).toBe(true);
+    expect(result.value.events.map((e) => e.type)).toContain("BossRaidCleared");
+  });
+
+  it("falls back to the normal session when a Boss Raid produced no PR", async () => {
+    const container = await containerWithLoggedSession();
+    await withVolumeHistory(container, 10_000);
+    await container.store.setPendingChallenge({
+      type: "boss-raid",
+      purchasedAt: container.clock.now(),
+      floor: null,
+    });
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    // The history above logs bench-press at 1000 kg per set, so the live
+    // session's 80 kg cannot beat it and there is no PR.
+    expect(result.value.prGold).toBe(0);
+    expect(result.value.challenge?.cleared).toBe(false);
+    expect(await container.store.pendingChallenge()).toBeNull();
+  });
+
+  it("advances the Demon Castle when the floor's target is met", async () => {
+    const container = await containerWithLoggedSession();
+    await withVolumeHistory(container);
+    await container.training.upsertSetLog({
+      id: "set-1",
+      sessionId: "session-1",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 20,
+      weight: 100,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+    await container.store.setPendingChallenge({
+      type: "demon-castle",
+      purchasedAt: container.clock.now(),
+      floor: 1,
+    });
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    expect(result.value.challenge).toEqual({
+      type: "demon-castle",
+      floor: 1,
+      cleared: true,
+    });
+    expect(await container.store.highestFloorCleared()).toBe(1);
+    expect(result.value.events).toContainEqual({
+      type: "DemonCastleFloorCleared",
+      floor: 1,
+    });
+  });
+
+  it("leaves the highest floor untouched when the target is missed", async () => {
+    const container = await containerWithLoggedSession();
+    await withVolumeHistory(container);
+    await container.store.setPendingChallenge({
+      type: "demon-castle",
+      purchasedAt: container.clock.now(),
+      floor: 1,
+    });
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    expect(result.value.challenge?.cleared).toBe(false);
+    expect(await container.store.highestFloorCleared()).toBe(0);
+  });
+
+  it("reports no challenge at all when none was bought", async () => {
+    const container = await containerWithLoggedSession();
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    expect(result.value.challenge).toBeNull();
   });
 });
