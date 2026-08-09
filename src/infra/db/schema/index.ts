@@ -10,3 +10,4 @@ export * from "./title";
 export * from "./narrative";
 export * from "./hidden-quest";
 export * from "./voice";
+export * from "./store";
