@@ -622,3 +622,57 @@ describe("runDailyReset — wager resolution", () => {
     expect(summary.wagersResolved).toBe(1);
   });
 });
+
+describe("runDailyReset — hourglass deferral", () => {
+  async function withUnfinishedQuestYesterday(container: Container) {
+    await container.quests.create({
+      id: "q-y",
+      day: "2026-08-08",
+      rank: "E",
+      targetPushups: 20,
+      targetSitups: 20,
+      targetSquats: 20,
+      targetRunKm: 1,
+      createdAt: 0,
+    });
+  }
+
+  it("judges an unfinished quest as missed when no grace was bought", async () => {
+    const container = await containerAtDay("2026-08-09");
+    await withUnfinishedQuestYesterday(container);
+    const summary = await runDailyReset(container);
+    expect(summary.yesterdayStatus).toBe("missed");
+    expect(summary.penaltyOpened).toBe(true);
+  });
+
+  it("leaves the quest unjudged when yesterday carries a grace row", async () => {
+    const container = await containerAtDay("2026-08-09");
+    await withUnfinishedQuestYesterday(container);
+    await container.mitigation.grantGrace("2026-08-08", 1);
+
+    const summary = await runDailyReset(container);
+    expect(summary.yesterdayStatus).toBe("deferred-to-grace-window");
+    expect(summary.penaltyOpened).toBe(false);
+    // Still active, so the 04:00 cron has something to judge.
+    expect((await container.quests.byDay("2026-08-08"))?.status).toBe("active");
+    expect(await container.penalties.active()).toBeNull();
+  });
+
+  it("still issues today's quest on a deferred day", async () => {
+    const container = await containerAtDay("2026-08-09");
+    await withUnfinishedQuestYesterday(container);
+    await container.mitigation.grantGrace("2026-08-08", 1);
+    const summary = await runDailyReset(container);
+    expect(summary.issuedToday).toBe(true);
+    expect(await container.quests.byDay("2026-08-09")).not.toBeNull();
+  });
+
+  it("does not defer a quest that was already finished", async () => {
+    const container = await containerAtDay("2026-08-09");
+    await withUnfinishedQuestYesterday(container);
+    await container.quests.setStatus("2026-08-08", "completed", 1);
+    await container.mitigation.grantGrace("2026-08-08", 1);
+    const summary = await runDailyReset(container);
+    expect(summary.yesterdayStatus).toBe("completed");
+  });
+});

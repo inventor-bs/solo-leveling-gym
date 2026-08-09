@@ -21,10 +21,13 @@ import { enterPenalty } from "./enter-penalty";
 import { generateVoicePool } from "./generate-voice-pool";
 import { revealHiddenQuests } from "./reveal-hidden-quests";
 
+export type DailyResetStatus =
+  QuestStatus | "none" | "skipped-penalty-active" | "deferred-to-grace-window";
+
 export type DailyResetSummary = {
   today: string;
   yesterday: string;
-  yesterdayStatus: QuestStatus | "none" | "skipped-penalty-active";
+  yesterdayStatus: DailyResetStatus;
   issuedToday: boolean;
   penaltyOpened: boolean;
   challengesExpired: number;
@@ -286,7 +289,7 @@ export async function runDailyReset(
     };
   }
 
-  let yesterdayStatus: QuestStatus | "none" | "skipped-penalty-active" = "none";
+  let yesterdayStatus: DailyResetStatus = "none";
   let penaltyOpened = false;
   const previous = await container.quests.byDay(yesterday);
 
@@ -294,6 +297,12 @@ export async function runDailyReset(
     if (previous.status !== "active") {
       // Already judged on an earlier run — leave it exactly as it is.
       yesterdayStatus = previous.status as QuestStatus;
+    } else if (await container.mitigation.graceForDay(yesterday)) {
+      // An Hourglass was bought for that day. Judgment moves to the 04:00
+      // cron, which finds this row still active and decides it then. The
+      // quest status IS the "not yet judged" marker — a second flag would
+      // only be free to drift out of step with it.
+      yesterdayStatus = "deferred-to-grace-window";
     } else {
       const runKm = await container.training.kmOnDay(yesterday);
       const complete = isQuestComplete(
