@@ -11,7 +11,16 @@ import {
   carriedSets,
   dungeonBreakMultiplier,
 } from "@/core/training/dungeon-break";
-import { suggestNextLoad, type OverloadAction } from "@/core/training/overload";
+import {
+  AMRAP_TIME_LIMIT_SEC,
+  suggestNextLoad,
+  type DungeonType,
+  type OverloadAction,
+} from "@/core/training/overload";
+import {
+  dungeonTypeUnlockKey,
+  type DungeonTypeUnlockId,
+} from "@/core/economy/unlocks";
 import type { Container } from "@/server/container";
 
 export type PlannedExercise = {
@@ -24,6 +33,9 @@ export type PlannedExercise = {
   suggestedWeight: number;
   suggestedReps: number;
   overloadAction: OverloadAction;
+  dungeonType: DungeonType;
+  /** Displayed for AMRAP only, and never enforced. Null for every other type. */
+  timeLimitSec: number | null;
 };
 
 export type StartSessionResult = {
@@ -41,6 +53,12 @@ export type StartSessionError = { type: "program-day-not-found" };
 export type StartSessionInput = {
   programDayId: string;
   clientActionId: string;
+  /**
+   * Per-exercise structure for THIS session only. Nothing about the choice
+   * is persisted: volume, e1RM, PR detection and dungeon rank all read the
+   * raw logged sets and are identical whichever type was picked.
+   */
+  dungeonTypeOverrides?: Record<string, DungeonTypeUnlockId>;
 };
 
 export async function startSession(
@@ -81,16 +99,31 @@ export async function startSession(
   }
   const multiplier = dungeonBreakMultiplier(missedSessions);
 
+  // An override only counts if its type was actually bought. A missing
+  // unlock silently falls back to standard rather than failing the call:
+  // an unowned label must never be able to stop a session from opening.
+  const unlockedKeys = new Set(await container.store.unlockedKeys());
+  const overrides = input.dungeonTypeOverrides ?? {};
+  const dungeonTypeFor = (exerciseId: string): DungeonType => {
+    const requested = overrides[exerciseId];
+    if (requested === undefined) return "standard";
+    return unlockedKeys.has(dungeonTypeUnlockKey(requested))
+      ? requested
+      : "standard";
+  };
+
   const plan: PlannedExercise[] = [];
   for (const { exercise, slot } of program.exercises) {
     const history = await container.training.getExercisePerformanceHistory(
       exercise.id,
       2,
     );
+    const dungeonType = dungeonTypeFor(exercise.id);
     const decision = suggestNextLoad(
       history,
       { min: reps(slot.repMin), max: reps(slot.repMax) },
       kg(exercise.incrementKg),
+      dungeonType,
     );
     plan.push({
       exerciseId: exercise.id,
@@ -102,6 +135,8 @@ export async function startSession(
       suggestedWeight: decision.weight,
       suggestedReps: decision.targetReps,
       overloadAction: decision.action,
+      dungeonType,
+      timeLimitSec: dungeonType === "amrap" ? AMRAP_TIME_LIMIT_SEC : null,
     });
   }
 

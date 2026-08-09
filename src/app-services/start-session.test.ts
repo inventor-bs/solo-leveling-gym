@@ -227,3 +227,99 @@ describe("startSession — dungeon break", () => {
     }
   });
 });
+
+describe("startSession — dungeon types", () => {
+  it("plans every exercise as standard when nothing is overridden", async () => {
+    const container = await testContainer();
+    const result = await startSession(container, {
+      programDayId: "upper-a",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    for (const exercise of result.value.plan) {
+      expect(exercise.dungeonType).toBe("standard");
+      expect(exercise.timeLimitSec).toBeNull();
+    }
+  });
+
+  it("honours an override once its dungeon type has been unlocked", async () => {
+    const container = await testContainer();
+    await container.store.unlock("dungeon-type:amrap", 0);
+    // suggestNextLoad only reports the "amrap" action once there is a
+    // completed set to carry the weight forward from — with no history at
+    // all it always reports "first-time" regardless of dungeonType, same
+    // as the pre-existing "with no history" test above. Seed one prior
+    // completed session so the override actually has something to shape.
+    const first = await startSession(container, {
+      programDayId: "upper-a",
+      clientActionId: "a0",
+    });
+    if (!first.ok) throw new Error("setup failed");
+    await container.training.upsertSetLog({
+      id: "set-0",
+      sessionId: first.value.sessionId,
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 8,
+      weight: 80,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+    await container.training.completeSession(first.value.sessionId, 1000, "C");
+
+    const result = await startSession(container, {
+      programDayId: "upper-a",
+      clientActionId: "a1",
+      dungeonTypeOverrides: { "bench-press": "amrap" },
+    });
+    if (!result.ok) return;
+    const bench = result.value.plan.find((p) => p.exerciseId === "bench-press");
+    expect(bench?.dungeonType).toBe("amrap");
+    expect(bench?.overloadAction).toBe("amrap");
+    expect(bench?.timeLimitSec).toBe(720);
+  });
+
+  it("attaches no time limit to EMOM or Drop-set", async () => {
+    const container = await testContainer();
+    await container.store.unlock("dungeon-type:dropset", 0);
+    const result = await startSession(container, {
+      programDayId: "upper-a",
+      clientActionId: "a1",
+      dungeonTypeOverrides: { "bench-press": "dropset" },
+    });
+    if (!result.ok) return;
+    const bench = result.value.plan.find((p) => p.exerciseId === "bench-press");
+    expect(bench?.dungeonType).toBe("dropset");
+    expect(bench?.timeLimitSec).toBeNull();
+  });
+
+  it("ignores an override for a type that has not been bought", async () => {
+    // Falling back to standard rather than erroring: an unlock that is
+    // missing must never be able to block a session from opening at all.
+    const container = await testContainer();
+    const result = await startSession(container, {
+      programDayId: "upper-a",
+      clientActionId: "a1",
+      dungeonTypeOverrides: { "bench-press": "amrap" },
+    });
+    if (!result.ok) return;
+    const bench = result.value.plan.find((p) => p.exerciseId === "bench-press");
+    expect(bench?.dungeonType).toBe("standard");
+  });
+
+  it("leaves every other exercise standard when one is overridden", async () => {
+    const container = await testContainer();
+    await container.store.unlock("dungeon-type:emom", 0);
+    const result = await startSession(container, {
+      programDayId: "upper-a",
+      clientActionId: "a1",
+      dungeonTypeOverrides: { "bench-press": "emom" },
+    });
+    if (!result.ok) return;
+    const others = result.value.plan.filter(
+      (p) => p.exerciseId !== "bench-press",
+    );
+    expect(others.every((p) => p.dungeonType === "standard")).toBe(true);
+  });
+});
