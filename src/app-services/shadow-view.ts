@@ -1,5 +1,6 @@
 import {
   daysBetween,
+  parseTrainingDay,
   toTrainingDay,
   type TrainingDay,
 } from "@/core/shared/training-day";
@@ -8,6 +9,7 @@ import {
   weakenedExp,
   type ShadowGrade,
 } from "@/core/shadow/grade";
+import { effectiveDaysInactive } from "@/core/economy/shadow-feed";
 import {
   armyRank as computeArmyRank,
   type ShadowStanding,
@@ -23,6 +25,7 @@ export type ShadowViewEntry = {
   effectiveExp: number;
   daysSinceTrained: number | null;
   weakened: boolean;
+  fedUntilDay: string | null;
 };
 
 export type ShadowArmyView = {
@@ -36,6 +39,12 @@ export async function getShadowArmyView(
 ): Promise<ShadowArmyView> {
   const today = toTrainingDay(container.clock.now(), container.tzOffsetMinutes);
   const rows = await container.shadows.all();
+  const feeds = new Map(
+    (await container.mitigation.allFeeds()).map((f) => [
+      f.shadowId,
+      f.extendedUntilDay,
+    ]),
+  );
 
   const entries: ShadowViewEntry[] = rows.map((row) => {
     const extracted = row.extractedAt !== null;
@@ -49,6 +58,7 @@ export async function getShadowArmyView(
         effectiveExp: 0,
         daysSinceTrained: null,
         weakened: false,
+        fedUntilDay: null,
       };
     }
 
@@ -56,10 +66,23 @@ export async function getShadowArmyView(
       row.lastTrainedDay === null
         ? null
         : daysBetween(row.lastTrainedDay as TrainingDay, today);
-    const effectiveExp =
+
+    // Shadow Feed is an ADJUSTMENT: it lowers the day count handed to
+    // weakenedExp and never touches row.exp, which stays exactly the volume
+    // that was actually lifted.
+    const fedUntilDay = feeds.get(row.id) ?? null;
+    const feedDaysRemaining =
+      fedUntilDay === null
+        ? 0
+        : daysBetween(today, parseTrainingDay(fedUntilDay));
+    const adjustedDaysInactive =
       daysSinceTrained === null
+        ? null
+        : effectiveDaysInactive(daysSinceTrained, feedDaysRemaining);
+    const effectiveExp =
+      adjustedDaysInactive === null
         ? row.exp
-        : weakenedExp(row.exp, daysSinceTrained);
+        : weakenedExp(row.exp, adjustedDaysInactive);
 
     // Bellion has no grade ladder by design — it's extracted-or-not only.
     const grade = row.muscle === null ? null : gradeForExp(effectiveExp);
@@ -73,6 +96,7 @@ export async function getShadowArmyView(
       effectiveExp,
       daysSinceTrained,
       weakened: effectiveExp < row.exp,
+      fedUntilDay,
     };
   });
 
