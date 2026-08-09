@@ -13,3 +13,4 @@ export * from "./voice";
 export * from "./store";
 export * from "./equipment";
 export * from "./wager";
+export * from "./mitigation";
