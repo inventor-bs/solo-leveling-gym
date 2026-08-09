@@ -1,4 +1,4 @@
-import { eq, desc, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import type { Db } from "../client";
 import {
   dailyQuest,
@@ -69,6 +69,15 @@ export class QuestRepo {
       .update(dailyQuest)
       .set({ status, completedAt: at })
       .where(eq(dailyQuest.day, day));
+  }
+
+  /** Every quest issued inside [from, to], oldest first. */
+  async between(from: string, to: string): Promise<DailyQuestRow[]> {
+    return this.db
+      .select()
+      .from(dailyQuest)
+      .where(and(gte(dailyQuest.day, from), lte(dailyQuest.day, to)))
+      .orderBy(asc(dailyQuest.day));
   }
 
   /** Newest first. `completed` is the stored verdict, not a live recomputation. */

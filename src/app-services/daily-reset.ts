@@ -1,7 +1,15 @@
 import type { DomainEvent } from "@/core/shared/events";
-import { addDays, toTrainingDay } from "@/core/shared/training-day";
-import { epoch } from "@/core/shared/units";
+import {
+  addDays,
+  isoWeekdayOf,
+  startOfIsoWeek,
+  toTrainingDay,
+  type TrainingDay,
+} from "@/core/shared/training-day";
+import { epoch, gold as makeGold } from "@/core/shared/units";
 import { isChallengeType } from "@/core/economy/challenges";
+import { isPerfectWeek } from "@/core/economy/perfect-week";
+import { PERFECT_WEEK_GOLD } from "@/core/economy/pricing";
 import { isQuestComplete } from "@/core/quest/daily-quest";
 import type { QuestStatus } from "@/infra/db/schema/quest";
 import type { Container } from "@/server/container";
@@ -18,6 +26,7 @@ export type DailyResetSummary = {
   issuedToday: boolean;
   penaltyOpened: boolean;
   challengesExpired: number;
+  perfectWeekAwarded: boolean;
   fragmentsUnlocked: number;
   hiddenQuestsRevealed: number;
   voiceMessagesGenerated: number;
@@ -84,8 +93,12 @@ export async function runDailyReset(
    * penalty-active path never reaches the eventsToPersist write at all.
    */
   let challengesExpired = 0;
+  let perfectWeekAwarded = false;
   const runEconomyUpkeep = async (): Promise<void> => {
     const upkeepEvents: DomainEvent[] = [];
+    // Written under `weekStart`, which is what makes the idempotency
+    // lookup below able to find it on a repeated run.
+    const weekEvents: { day: TrainingDay; event: DomainEvent }[] = [];
 
     const pending = await container.store.pendingChallenge();
     if (pending !== null && isChallengeType(pending.type)) {
@@ -107,6 +120,79 @@ export async function runDailyReset(
       await container.events.record(upkeepEvents, today, container.clock.now());
       events.push(...upkeepEvents);
     }
+
+    // Judged on Monday, for the seven days that just ended.
+    if (isoWeekdayOf(today) === 1) {
+      const weekStart = addDays(startOfIsoWeek(today), -7);
+      const weekEnd = addDays(startOfIsoWeek(today), -1);
+
+      // The award event is stamped with the week it describes, not the day
+      // it was computed on, so finding one here is the idempotency check: a
+      // cron that fires twice on the same Monday pays exactly once.
+      const alreadyPaid = (
+        await container.events.between(weekStart, weekStart)
+      ).some((e) => e.type === "PerfectWeek");
+
+      if (!alreadyPaid) {
+        const scheduledWeekdays = new Set(
+          (await container.programs.allDays()).map((d) => d.weekday),
+        );
+        const scheduledDays: string[] = [];
+        for (
+          let cursor: TrainingDay = weekStart;
+          cursor <= weekEnd;
+          cursor = addDays(cursor, 1)
+        ) {
+          if (scheduledWeekdays.has(isoWeekdayOf(cursor))) {
+            scheduledDays.push(cursor);
+          }
+        }
+
+        const trainedDays =
+          await container.training.completedSessionDaysBetween(
+            weekStart,
+            weekEnd,
+          );
+        const questsInWeek = await container.quests.between(weekStart, weekEnd);
+        const penaltiesStarted = (
+          await container.penalties.between(weekStart, weekEnd)
+        ).filter(
+          (p) => p.startedDay >= weekStart && p.startedDay <= weekEnd,
+        ).length;
+
+        const perfect = isPerfectWeek({
+          scheduledDays,
+          trainedDays,
+          questsIssued: questsInWeek.length,
+          questsCompleted: questsInWeek.filter((q) => q.status === "completed")
+            .length,
+          penaltiesStarted,
+        });
+
+        if (perfect) {
+          const hunter = await container.hunters.get();
+          if (hunter) {
+            await container.hunters.update({
+              gold: hunter.gold + PERFECT_WEEK_GOLD,
+            });
+            perfectWeekAwarded = true;
+            weekEvents.push({
+              day: weekStart,
+              event: {
+                type: "PerfectWeek",
+                weekStart,
+                goldAwarded: makeGold(PERFECT_WEEK_GOLD),
+              },
+            });
+          }
+        }
+      }
+    }
+
+    for (const { day, event } of weekEvents) {
+      await container.events.record([event], day, container.clock.now());
+      events.push(event);
+    }
   };
 
   // No punishment stacks on a punishment. While an episode is open the quest
@@ -125,6 +211,7 @@ export async function runDailyReset(
       issuedToday: !alreadyIssued,
       penaltyOpened: false,
       challengesExpired,
+      perfectWeekAwarded,
       fragmentsUnlocked,
       hiddenQuestsRevealed,
       voiceMessagesGenerated,
@@ -200,6 +287,7 @@ export async function runDailyReset(
     issuedToday: !alreadyIssued,
     penaltyOpened,
     challengesExpired,
+    perfectWeekAwarded,
     fragmentsUnlocked,
     hiddenQuestsRevealed,
     voiceMessagesGenerated,

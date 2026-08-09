@@ -349,3 +349,121 @@ describe("runDailyReset — stale challenges", () => {
     expect(rows.filter((r) => r.type === "RedGateFailed")).toHaveLength(1);
   });
 });
+
+describe("runDailyReset — Perfect Week", () => {
+  /**
+   * The seeded program lifts on ISO weekdays 1, 3, 5 and 6. For the week of
+   * Monday 2026-08-03 that is the 3rd, 5th, 7th and 8th.
+   */
+  const SCHEDULED = ["2026-08-03", "2026-08-05", "2026-08-07", "2026-08-08"];
+  const WEEK = [
+    "2026-08-03",
+    "2026-08-04",
+    "2026-08-05",
+    "2026-08-06",
+    "2026-08-07",
+    "2026-08-08",
+    "2026-08-09",
+  ];
+
+  /** `trainOn` defaults to every scheduled day; pass a subset to skip one. */
+  async function perfectPreviousWeek(
+    container: Container,
+    trainOn: string[] = SCHEDULED,
+  ) {
+    for (const [i, day] of trainOn.entries()) {
+      await container.training.createSession({
+        id: `s-${i}`,
+        day,
+        programDayId: "upper-a",
+        startedAt: i,
+      });
+      await container.training.completeSession(`s-${i}`, i + 1, "C");
+    }
+    for (const [i, day] of WEEK.entries()) {
+      await container.quests.create({
+        id: `q-${i}`,
+        day,
+        rank: "E",
+        targetPushups: 20,
+        targetSitups: 20,
+        targetSquats: 20,
+        targetRunKm: 1,
+        createdAt: i,
+      });
+      await container.quests.setStatus(day, "completed", i);
+    }
+  }
+
+  it("pays 500 gold on the Monday after a week that met all three conditions", async () => {
+    // 2026-08-10 is a Monday, so the week judged is 08-03 to 08-09.
+    const container = await containerAtDay("2026-08-10");
+    await perfectPreviousWeek(container);
+    const before = (await container.hunters.get())?.gold ?? 0;
+
+    const summary = await runDailyReset(container);
+    expect(summary.perfectWeekAwarded).toBe(true);
+    expect((await container.hunters.get())?.gold).toBe(before + 500);
+    expect(summary.events).toContainEqual({
+      type: "PerfectWeek",
+      weekStart: "2026-08-03",
+      goldAwarded: 500,
+    });
+  });
+
+  it("does nothing on a day that is not a Monday", async () => {
+    const container = await containerAtDay("2026-08-11");
+    await perfectPreviousWeek(container);
+    const summary = await runDailyReset(container);
+    expect(summary.perfectWeekAwarded).toBe(false);
+  });
+
+  it("pays only once however many times the cron runs that Monday", async () => {
+    const container = await containerAtDay("2026-08-10");
+    await perfectPreviousWeek(container);
+    const before = (await container.hunters.get())?.gold ?? 0;
+    await runDailyReset(container);
+    const second = await runDailyReset(container);
+    expect(second.perfectWeekAwarded).toBe(false);
+    expect((await container.hunters.get())?.gold).toBe(before + 500);
+  });
+
+  it("pays nothing when a scheduled day went untrained", async () => {
+    const container = await containerAtDay("2026-08-10");
+    // Every quest cleared, no penalty — but the Saturday session never
+    // happened, which is enough on its own to lose the week.
+    await perfectPreviousWeek(container, SCHEDULED.slice(0, 3));
+    const summary = await runDailyReset(container);
+    expect(summary.perfectWeekAwarded).toBe(false);
+  });
+
+  it("pays nothing when one quest in the week went unfinished", async () => {
+    const container = await containerAtDay("2026-08-10");
+    await perfectPreviousWeek(container);
+    await container.quests.setStatus("2026-08-06", "missed", 1);
+    const summary = await runDailyReset(container);
+    expect(summary.perfectWeekAwarded).toBe(false);
+  });
+
+  it("pays nothing when a penalty opened inside the week", async () => {
+    const container = await containerAtDay("2026-08-10");
+    await perfectPreviousWeek(container);
+    await container.penalties.create({
+      id: "p1",
+      startedDay: "2026-08-06",
+      startedAt: 1,
+      reason: "daily-quest-missed",
+      variantId: 1,
+      expLost: 10,
+    });
+    await container.penalties.close("p1", 2);
+    const summary = await runDailyReset(container);
+    expect(summary.perfectWeekAwarded).toBe(false);
+  });
+
+  it("pays nothing for a week with nothing in it at all", async () => {
+    const container = await containerAtDay("2026-08-10");
+    const summary = await runDailyReset(container);
+    expect(summary.perfectWeekAwarded).toBe(false);
+  });
+});

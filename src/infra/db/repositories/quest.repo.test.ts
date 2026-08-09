@@ -23,6 +23,14 @@ beforeEach(async () => {
   quests = new QuestRepo(db);
 });
 
+/** Creates one quest per day through the repo's own `create`. */
+async function repoWithQuests(days: string[]): Promise<QuestRepo> {
+  for (const [i, day] of days.entries()) {
+    await quests.create({ ...base, id: `q-${i}`, day });
+  }
+  return quests;
+}
+
 describe("QuestRepo", () => {
   it("returns null for a day with no quest", async () => {
     expect(await quests.byDay("2026-08-06")).toBeNull();
@@ -68,6 +76,24 @@ describe("QuestRepo", () => {
       { day: "2026-08-05", completed: false },
       { day: "2026-08-04", completed: true },
     ]);
+  });
+});
+
+describe("QuestRepo.between", () => {
+  it("returns the quests issued inside the window, oldest first", async () => {
+    const quests = await repoWithQuests([
+      "2026-08-02",
+      "2026-08-03",
+      "2026-08-09",
+      "2026-08-10",
+    ]);
+    const rows = await quests.between("2026-08-03", "2026-08-09");
+    expect(rows.map((r) => r.day)).toEqual(["2026-08-03", "2026-08-09"]);
+  });
+
+  it("returns nothing for a window with no quests in it", async () => {
+    const quests = await repoWithQuests(["2026-08-03"]);
+    expect(await quests.between("2026-07-01", "2026-07-07")).toEqual([]);
   });
 });
 
