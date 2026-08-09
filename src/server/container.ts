@@ -16,6 +16,7 @@ import { TitleRepo } from "@/infra/db/repositories/title.repo";
 import { EventLogRepo } from "@/infra/db/repositories/event-log.repo";
 import { StoreRepo } from "@/infra/db/repositories/store.repo";
 import { EquipmentRepo } from "@/infra/db/repositories/equipment.repo";
+import { WagerRepo } from "@/infra/db/repositories/wager.repo";
 import { NarrativeRepo } from "@/infra/db/repositories/narrative.repo";
 import { HiddenQuestRepo } from "@/infra/db/repositories/hidden-quest.repo";
 import { SystemMessageRepo } from "@/infra/db/repositories/system-message.repo";
@@ -41,6 +42,7 @@ export type Container = {
   events: EventLogRepo;
   store: StoreRepo;
   equipment: EquipmentRepo;
+  wagers: WagerRepo;
   narrative: NarrativeRepo;
   hiddenQuests: HiddenQuestRepo;
   systemMessages: SystemMessageRepo;
@@ -85,6 +87,7 @@ export function buildContainer(seed: ContainerSeed = {}): Container {
     events: new EventLogRepo(db),
     store: new StoreRepo(db),
     equipment: new EquipmentRepo(db),
+    wagers: new WagerRepo(db),
     narrative: new NarrativeRepo(db),
     hiddenQuests: new HiddenQuestRepo(db),
     systemMessages: new SystemMessageRepo(db),
