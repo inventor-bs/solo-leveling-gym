@@ -271,3 +271,81 @@ describe("the composed daily reset", () => {
     expect(second.voiceMessagesGenerated).toBe(0);
   });
 });
+
+async function containerAtDay(day: string) {
+  const db = await makeTestDb();
+  await seedProgram(db);
+  let n = 0;
+  const container = buildContainer({
+    db,
+    tzOffsetMinutes: 420,
+    clock: fixedClock(`${day}T01:00:00Z`),
+    newId: () => `id-${++n}`,
+  });
+  await container.hunters.create({ name: "Jin-Woo", createdAt: 0 });
+  return container;
+}
+
+describe("runDailyReset — stale challenges", () => {
+  it("expires a challenge bought before today and reports it", async () => {
+    const container = await containerAtDay("2026-08-09");
+    await container.store.setPendingChallenge({
+      type: "red-gate",
+      purchasedAt: container.clock.now() - 86_400_000,
+      floor: null,
+    });
+    const summary = await runDailyReset(container);
+    expect(summary.challengesExpired).toBe(1);
+    expect(await container.store.pendingChallenge()).toBeNull();
+    expect(summary.events.map((e) => e.type)).toContain("RedGateFailed");
+  });
+
+  it("leaves a challenge bought today alone — the session is still to come", async () => {
+    const container = await containerAtDay("2026-08-09");
+    await container.store.setPendingChallenge({
+      type: "boss-raid",
+      purchasedAt: container.clock.now(),
+      floor: null,
+    });
+    const summary = await runDailyReset(container);
+    expect(summary.challengesExpired).toBe(0);
+    expect(await container.store.pendingChallenge()).not.toBeNull();
+  });
+
+  it("expires a stale challenge even while a penalty episode is open", async () => {
+    // The early return for an active penalty must not swallow economy
+    // upkeep: the gold was already spent and the row has to be cleared.
+    const container = await containerAtDay("2026-08-09");
+    await container.penalties.create({
+      id: "p1",
+      startedDay: "2026-08-07",
+      startedAt: 1,
+      reason: "daily-quest-missed",
+      variantId: 1,
+      expLost: 10,
+    });
+    await container.store.setPendingChallenge({
+      type: "red-gate",
+      purchasedAt: container.clock.now() - 86_400_000,
+      floor: null,
+    });
+    const summary = await runDailyReset(container);
+    expect(summary.yesterdayStatus).toBe("skipped-penalty-active");
+    expect(summary.challengesExpired).toBe(1);
+  });
+
+  it("persists the expiry event exactly once", async () => {
+    const container = await containerAtDay("2026-08-09");
+    await container.store.setPendingChallenge({
+      type: "red-gate",
+      purchasedAt: container.clock.now() - 86_400_000,
+      floor: null,
+    });
+    await runDailyReset(container);
+    const rows = await container.events.between(
+      "2026-08-08" as never,
+      "2026-08-09" as never,
+    );
+    expect(rows.filter((r) => r.type === "RedGateFailed")).toHaveLength(1);
+  });
+});

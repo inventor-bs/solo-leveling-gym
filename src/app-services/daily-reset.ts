@@ -1,5 +1,7 @@
 import type { DomainEvent } from "@/core/shared/events";
 import { addDays, toTrainingDay } from "@/core/shared/training-day";
+import { epoch } from "@/core/shared/units";
+import { isChallengeType } from "@/core/economy/challenges";
 import { isQuestComplete } from "@/core/quest/daily-quest";
 import type { QuestStatus } from "@/infra/db/schema/quest";
 import type { Container } from "@/server/container";
@@ -15,6 +17,7 @@ export type DailyResetSummary = {
   yesterdayStatus: QuestStatus | "none" | "skipped-penalty-active";
   issuedToday: boolean;
   penaltyOpened: boolean;
+  challengesExpired: number;
   fragmentsUnlocked: number;
   hiddenQuestsRevealed: number;
   voiceMessagesGenerated: number;
@@ -69,6 +72,43 @@ export async function runDailyReset(
     voiceMessagesGenerated = (await generateVoicePool(container)).stored;
   };
 
+  /**
+   * Economy work that must run on EVERY reset, including days the quest is
+   * left unjudged because a penalty episode is open. Gold has already
+   * changed hands for anything handled here, so skipping it would strand
+   * rows the hunter already paid for.
+   *
+   * Like enterPenalty, this persists its own events and returns them; the
+   * caller folds them into `events` only. Folding them into
+   * `eventsToPersist` as well would write every row twice — and the
+   * penalty-active path never reaches the eventsToPersist write at all.
+   */
+  let challengesExpired = 0;
+  const runEconomyUpkeep = async (): Promise<void> => {
+    const upkeepEvents: DomainEvent[] = [];
+
+    const pending = await container.store.pendingChallenge();
+    if (pending !== null && isChallengeType(pending.type)) {
+      const purchasedDay = toTrainingDay(
+        epoch(pending.purchasedAt),
+        container.tzOffsetMinutes,
+      );
+      // Bought today and not yet attempted — the session is still to come.
+      if (purchasedDay < today) {
+        await container.store.clearPendingChallenge();
+        challengesExpired += 1;
+        if (pending.type === "red-gate") {
+          upkeepEvents.push({ type: "RedGateFailed", day: purchasedDay });
+        }
+      }
+    }
+
+    if (upkeepEvents.length > 0) {
+      await container.events.record(upkeepEvents, today, container.clock.now());
+      events.push(...upkeepEvents);
+    }
+  };
+
   // No punishment stacks on a punishment. While an episode is open the quest
   // is left unjudged entirely, so the debt stays at exactly one Survival Quest
   // however long the hunter is stuck.
@@ -76,6 +116,7 @@ export async function runDailyReset(
   if (activePenalty) {
     const alreadyIssued = (await container.quests.byDay(today)) !== null;
     await ensureDailyQuest(container, today);
+    await runEconomyUpkeep();
     await runMilestones();
     return {
       today,
@@ -83,6 +124,7 @@ export async function runDailyReset(
       yesterdayStatus: "skipped-penalty-active",
       issuedToday: !alreadyIssued,
       penaltyOpened: false,
+      challengesExpired,
       fragmentsUnlocked,
       hiddenQuestsRevealed,
       voiceMessagesGenerated,
@@ -148,6 +190,7 @@ export async function runDailyReset(
     container.clock.now(),
   );
 
+  await runEconomyUpkeep();
   await runMilestones();
 
   return {
@@ -156,6 +199,7 @@ export async function runDailyReset(
     yesterdayStatus,
     issuedToday: !alreadyIssued,
     penaltyOpened,
+    challengesExpired,
     fragmentsUnlocked,
     hiddenQuestsRevealed,
     voiceMessagesGenerated,
