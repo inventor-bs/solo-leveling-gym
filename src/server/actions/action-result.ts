@@ -18,7 +18,20 @@ export type ActionError =
   | "no-active-penalty"
   | "survival-incomplete"
   | "title-not-found"
-  | "title-not-earned";
+  | "title-not-earned"
+  | "insufficient-gold"
+  | "unknown-unlock"
+  | "already-unlocked"
+  | "requirement-not-met"
+  | "challenge-already-pending"
+  | "floor-locked"
+  | "hourglass-already-active"
+  | "hourglass-already-used-this-week"
+  | "shadow-not-found"
+  | "shadow-not-extracted"
+  | "wager-not-monday"
+  | "wager-already-placed"
+  | "stake-too-large";
 
 export type ActionResult<T> =
   { ok: true; value: T } | { ok: false; error: ActionError };
@@ -37,4 +50,19 @@ export const ACTION_ERROR_MESSAGE: Record<ActionError, string> = {
   "survival-incomplete": "The Survival Quest is not finished yet.",
   "title-not-found": "That title does not exist.",
   "title-not-earned": "That title has not been earned yet.",
+  "insufficient-gold": "Not enough gold for that yet.",
+  "unknown-unlock": "The System has no record of that item.",
+  "already-unlocked": "That is already unlocked.",
+  "requirement-not-met": "You have not met the requirement for that yet.",
+  "challenge-already-pending":
+    "A challenge is already open. Finish it before buying another.",
+  "floor-locked": "Clear the floor below this one first.",
+  "hourglass-already-active": "Today is already under an Hourglass.",
+  "hourglass-already-used-this-week":
+    "The Hourglass has already been used this week.",
+  "shadow-not-found": "No such shadow stands in your army.",
+  "shadow-not-extracted": "That shadow has not been extracted yet.",
+  "wager-not-monday": "A wager can only be placed on a Monday.",
+  "wager-already-placed": "A wager is already open for this week.",
+  "stake-too-large": "A stake may not exceed half the gold you hold.",
 };
