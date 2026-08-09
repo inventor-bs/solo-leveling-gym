@@ -155,3 +155,19 @@ export function isoWeekdayOf(day: TrainingDay): number {
   const jsDay = new Date(Date.UTC(year, month - 1, d)).getUTCDay();
   return jsDay === 0 ? 7 : jsDay;
 }
+
+/**
+ * The Monday that opens the ISO week containing `day`.
+ *
+ * Lives here rather than at the call site for the same reason every other
+ * calendar derivation does: a week boundary is a calendar fact about the
+ * hunter's local time, and this file is the only one allowed to produce
+ * one. Both the Perfect Week check and the weekly wager depend on the
+ * caller and the cron agreeing on exactly which Monday a week starts on.
+ *
+ * Malformed input throws through partsOf, so a bad day can never silently
+ * become a week that does not exist.
+ */
+export function startOfIsoWeek(day: TrainingDay): TrainingDay {
+  return addDays(day, -(isoWeekdayOf(day) - 1));
+}

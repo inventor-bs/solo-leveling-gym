@@ -11,6 +11,7 @@ import {
   isTrainingDay,
   InvalidTrainingDayError,
   localHourOf,
+  startOfIsoWeek,
   type TrainingDay,
 } from "./training-day";
 
@@ -260,5 +261,32 @@ describe("localHourOf", () => {
     const at = epoch(Date.parse("2026-08-05T23:30:00Z"));
     expect(toTrainingDay(at, 420)).toBe("2026-08-06");
     expect(localHourOf(at, 420)).toBe(6);
+  });
+});
+
+describe("startOfIsoWeek", () => {
+  it("returns the day itself when it is already a Monday", () => {
+    expect(startOfIsoWeek("2026-08-03" as TrainingDay)).toBe("2026-08-03");
+  });
+
+  it("walks back to Monday from any day in the same week", () => {
+    expect(startOfIsoWeek("2026-08-06" as TrainingDay)).toBe("2026-08-03");
+    // Sunday belongs to the week that STARTED on the preceding Monday,
+    // which is the whole reason this uses ISO weekdays rather than getDay().
+    expect(startOfIsoWeek("2026-08-09" as TrainingDay)).toBe("2026-08-03");
+  });
+
+  it("crosses a month boundary", () => {
+    expect(startOfIsoWeek("2026-08-02" as TrainingDay)).toBe("2026-07-27");
+  });
+
+  it("crosses a year boundary", () => {
+    expect(startOfIsoWeek("2027-01-01" as TrainingDay)).toBe("2026-12-28");
+  });
+
+  it("rejects a malformed day rather than producing a garbage week", () => {
+    expect(() => startOfIsoWeek("2026-8-3" as TrainingDay)).toThrow(
+      InvalidTrainingDayError,
+    );
   });
 });
