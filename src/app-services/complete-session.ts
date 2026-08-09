@@ -26,10 +26,13 @@ import {
   sessionExpMultiplier,
 } from "@/core/title/buffs";
 import { MORNING_BEFORE_HOUR } from "@/core/title/catalog";
+import { detectPrs } from "@/core/training/pr";
+import { goldForPrs, goldForLevelUps } from "@/core/economy/income";
 import type { LoggedSet, MuscleGroup } from "@/core/training/types";
 import type { DomainEvent } from "@/core/shared/events";
 import type { Container } from "@/server/container";
 import type { TrainingDay } from "@/core/shared/training-day";
+import type { Kg } from "@/core/shared/units";
 import { awardEarnedTitles } from "./award-titles";
 import { equippedTitleId } from "./equipped-title";
 
@@ -38,6 +41,10 @@ export type CompleteSessionResult = {
   goldAwarded: number;
   expAwarded: number;
   levelsGained: number;
+  /** Gold paid for the PRs this session produced. */
+  prGold: number;
+  /** Gold paid for every level this session's EXP crossed. */
+  levelUpGold: number;
   events: DomainEvent[];
 };
 
@@ -103,6 +110,21 @@ export async function completeSession(
 
   const dungeonRank = dungeonRankFor(plannedVolume, avgVolume);
 
+  // detectPrs is the one place that decides what a PR is. Its previous-best
+  // map is built by asking the repo for each exercise's best e1RM EXCLUDING
+  // this session, so a set logged minutes ago cannot be its own record.
+  // Nothing here passes a modifier: PR detection is a measured number.
+  const exerciseIdsInSession = [...new Set(sets.map((s) => s.exerciseId))];
+  const previousBests = new Map<string, Kg>();
+  for (const exerciseId of exerciseIdsInSession) {
+    previousBests.set(
+      exerciseId,
+      await container.training.bestHistoricalE1rm(exerciseId, input.sessionId),
+    );
+  }
+  const prs = detectPrs(sets, previousBests);
+  const prGold = goldForPrs(prs.length);
+
   const equipped = await equippedTitleId(container, hunter);
 
   // Local hour, not UTC: a 06:30 session in Vietnam is stored at 23:30 UTC
@@ -119,7 +141,7 @@ export async function completeSession(
     lastExitAt !== null &&
     (await container.training.completedSessionCountSince(lastExitAt)) === 0;
 
-  const goldAwarded = Math.round(
+  const rankGold = Math.round(
     goldForDungeonRank(dungeonRank) *
       sessionGoldMultiplier(equipped, startedInTheMorning),
   );
@@ -134,6 +156,8 @@ export async function completeSession(
   await container.training.completeSession(input.sessionId, now, dungeonRank);
 
   const progression = applyExp(hunter.level, makeExp(hunter.exp), expAwarded);
+  const levelUpGold = goldForLevelUps(hunter.level, progression.level);
+  const goldAwarded = rankGold + prGold + levelUpGold;
   const newFatigue = fatigueAfterSession(
     hunter.fatigue,
     plannedVolume,
@@ -166,7 +190,7 @@ export async function completeSession(
   }
 
   const events: DomainEvent[] = [
-    { type: "GoldGained", amount: makeGold(goldAwarded), source: "dungeon" },
+    { type: "GoldGained", amount: makeGold(rankGold), source: "dungeon" },
     { type: "ExpGained", amount: expAwarded, source: "dungeon" },
     {
       type: "SessionCompleted",
@@ -176,6 +200,16 @@ export async function completeSession(
       expAwarded,
     },
   ];
+  if (prGold > 0) {
+    events.push({ type: "GoldGained", amount: makeGold(prGold), source: "pr" });
+  }
+  if (levelUpGold > 0) {
+    events.push({
+      type: "GoldGained",
+      amount: makeGold(levelUpGold),
+      source: "level-up",
+    });
+  }
   if (progression.levelsGained > 0) {
     events.push({ type: "LevelUp", from: hunter.level, to: progression.level });
   }
@@ -201,6 +235,8 @@ export async function completeSession(
     goldAwarded,
     expAwarded,
     levelsGained: progression.levelsGained,
+    prGold,
+    levelUpGold,
     events,
   };
   await container.idempotency.remember(input.clientActionId, result, now);

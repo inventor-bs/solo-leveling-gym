@@ -322,6 +322,43 @@ describe("completeSession — title awarding", () => {
 });
 
 describe("completeSession — title buffs", () => {
+  /**
+   * These tests assert on the multiplier math title buffs apply to rank
+   * gold, not on PR or level-up income (covered by their own describe
+   * block). Left as containerWithLoggedSession() alone, every one of them
+   * would incidentally pay for a PR (the fixture's bench set is always the
+   * exercise's first log) and a level-up (a level-1 hunter's session EXP
+   * always crosses the level-2 threshold), neither of which these tests are
+   * about. Suppress both without touching containerWithLoggedSession()
+   * itself: a prior COMPLETED session at the same e1RM means the fixture's
+   * bench set ties rather than beats it (ties don't count as a PR), and
+   * starting well above level 1 puts the next level threshold far beyond
+   * any single session's EXP.
+   */
+  async function containerForTitleBuffTest() {
+    const container = await containerWithLoggedSession();
+    await container.hunters.update({ level: 10, exp: 0 });
+    await container.training.createSession({
+      id: "prior-bench",
+      day: "2026-08-04",
+      programDayId: "upper-a",
+      startedAt: 0,
+    });
+    await container.training.upsertSetLog({
+      id: "prior-bench-set",
+      sessionId: "prior-bench",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 6,
+      weight: 80,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+    await container.training.completeSession("prior-bench", 0, "C");
+    return container;
+  }
+
   async function equip(
     container: Awaited<ReturnType<typeof containerWithLoggedSession>>,
     id: string,
@@ -335,7 +372,7 @@ describe("completeSession — title buffs", () => {
   }
 
   it("pays the base C-rank gold and EXP with nothing equipped", async () => {
-    const container = await containerWithLoggedSession();
+    const container = await containerForTitleBuffTest();
     const result = await completeSession(container, {
       sessionId: "session-1",
       clientActionId: "a1",
@@ -348,7 +385,7 @@ describe("completeSession — title buffs", () => {
   });
 
   it("REGRESSION: Monarch of Dawn pays nothing extra on a session started after 07:00", async () => {
-    const container = await containerWithLoggedSession();
+    const container = await containerForTitleBuffTest();
     await equip(container, "monarch-of-dawn");
     // The fixture starts session-1 at epoch 0, which is 07:00 local at UTC+7
     // — the cutoff is exclusive, so this is not a morning session.
@@ -361,7 +398,7 @@ describe("completeSession — title buffs", () => {
   });
 
   it("Monarch of Dawn pays 15% more gold on a session started before 07:00", async () => {
-    const container = await containerWithLoggedSession();
+    const container = await containerForTitleBuffTest();
     await equip(container, "monarch-of-dawn");
     await container.training.createSession({
       id: "dawn",
@@ -394,7 +431,7 @@ describe("completeSession — title buffs", () => {
   });
 
   it("One Who Returned pays 10% more EXP on the first session after an escape", async () => {
-    const container = await containerWithLoggedSession();
+    const container = await containerForTitleBuffTest();
     await equip(container, "one-who-returned");
     await container.penalties.create({
       id: "p1",
@@ -470,6 +507,119 @@ describe("completeSession — title buffs", () => {
     });
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.expAwarded).toBe(350);
+  });
+});
+
+describe("completeSession — PR and level-up income", () => {
+  it("pays 150 gold for the session's one PR, on top of the rank reward", async () => {
+    const container = await containerWithLoggedSession();
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // The bench set is the first ever logged for that exercise, so it beats
+    // a previous best of zero and is a PR.
+    expect(result.value.prGold).toBe(150);
+  });
+
+  it("pays per PR, so two lifts broken in one session pay twice", async () => {
+    const container = await containerWithLoggedSession();
+    await container.training.upsertSetLog({
+      id: "set-2",
+      sessionId: "session-1",
+      exerciseId: "barbell-row",
+      setIndex: 0,
+      reps: 8,
+      weight: 60,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    expect(result.value.prGold).toBe(300);
+  });
+
+  it("pays nothing for a bodyweight set, which can never be a PR", async () => {
+    const db = await makeTestDb();
+    await seedProgram(db);
+    const container = buildContainer({
+      db,
+      tzOffsetMinutes: 420,
+      clock: fixedClock("2026-08-05T00:00:00Z"),
+      newId: () => "id-1",
+    });
+    await container.hunters.create({ name: "Jin-Woo", createdAt: 0 });
+    await container.training.createSession({
+      id: "s",
+      day: "2026-08-05",
+      programDayId: "upper-a",
+      startedAt: 0,
+    });
+    await container.training.upsertSetLog({
+      id: "set-1",
+      sessionId: "s",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 20,
+      weight: 0,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+    const result = await completeSession(container, {
+      sessionId: "s",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    expect(result.value.prGold).toBe(0);
+  });
+
+  it("pays 100 gold per level crossed, counted from the NEW level", async () => {
+    const container = await containerWithLoggedSession();
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    // A first session with no history ranks C and pays 350 EXP, which
+    // carries a level-1 hunter to level 2 (100 EXP) and no further.
+    expect(result.value.levelsGained).toBe(1);
+    expect(result.value.levelUpGold).toBe(200);
+  });
+
+  it("credits the hunter the rank reward plus both new income sources", async () => {
+    const container = await containerWithLoggedSession();
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    const hunter = await container.hunters.get();
+    expect(hunter?.gold).toBe(result.value.goldAwarded);
+    expect(result.value.goldAwarded).toBeGreaterThanOrEqual(
+      result.value.prGold + result.value.levelUpGold,
+    );
+  });
+
+  it("records a GoldGained event for each new source, tagged with that source", async () => {
+    const container = await containerWithLoggedSession();
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    const sources = result.value.events
+      .filter((e) => e.type === "GoldGained")
+      .map((e) => (e as { source: string }).source);
+    expect(sources).toContain("dungeon");
+    expect(sources).toContain("pr");
+    expect(sources).toContain("level-up");
   });
 });
 
