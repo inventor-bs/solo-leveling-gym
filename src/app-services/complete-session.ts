@@ -28,6 +28,12 @@ import {
 import { MORNING_BEFORE_HOUR } from "@/core/title/catalog";
 import { detectPrs } from "@/core/training/pr";
 import { goldForPrs, goldForLevelUps } from "@/core/economy/income";
+import {
+  equipmentExpMultiplier,
+  equipmentFatigueGainMultiplier,
+  isEquipmentGrade,
+} from "@/core/economy/equipment";
+import type { EquipmentGrade } from "@/core/economy/pricing";
 import type { LoggedSet, MuscleGroup } from "@/core/training/types";
 import type { DomainEvent } from "@/core/shared/events";
 import type { Container } from "@/server/container";
@@ -126,6 +132,8 @@ export async function completeSession(
   const prGold = goldForPrs(prs.length);
 
   const equipped = await equippedTitleId(container, hunter);
+  const weaponGrade = await gradeInSlot(container, "weapon");
+  const armorGrade = await gradeInSlot(container, "armor");
 
   // Local hour, not UTC: a 06:30 session in Vietnam is stored at 23:30 UTC
   // the previous day. The cutoff is exclusive — 07:00 sharp is not morning.
@@ -148,7 +156,8 @@ export async function completeSession(
   const expAwarded = makeExp(
     Math.round(
       expForDungeonRank(dungeonRank) *
-        sessionExpMultiplier(equipped, firstSessionAfterExit),
+        sessionExpMultiplier(equipped, firstSessionAfterExit) *
+        equipmentExpMultiplier(weaponGrade, volumeByGroup.back),
     ),
   );
 
@@ -162,6 +171,7 @@ export async function completeSession(
     hunter.fatigue,
     plannedVolume,
     avgVolume,
+    equipmentFatigueGainMultiplier(armorGrade),
   );
 
   const newRank =
@@ -242,4 +252,20 @@ export async function completeSession(
   await container.idempotency.remember(input.clientActionId, result, now);
   await container.events.record(events, session.day as TrainingDay, now);
   return ok(result);
+}
+
+/**
+ * Reads a slot's grade, refusing anything the catalog does not name.
+ *
+ * `equipment.grade` is a plain TEXT column, so a hand-edited or migrated
+ * value could otherwise hand out a buff nobody ever rolled — the same
+ * failure equippedTitleId already guards hunter.title against.
+ */
+async function gradeInSlot(
+  container: Container,
+  slot: string,
+): Promise<EquipmentGrade | null> {
+  const row = await container.equipment.bySlot(slot);
+  if (row === null || !isEquipmentGrade(row.grade)) return null;
+  return row.grade;
 }

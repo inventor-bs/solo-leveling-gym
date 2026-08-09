@@ -32,6 +32,23 @@ describe("fatigueAfterSession", () => {
   });
 });
 
+describe("fatigueAfterSession — gain multiplier", () => {
+  it("defaults to no reduction, so every existing caller is unchanged", () => {
+    expect(fatigueAfterSession(0, 10_000, 10_000)).toBe(
+      fatigueAfterSession(0, 10_000, 10_000, 1),
+    );
+  });
+
+  it("reduces the GAIN, not the value already carried", () => {
+    // 20 gained at ratio 1, reduced by a quarter, added to a stored 40.
+    expect(fatigueAfterSession(40, 10_000, 10_000, 0.75)).toBe(55);
+  });
+
+  it("still clamps at the ceiling", () => {
+    expect(fatigueAfterSession(95, 20_000, 10_000, 0.75)).toBe(100);
+  });
+});
+
 describe("decayFatigue", () => {
   it("drops by 12 points per day under normal sleep", () => {
     expect(decayFatigue(50, 1, false)).toBe(38);

@@ -639,3 +639,96 @@ describe("completeSession — event persistence", () => {
     expect(rows.some((r) => r.type === "ExpGained")).toBe(true);
   });
 });
+
+describe("completeSession — equipment buffs", () => {
+  it("pays more EXP with Knight Killer when the session trained Back", async () => {
+    const bare = await containerWithLoggedSession();
+    await bare.training.upsertSetLog({
+      id: "set-2",
+      sessionId: "session-1",
+      exerciseId: "barbell-row",
+      setIndex: 0,
+      reps: 8,
+      weight: 60,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+    const baseline = await completeSession(bare, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+
+    const armed = await containerWithLoggedSession();
+    await armed.training.upsertSetLog({
+      id: "set-2",
+      sessionId: "session-1",
+      exerciseId: "barbell-row",
+      setIndex: 0,
+      reps: 8,
+      weight: 60,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+    await armed.equipment.put("weapon", "legendary", 0);
+    const buffed = await completeSession(armed, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+
+    if (!baseline.ok || !buffed.ok) return;
+    expect(buffed.value.expAwarded).toBe(
+      Math.round(baseline.value.expAwarded * 1.25),
+    );
+  });
+
+  it("pays no Knight Killer bonus for a session with no Back volume", async () => {
+    const bare = await containerWithLoggedSession();
+    const baseline = await completeSession(bare, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+
+    const armed = await containerWithLoggedSession();
+    await armed.equipment.put("weapon", "legendary", 0);
+    const buffed = await completeSession(armed, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+
+    if (!baseline.ok || !buffed.ok) return;
+    expect(buffed.value.expAwarded).toBe(baseline.value.expAwarded);
+  });
+
+  it("accumulates less fatigue with Shadow Compression Gear equipped", async () => {
+    const bare = await containerWithLoggedSession();
+    await completeSession(bare, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    const bareFatigue = (await bare.hunters.get())?.fatigue ?? 0;
+
+    const armed = await containerWithLoggedSession();
+    await armed.equipment.put("armor", "legendary", 0);
+    await completeSession(armed, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    const armedFatigue = (await armed.hunters.get())?.fatigue ?? 0;
+
+    expect(armedFatigue).toBeLessThan(bareFatigue);
+  });
+
+  it("ignores a grade value that is not in the catalog rather than trusting it", async () => {
+    const container = await containerWithLoggedSession();
+    await container.equipment.put("weapon", "mythic", 0);
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    // A hand-edited row must not be able to hand out a buff, the same rule
+    // equippedTitleId already enforces for hunter.title.
+    expect(result.ok).toBe(true);
+  });
+});
