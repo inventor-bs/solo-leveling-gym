@@ -467,3 +467,158 @@ describe("runDailyReset — Perfect Week", () => {
     expect(summary.perfectWeekAwarded).toBe(false);
   });
 });
+
+describe("runDailyReset — wager resolution", () => {
+  async function weekOfTraining(
+    container: Container,
+    opts: { dungeons: number; runs: number; quests: number },
+  ) {
+    const days = [
+      "2026-08-03",
+      "2026-08-04",
+      "2026-08-05",
+      "2026-08-06",
+      "2026-08-07",
+      "2026-08-08",
+      "2026-08-09",
+    ];
+    for (let i = 0; i < opts.dungeons; i += 1) {
+      await container.training.createSession({
+        id: `s-${i}`,
+        day: days[i]!,
+        programDayId: "upper-a",
+        startedAt: i,
+      });
+      await container.training.completeSession(`s-${i}`, i + 1, "C");
+    }
+    for (let i = 0; i < opts.runs; i += 1) {
+      await container.training.createRun({
+        id: `r-${i}`,
+        day: days[i]!,
+        distanceKm: 3,
+        durationSec: 1_200,
+        loggedAt: i,
+      });
+    }
+    for (let i = 0; i < opts.quests; i += 1) {
+      await container.quests.create({
+        id: `q-${i}`,
+        day: days[i]!,
+        rank: "E",
+        targetPushups: 20,
+        targetSitups: 20,
+        targetSquats: 20,
+        targetRunKm: 1,
+        createdAt: i,
+      });
+      await container.quests.setStatus(days[i]!, "completed", i);
+    }
+  }
+
+  it("credits three times the stake for a week that met the contract", async () => {
+    const container = await containerAtDay("2026-08-10");
+    await container.wagers.place({
+      weekStart: "2026-08-03",
+      stakeGold: 200,
+      placedAt: 1,
+    });
+    await weekOfTraining(container, { dungeons: 4, runs: 2, quests: 7 });
+    const before = (await container.hunters.get())?.gold ?? 0;
+
+    const summary = await runDailyReset(container);
+    expect(summary.wagersResolved).toBe(1);
+    expect((await container.wagers.byWeek("2026-08-03"))?.status).toBe("won");
+    expect((await container.hunters.get())?.gold).toBe(before + 600);
+    expect(summary.events).toContainEqual({
+      type: "WagerWon",
+      weekStart: "2026-08-03",
+      stakeGold: 200,
+      payoutGold: 600,
+    });
+  });
+
+  it("loses the week when any single target fell short, costing nothing further", async () => {
+    const container = await containerAtDay("2026-08-10");
+    await container.wagers.place({
+      weekStart: "2026-08-03",
+      stakeGold: 200,
+      placedAt: 1,
+    });
+    await weekOfTraining(container, { dungeons: 4, runs: 1, quests: 7 });
+    const before = (await container.hunters.get())?.gold ?? 0;
+
+    const summary = await runDailyReset(container);
+    expect((await container.wagers.byWeek("2026-08-03"))?.status).toBe("lost");
+    expect((await container.hunters.get())?.gold).toBe(before);
+    expect(summary.events).toContainEqual({
+      type: "WagerLost",
+      weekStart: "2026-08-03",
+      stakeGold: 200,
+    });
+  });
+
+  it("leaves the current week's wager alone", async () => {
+    const container = await containerAtDay("2026-08-10");
+    await container.wagers.place({
+      weekStart: "2026-08-10",
+      stakeGold: 200,
+      placedAt: 1,
+    });
+    const summary = await runDailyReset(container);
+    expect(summary.wagersResolved).toBe(0);
+    expect((await container.wagers.byWeek("2026-08-10"))?.status).toBe(
+      "active",
+    );
+  });
+
+  it("pays a won wager only once, however many times the cron runs", async () => {
+    const container = await containerAtDay("2026-08-10");
+    await container.wagers.place({
+      weekStart: "2026-08-03",
+      stakeGold: 200,
+      placedAt: 1,
+    });
+    await weekOfTraining(container, { dungeons: 4, runs: 2, quests: 7 });
+    const before = (await container.hunters.get())?.gold ?? 0;
+    await runDailyReset(container);
+    const second = await runDailyReset(container);
+    expect(second.wagersResolved).toBe(0);
+    expect((await container.hunters.get())?.gold).toBe(before + 600);
+  });
+
+  it("still resolves a wager while a penalty episode is open", async () => {
+    // The stake was real gold. A hunter who is stuck must not have the
+    // verdict on the week they already paid for silently withheld.
+    const container = await containerAtDay("2026-08-10");
+    await container.penalties.create({
+      id: "p1",
+      startedDay: "2026-08-09",
+      startedAt: 1,
+      reason: "daily-quest-missed",
+      variantId: 1,
+      expLost: 10,
+    });
+    await container.wagers.place({
+      weekStart: "2026-08-03",
+      stakeGold: 200,
+      placedAt: 1,
+    });
+    const summary = await runDailyReset(container);
+    expect(summary.yesterdayStatus).toBe("skipped-penalty-active");
+    expect(summary.wagersResolved).toBe(1);
+    expect((await container.wagers.byWeek("2026-08-03"))?.status).toBe("lost");
+  });
+
+  it("resolves a wager left behind by a cron that never ran on Monday", async () => {
+    // activeBefore looks at every unresolved past week, not just last one,
+    // so a skipped Monday is caught the next day rather than never.
+    const container = await containerAtDay("2026-08-12");
+    await container.wagers.place({
+      weekStart: "2026-08-03",
+      stakeGold: 200,
+      placedAt: 1,
+    });
+    const summary = await runDailyReset(container);
+    expect(summary.wagersResolved).toBe(1);
+  });
+});

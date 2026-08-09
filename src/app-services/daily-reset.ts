@@ -2,6 +2,7 @@ import type { DomainEvent } from "@/core/shared/events";
 import {
   addDays,
   isoWeekdayOf,
+  parseTrainingDay,
   startOfIsoWeek,
   toTrainingDay,
   type TrainingDay,
@@ -10,6 +11,7 @@ import { epoch, gold as makeGold } from "@/core/shared/units";
 import { isChallengeType } from "@/core/economy/challenges";
 import { isPerfectWeek } from "@/core/economy/perfect-week";
 import { PERFECT_WEEK_GOLD } from "@/core/economy/pricing";
+import { wagerPayout, wagerWon } from "@/core/economy/wager";
 import { isQuestComplete } from "@/core/quest/daily-quest";
 import type { QuestStatus } from "@/infra/db/schema/quest";
 import type { Container } from "@/server/container";
@@ -27,6 +29,7 @@ export type DailyResetSummary = {
   penaltyOpened: boolean;
   challengesExpired: number;
   perfectWeekAwarded: boolean;
+  wagersResolved: number;
   fragmentsUnlocked: number;
   hiddenQuestsRevealed: number;
   voiceMessagesGenerated: number;
@@ -94,6 +97,7 @@ export async function runDailyReset(
    */
   let challengesExpired = 0;
   let perfectWeekAwarded = false;
+  let wagersResolved = 0;
   const runEconomyUpkeep = async (): Promise<void> => {
     const upkeepEvents: DomainEvent[] = [];
     // Written under `weekStart`, which is what makes the idempotency
@@ -189,6 +193,68 @@ export async function runDailyReset(
       }
     }
 
+    // Every unresolved week that has already ended — not only last week.
+    // A cron that never fired on some Monday would otherwise leave a staked
+    // week unjudged for good, with the gold already gone.
+    const thisWeekStart = startOfIsoWeek(today);
+    for (const staked of await container.wagers.activeBefore(thisWeekStart)) {
+      const weekStart = parseTrainingDay(staked.weekStart);
+      const weekEnd = addDays(weekStart, 6);
+
+      const dungeonsCleared = (
+        await container.training.completedSessionsBetween(weekStart, weekEnd)
+      ).length;
+      const runsLogged = (
+        await container.training.runsBetween(weekStart, weekEnd)
+      ).length;
+      const dailyQuestsCompleted = (
+        await container.quests.between(weekStart, weekEnd)
+      ).filter((q) => q.status === "completed").length;
+
+      const won = wagerWon({
+        dungeonsCleared,
+        runsLogged,
+        dailyQuestsCompleted,
+      });
+
+      // resolve() only touches a row still marked active, so a cron that
+      // retries cannot turn a recorded win into a loss or pay twice.
+      await container.wagers.resolve(
+        weekStart,
+        won ? "won" : "lost",
+        container.clock.now(),
+      );
+      wagersResolved += 1;
+
+      if (won) {
+        const payout = wagerPayout(staked.stakeGold);
+        const hunter = await container.hunters.get();
+        if (hunter) {
+          await container.hunters.update({ gold: hunter.gold + payout });
+        }
+        weekEvents.push({
+          day: weekStart,
+          event: {
+            type: "WagerWon",
+            weekStart,
+            stakeGold: makeGold(staked.stakeGold),
+            payoutGold: makeGold(payout),
+          },
+        });
+      } else {
+        // Nothing further is taken. The stake left at placement, and that
+        // is the whole of the loss.
+        weekEvents.push({
+          day: weekStart,
+          event: {
+            type: "WagerLost",
+            weekStart,
+            stakeGold: makeGold(staked.stakeGold),
+          },
+        });
+      }
+    }
+
     for (const { day, event } of weekEvents) {
       await container.events.record([event], day, container.clock.now());
       events.push(event);
@@ -212,6 +278,7 @@ export async function runDailyReset(
       penaltyOpened: false,
       challengesExpired,
       perfectWeekAwarded,
+      wagersResolved,
       fragmentsUnlocked,
       hiddenQuestsRevealed,
       voiceMessagesGenerated,
@@ -288,6 +355,7 @@ export async function runDailyReset(
     penaltyOpened,
     challengesExpired,
     perfectWeekAwarded,
+    wagersResolved,
     fragmentsUnlocked,
     hiddenQuestsRevealed,
     voiceMessagesGenerated,
