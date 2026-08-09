@@ -3,7 +3,9 @@ import { kg, reps } from "@/core/shared/units";
 import {
   suggestNextLoad,
   toExercisePerformance,
+  AMRAP_TIME_LIMIT_SEC,
   type ExercisePerformance,
+  type DungeonType,
 } from "./overload";
 import type { RepRange, LoggedSet } from "./types";
 
@@ -102,6 +104,81 @@ describe("suggestNextLoad", () => {
       kg(2.5),
     );
     expect(d.action).toBe("increase");
+  });
+});
+
+describe("suggestNextLoad — dungeon types", () => {
+  it("displays a 12-minute AMRAP window and never enforces it", () => {
+    // Every number in this app is self-reported; a real countdown would
+    // imply an enforcement the data model does not have.
+    expect(AMRAP_TIME_LIMIT_SEC).toBe(720);
+  });
+
+  it("EMOM is the standard progression, byte for byte", () => {
+    const history = [perf(80, [8, 8, 8, 8])];
+    expect(suggestNextLoad(history, RANGE_6_8, kg(2.5), "emom")).toEqual(
+      suggestNextLoad(history, RANGE_6_8, kg(2.5)),
+    );
+  });
+
+  it("AMRAP carries the last weight forward instead of progressing it", () => {
+    // Standard would have raised this to 82.5 for hitting the top of the range.
+    const d = suggestNextLoad(
+      [perf(80, [8, 8, 8, 8])],
+      RANGE_6_8,
+      kg(2.5),
+      "amrap",
+    );
+    expect(d.weight).toBe(80);
+    expect(d.action).toBe("amrap");
+  });
+
+  it("AMRAP carries the last weight forward instead of deloading it", () => {
+    const d = suggestNextLoad(
+      [perf(80, [5, 5, 4, 4]), perf(80, [5, 4, 4, 4])],
+      RANGE_6_8,
+      kg(2.5),
+      "amrap",
+    );
+    expect(d.weight).toBe(80);
+    expect(d.action).toBe("amrap");
+  });
+
+  it("Drop-set opens at the heaviest weight of the last session", () => {
+    const d = suggestNextLoad(
+      [perf(80, [8, 6, 4])],
+      RANGE_6_8,
+      kg(2.5),
+      "dropset",
+    );
+    expect(d.weight).toBe(80);
+    expect(d.action).toBe("dropset");
+  });
+
+  it("both types still report the bottom of the range as the rep target", () => {
+    // targetReps does not apply to either, but the field is not nullable and
+    // the bottom of the range is the least misleading thing to prefill.
+    for (const type of ["amrap", "dropset"] as const) {
+      const d = suggestNextLoad(
+        [perf(80, [8, 8, 8])],
+        RANGE_6_8,
+        kg(2.5),
+        type,
+      );
+      expect(d.targetReps).toBe(RANGE_6_8.min);
+    }
+  });
+
+  it("falls back to first-time when there is no history to carry forward", () => {
+    for (const type of [
+      "amrap",
+      "dropset",
+      "emom",
+    ] as const satisfies readonly DungeonType[]) {
+      const d = suggestNextLoad([], RANGE_6_8, kg(2.5), type);
+      expect(d.action).toBe("first-time");
+      expect(d.weight).toBe(0);
+    }
   });
 });
 

@@ -11,7 +11,23 @@ export type ExercisePerformance = {
   readonly repsPerSet: readonly Reps[];
 };
 
-export type OverloadAction = "increase" | "hold" | "deload" | "first-time";
+/**
+ * How a session's sets are structured. This shapes the SUGGESTION only —
+ * volume, e1RM, PR detection and dungeon rank all read the raw logged sets
+ * and are identical whichever type was chosen, which is why nothing about
+ * the choice is ever persisted.
+ */
+export type DungeonType = "standard" | "amrap" | "emom" | "dropset";
+
+/**
+ * The AMRAP window, in seconds. Displayed next to the exercise and never
+ * enforced: everything in this app is self-reported, and a real countdown
+ * would promise a rigour the data does not have.
+ */
+export const AMRAP_TIME_LIMIT_SEC = 720;
+
+export type OverloadAction =
+  "increase" | "hold" | "deload" | "first-time" | "amrap" | "dropset";
 
 export type OverloadDecision = {
   readonly weight: Kg;
@@ -44,17 +60,39 @@ function anySetBelowMin(p: ExercisePerformance, range: RepRange): boolean {
  *   • 2 CONSECUTIVE sessions below the bottom of the range → deload 10%
  *
  * `history` is sorted MOST RECENT FIRST. Only its first two entries matter.
+ *
+ * AMRAP and Drop-set opt out of rep-range progression entirely and simply
+ * carry the last weight forward: in an AMRAP the rep count is the whole
+ * point and a rep range would contradict it, and in a Drop-set the load
+ * falls deliberately from set to set, so comparing any set against a range
+ * would read every session as a failure. EMOM passes straight through —
+ * mechanically it IS the standard progression, with a clock the app does
+ * not run.
+ *
+ * `dungeonType` shapes a suggestion, not a measurement. Nothing downstream
+ * of this function — volume, e1RM, PR detection, dungeon rank — can see it.
  */
 export function suggestNextLoad(
   history: readonly ExercisePerformance[],
   range: RepRange,
   incrementKg: Kg,
+  dungeonType: DungeonType = "standard",
 ): OverloadDecision {
   const last = history[0];
   const previous = history[1];
 
   if (!hasCompletedSets(last)) {
     return { weight: kg(0), targetReps: range.min, action: "first-time" };
+  }
+
+  // Both read `last.weight`, which toExercisePerformance sets to the
+  // HEAVIEST weight of the session — for a drop set that is the opening
+  // weight, which is exactly the one to suggest starting from again.
+  if (dungeonType === "amrap") {
+    return { weight: last.weight, targetReps: range.min, action: "amrap" };
+  }
+  if (dungeonType === "dropset") {
+    return { weight: last.weight, targetReps: range.min, action: "dropset" };
   }
 
   const lastFailed = anySetBelowMin(last, range);
