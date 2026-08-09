@@ -28,6 +28,30 @@ async function finishCalisthenics() {
   });
 }
 
+const questDay = parseTrainingDay("2026-08-05");
+
+/** A fresh container with a hunter and a Daily Quest already issued. */
+async function containerWithQuest(): Promise<Container> {
+  const db = await makeTestDb();
+  const fresh = buildContainer({
+    db,
+    clock: fixedClock("2026-08-05T03:00:00.000Z"),
+    tzOffsetMinutes: 420,
+  });
+  await fresh.hunters.create({ name: "Jin-Woo", createdAt: 1 });
+  await ensureDailyQuest(fresh, questDay);
+  // E-rank's Daily Quest also targets 1km of running; without a run logged
+  // isQuestComplete() never turns true and no gold test below can pass.
+  await fresh.training.createRun({
+    id: "r-charm",
+    day: questDay,
+    distanceKm: 1,
+    durationSec: 400,
+    loggedAt: 1,
+  });
+  return fresh;
+}
+
 describe("logQuestProgress", () => {
   it("fails when no quest has been issued for that day", async () => {
     const result = await logQuestProgress(container, { day, pushups: 5 });
@@ -226,5 +250,66 @@ describe("logQuestProgress — title awarding", () => {
         false,
       );
     }
+  });
+});
+
+describe("logQuestProgress — Hunter's Charm", () => {
+  it("pays the flat 50 gold with no accessory equipped", async () => {
+    const freshContainer = await containerWithQuest();
+    const before = (await freshContainer.hunters.get())?.gold ?? 0;
+    await logQuestProgress(freshContainer, {
+      day: questDay,
+      pushups: 1_000,
+      situps: 1_000,
+      squats: 1_000,
+    });
+    const after = (await freshContainer.hunters.get())?.gold ?? 0;
+    expect(after - before).toBe(50);
+  });
+
+  it("pays 25% more with a legendary Hunter's Charm", async () => {
+    const freshContainer = await containerWithQuest();
+    await freshContainer.equipment.put("accessory", "legendary", 0);
+    const before = (await freshContainer.hunters.get())?.gold ?? 0;
+    await logQuestProgress(freshContainer, {
+      day: questDay,
+      pushups: 1_000,
+      situps: 1_000,
+      squats: 1_000,
+    });
+    const after = (await freshContainer.hunters.get())?.gold ?? 0;
+    expect(after - before).toBe(63); // round(50 * 1.25) = 62.5 -> 63
+  });
+
+  it("still pays only once, however many times the quest is re-logged", async () => {
+    const freshContainer = await containerWithQuest();
+    await freshContainer.equipment.put("accessory", "epic", 0);
+    const before = (await freshContainer.hunters.get())?.gold ?? 0;
+    for (let i = 0; i < 3; i += 1) {
+      await logQuestProgress(freshContainer, {
+        day: questDay,
+        pushups: 1_000,
+        situps: 1_000,
+        squats: 1_000,
+      });
+    }
+    const after = (await freshContainer.hunters.get())?.gold ?? 0;
+    expect(after - before).toBe(60); // round(50 * 1.2)
+  });
+
+  it("reports the amount it actually paid on the GoldGained event", async () => {
+    const freshContainer = await containerWithQuest();
+    await freshContainer.equipment.put("accessory", "rare", 0);
+    const result = await logQuestProgress(freshContainer, {
+      day: questDay,
+      pushups: 1_000,
+      situps: 1_000,
+      squats: 1_000,
+    });
+    if (!result.ok) return;
+    const gained = result.value.events.find(
+      (e) => e.type === "GoldGained" && e.source === "daily-quest",
+    );
+    expect(gained).toMatchObject({ amount: 58 }); // round(50 * 1.15) = 57.5 -> 58
   });
 });

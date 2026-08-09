@@ -4,6 +4,10 @@ import { gold as makeGold } from "@/core/shared/units";
 import type { TrainingDay } from "@/core/shared/training-day";
 import { isQuestComplete } from "@/core/quest/daily-quest";
 import { currentStreak } from "@/core/quest/streak";
+import {
+  equipmentQuestGoldMultiplier,
+  isEquipmentGrade,
+} from "@/core/economy/equipment";
 import type { DailyQuestRow } from "@/infra/db/schema/quest";
 import type { Container } from "@/server/container";
 import { awardEarnedTitles } from "./award-titles";
@@ -77,11 +81,30 @@ export async function logQuestProgress(
     const hunter = await container.hunters.get();
     if (!hunter) return err({ type: "hunter-not-found" });
 
+    // The accessory slot is Hunter's Charm and nothing else, so the slot
+    // alone identifies the item. An unrecognised grade string is treated as
+    // no item at all rather than trusted — the column is plain TEXT.
+    const accessory = await container.equipment.bySlot("accessory");
+    const accessoryGrade =
+      accessory !== null && isEquipmentGrade(accessory.grade)
+        ? accessory.grade
+        : null;
+    // Rounded to integer hundredths before multiplying: 50 * 1.15 evaluates
+    // to 57.49999999999999 in floating point, one gold short of the correct
+    // 58. Rounding the multiplier to a whole number of hundredths first and
+    // dividing back down after the multiply keeps the arithmetic exact.
+    const multiplierHundredths = Math.round(
+      equipmentQuestGoldMultiplier(accessoryGrade) * 100,
+    );
+    const goldPaid = Math.round(
+      (DAILY_QUEST_GOLD * multiplierHundredths) / 100,
+    );
+
     await container.quests.setStatus(input.day, "completed", now);
-    await container.hunters.update({ gold: hunter.gold + DAILY_QUEST_GOLD });
+    await container.hunters.update({ gold: hunter.gold + goldPaid });
     events.push({
       type: "GoldGained",
-      amount: makeGold(DAILY_QUEST_GOLD),
+      amount: makeGold(goldPaid),
       source: "daily-quest",
     });
   }
