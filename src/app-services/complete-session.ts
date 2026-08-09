@@ -29,11 +29,22 @@ import { MORNING_BEFORE_HOUR } from "@/core/title/catalog";
 import { detectPrs } from "@/core/training/pr";
 import { goldForPrs, goldForLevelUps } from "@/core/economy/income";
 import {
+  EQUIPMENT_CATALOG,
+  dropChance,
   equipmentExpMultiplier,
   equipmentFatigueGainMultiplier,
   isEquipmentGrade,
+  isEquipmentSlot,
+  isHigherGrade,
+  rollGrade,
 } from "@/core/economy/equipment";
-import type { EquipmentGrade } from "@/core/economy/pricing";
+import {
+  EQUIPMENT_SLOTS,
+  type EquipmentGrade,
+  type EquipmentSlot,
+} from "@/core/economy/pricing";
+import { deriveStats } from "@/core/hunter/stats";
+import { buildStatInput } from "./stat-input";
 import {
   bossRaidGoldPerPr,
   demonCastleTargetVolume,
@@ -58,6 +69,13 @@ export type ChallengeOutcome = {
   cleared: boolean;
 };
 
+export type EquipmentDrop = {
+  slot: EquipmentSlot;
+  name: string;
+  grade: EquipmentGrade;
+  replacedGrade: EquipmentGrade | null;
+};
+
 export type CompleteSessionResult = {
   rank: DungeonRank;
   goldAwarded: number;
@@ -69,6 +87,7 @@ export type CompleteSessionResult = {
   levelUpGold: number;
   /** The bought challenge this session resolved, or null if none was pending. */
   challenge: ChallengeOutcome | null;
+  drop: EquipmentDrop | null;
   events: DomainEvent[];
 };
 
@@ -311,6 +330,15 @@ export async function completeSession(
   }
   events.push(...challengeEvents);
 
+  const drop = await rollEquipmentDrop(
+    container,
+    dungeonRank,
+    redGateCleared ? "epic" : null,
+  );
+  if (drop !== null) {
+    events.push({ type: "EquipmentDropped", ...drop });
+  }
+
   if (hunter.rank !== "S" && newRank === "S") {
     const bellion = await container.shadows.byId("bellion");
     if (bellion && bellion.extractedAt === null) {
@@ -335,6 +363,7 @@ export async function completeSession(
     prGold,
     levelUpGold,
     challenge,
+    drop,
     events,
   };
   await container.idempotency.remember(input.clientActionId, result, now);
@@ -356,4 +385,70 @@ async function gradeInSlot(
   const row = await container.equipment.bySlot(slot);
   if (row === null || !isEquipmentGrade(row.grade)) return null;
   return row.grade;
+}
+
+/**
+ * Rolls the dungeon's loot, writes it if it is an upgrade, and reports it.
+ *
+ * The RNG is consumed in a fixed order — chance, then slot, then grade — so
+ * a scripted port can drive the whole roll deterministically in tests.
+ *
+ * LUCK is DERIVED here rather than read from hunter.luck. That column
+ * exists but nothing has ever written to it; reading it would have made the
+ * bonus permanently zero, and a drop rate that is merely too low still
+ * produces drops, so the bug would never have shown itself. deriveStats is
+ * the one place the LUCK rule lives, and this reuses it rather than making
+ * a second copy that could drift.
+ *
+ * `guaranteedGrade` is the cleared Red Gate's epic. It skips both the
+ * chance roll and the grade roll, and it also narrows the slot choice to
+ * the ones it would actually improve — "guaranteed" that lands on a
+ * legendary slot and silently does nothing would not be guaranteed at all.
+ * The ordinary roll deliberately does NOT narrow: it picks any slot and
+ * walks away if the grade is no better, which is what keeps the drop rate
+ * meaning what it says.
+ */
+async function rollEquipmentDrop(
+  container: Container,
+  rank: DungeonRank,
+  guaranteedGrade: EquipmentGrade | null,
+): Promise<EquipmentDrop | null> {
+  const rows = await container.equipment.all();
+  const held = new Map<EquipmentSlot, EquipmentGrade>();
+  for (const row of rows) {
+    if (isEquipmentSlot(row.slot) && isEquipmentGrade(row.grade)) {
+      held.set(row.slot, row.grade);
+    }
+  }
+
+  if (guaranteedGrade === null) {
+    const luck = deriveStats(await buildStatInput(container)).luck;
+    if (container.rng.next() >= dropChance(rank, luck)) return null;
+  }
+
+  const empty = EQUIPMENT_SLOTS.filter((s) => !held.has(s));
+  let slot: EquipmentSlot;
+  if (empty.length > 0) {
+    slot = empty[container.rng.int(0, empty.length)]!;
+  } else if (guaranteedGrade !== null) {
+    const upgradable = EQUIPMENT_SLOTS.filter((s) =>
+      isHigherGrade(guaranteedGrade, held.get(s) ?? null),
+    );
+    if (upgradable.length === 0) return null;
+    slot = upgradable[container.rng.int(0, upgradable.length)]!;
+  } else {
+    slot = EQUIPMENT_SLOTS[container.rng.int(0, EQUIPMENT_SLOTS.length)]!;
+  }
+
+  const grade = guaranteedGrade ?? rollGrade(container.rng.next());
+  const replacedGrade = held.get(slot) ?? null;
+  if (!isHigherGrade(grade, replacedGrade)) return null;
+
+  await container.equipment.put(slot, grade, container.clock.now());
+  return {
+    slot,
+    name: EQUIPMENT_CATALOG[slot].name,
+    grade,
+    replacedGrade,
+  };
 }

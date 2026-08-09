@@ -950,3 +950,198 @@ describe("completeSession — challenge resolution", () => {
     expect(result.value.challenge).toBeNull();
   });
 });
+
+describe("completeSession — equipment drops", () => {
+  /**
+   * A scripted RngPort. The drop roll consumes, in order:
+   *   1. next()  — the drop-chance roll (skipped when a grade is guaranteed)
+   *   2. int()   — which slot
+   *   3. next()  — the grade roll (skipped when a grade is guaranteed)
+   */
+  function scriptedRng(floats: number[], ints: number[]) {
+    let f = 0;
+    let i = 0;
+    return {
+      next: () => floats[f++] ?? 1,
+      int: (min: number, max: number) => {
+        const chosen = ints[i++] ?? 0;
+        return Math.min(Math.max(min, min + chosen), max - 1);
+      },
+    };
+  }
+
+  async function containerWithRng(rng: {
+    next: () => number;
+    int: (a: number, b: number) => number;
+  }) {
+    const db = await makeTestDb();
+    await seedProgram(db);
+    let n = 0;
+    const container = buildContainer({
+      db,
+      rng,
+      tzOffsetMinutes: 420,
+      clock: fixedClock("2026-08-05T00:00:00Z"),
+      newId: () => `id-${++n}`,
+    });
+    await container.hunters.create({ name: "Jin-Woo", createdAt: 0 });
+    await container.training.createSession({
+      id: "session-1",
+      day: "2026-08-05",
+      programDayId: "upper-a",
+      startedAt: 0,
+    });
+    await container.training.upsertSetLog({
+      id: "set-1",
+      sessionId: "session-1",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 6,
+      weight: 80,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+    return container;
+  }
+
+  it("drops nothing when the chance roll misses", async () => {
+    const container = await containerWithRng(scriptedRng([0.99], [0]));
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    expect(result.value.drop).toBeNull();
+    expect(await container.equipment.all()).toEqual([]);
+  });
+
+  it("fills an empty slot when the chance roll hits", async () => {
+    // 0.001 clears a C-rank's 0.08 base rate; slot index 0; grade roll 0.01
+    // lands in the common band.
+    const container = await containerWithRng(scriptedRng([0.001, 0.01], [0]));
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    expect(result.value.drop).toEqual({
+      slot: "weapon",
+      name: "Knight Killer",
+      grade: "common",
+      replacedGrade: null,
+    });
+    expect((await container.equipment.bySlot("weapon"))?.grade).toBe("common");
+  });
+
+  it("records what dropped as an event", async () => {
+    const container = await containerWithRng(scriptedRng([0.001, 0.99], [1]));
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    expect(result.value.events).toContainEqual({
+      type: "EquipmentDropped",
+      slot: "armor",
+      name: "Shadow Compression Gear",
+      grade: "legendary",
+      replacedGrade: null,
+    });
+  });
+
+  it("prefers an empty slot over one that already holds an item", async () => {
+    const container = await containerWithRng(scriptedRng([0.001, 0.01], [0]));
+    await container.equipment.put("weapon", "legendary", 0);
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    // Index 0 of the EMPTY slots, which is armor once weapon is taken.
+    expect(result.value.drop?.slot).toBe("armor");
+  });
+
+  it("replaces a full slot only when the new grade is strictly better", async () => {
+    const container = await containerWithRng(scriptedRng([0.001, 0.99], [0]));
+    await container.equipment.put("weapon", "common", 0);
+    await container.equipment.put("armor", "common", 0);
+    await container.equipment.put("accessory", "common", 0);
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    expect(result.value.drop).toMatchObject({
+      slot: "weapon",
+      grade: "legendary",
+      replacedGrade: "common",
+    });
+  });
+
+  it("reports nothing and changes nothing when the roll would downgrade a slot", async () => {
+    const container = await containerWithRng(scriptedRng([0.001, 0.01], [0]));
+    await container.equipment.put("weapon", "legendary", 0);
+    await container.equipment.put("armor", "legendary", 0);
+    await container.equipment.put("accessory", "legendary", 0);
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    expect(result.value.drop).toBeNull();
+    expect((await container.equipment.bySlot("weapon"))?.grade).toBe(
+      "legendary",
+    );
+  });
+
+  it("guarantees an epic when a Red Gate is cleared, whatever the roll says", async () => {
+    // Every float here would miss the chance roll and roll common — a
+    // cleared Red Gate must ignore both.
+    const container = await containerWithRng(scriptedRng([0.999, 0.001], [0]));
+    for (let i = 0; i < 8; i += 1) {
+      await container.training.createSession({
+        id: `hist-${i}`,
+        day: "2026-08-01",
+        programDayId: "upper-a",
+        startedAt: i,
+      });
+      await container.training.upsertSetLog({
+        id: `hist-set-${i}`,
+        sessionId: `hist-${i}`,
+        exerciseId: "bench-press",
+        setIndex: 0,
+        reps: 10,
+        weight: 10,
+        completed: true,
+        isPr: false,
+        loggedAt: i,
+      });
+      await container.training.completeSession(`hist-${i}`, i + 1, "C");
+    }
+    await container.training.upsertSetLog({
+      id: "set-1",
+      sessionId: "session-1",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 20,
+      weight: 100,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+    await container.store.setPendingChallenge({
+      type: "red-gate",
+      purchasedAt: container.clock.now(),
+      floor: null,
+    });
+
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    if (!result.ok) return;
+    expect(result.value.challenge?.cleared).toBe(true);
+    expect(result.value.drop?.grade).toBe("epic");
+  });
+});
