@@ -11,6 +11,9 @@ import type { ActionError } from "@/server/actions/action-result";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { ActionErrorNotice } from "@/ui/components/primitives/ActionErrorNotice";
 
+type DungeonType = "standard" | "amrap" | "emom" | "dropset";
+type DungeonTypeUnlockId = "amrap" | "emom" | "dropset";
+
 type PlannedExercise = {
   exerciseId: string;
   name: string;
@@ -19,19 +22,24 @@ type PlannedExercise = {
   repMax: number;
   suggestedWeight: number;
   suggestedReps: number;
-  dungeonType: "standard" | "amrap" | "emom" | "dropset";
+  dungeonType: DungeonType;
   timeLimitSec: number | null;
 };
 
 /** The type's instruction, shown under the exercise name. Display only. */
-const DUNGEON_TYPE_LABEL: Record<
-  PlannedExercise["dungeonType"],
-  string | null
-> = {
+const DUNGEON_TYPE_LABEL: Record<DungeonType, string | null> = {
   standard: null,
   emom: "EMOM — one set on the minute",
   amrap: "AMRAP — as many reps as the window allows",
   dropset: "DROP-SET — strip the weight down set by set",
+};
+
+/** Shown in the pre-session chamber-type picker's dropdown. */
+const DUNGEON_TYPE_CHOICE_LABEL: Record<DungeonType, string> = {
+  standard: "Standard",
+  amrap: "AMRAP",
+  emom: "EMOM",
+  dropset: "Drop-set",
 };
 
 type SetState = { reps: number; weight: number; completed: boolean };
@@ -42,7 +50,21 @@ type ClearedResult = Extract<
   { ok: true }
 >["value"];
 
-function DungeonContent() {
+export type DungeonPreviewExercise = {
+  exerciseId: string;
+  name: string;
+  muscle: string;
+};
+
+type DungeonContentProps = {
+  exercises: DungeonPreviewExercise[];
+  unlockedDungeonTypes: DungeonTypeUnlockId[];
+};
+
+function DungeonContent({
+  exercises,
+  unlockedDungeonTypes,
+}: DungeonContentProps) {
   const params = useSearchParams();
   const router = useRouter();
   const programDayId = params.get("programDayId");
@@ -50,13 +72,26 @@ function DungeonContent() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [plan, setPlan] = useState<PlannedExercise[]>([]);
   const [sets, setSets] = useState<Record<string, SetState[]>>({});
-  const [loading, setLoading] = useState(true);
+  // Skipped for the common case (nothing unlocked yet): the session opens
+  // the moment the page loads, exactly as it always has. Only a hunter who
+  // has actually bought a dungeon type sees the extra step below.
+  const [loading, setLoading] = useState(unlockedDungeonTypes.length === 0);
   const [error, setError] = useState<ActionError | null>(null);
   const [result, setResult] = useState<ClearedResult | null>(null);
+  const [overrides, setOverrides] = useState<
+    Record<string, DungeonTypeUnlockId>
+  >({});
 
-  useEffect(() => {
-    if (!programDayId) return;
-    startSessionAction({ programDayId }).then((res) => {
+  const beginSession = useCallback(
+    async (chosenOverrides: Record<string, DungeonTypeUnlockId>) => {
+      if (!programDayId) return;
+      setLoading(true);
+      setError(null);
+      const res = await startSessionAction({
+        programDayId,
+        dungeonTypeOverrides:
+          Object.keys(chosenOverrides).length > 0 ? chosenOverrides : undefined,
+      });
       if (!res.ok) {
         setError(res.error);
         setLoading(false);
@@ -77,7 +112,18 @@ function DungeonContent() {
         ),
       );
       setLoading(false);
-    });
+    },
+    [programDayId],
+  );
+
+  useEffect(() => {
+    if (!programDayId) return;
+    // Nothing unlocked — open the gate exactly as before, no extra step.
+    // Otherwise the hunter picks a type first; beginSession runs on click.
+    if (unlockedDungeonTypes.length > 0) return;
+    beginSession({});
+    // Only ever meant to fire once, on mount, for the auto-start path.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [programDayId]);
 
   const logOneSet = useCallback(
@@ -135,7 +181,67 @@ function DungeonContent() {
     );
   }
 
+  // At least one dungeon type is unlocked and no session has started yet —
+  // ask which type each exercise should use before opening the gate. Reached
+  // only once loading clears, so this never flashes in front of the spinner.
+  if (sessionId === null && unlockedDungeonTypes.length > 0) {
+    return (
+      <div className="p-6 md:p-8 max-w-2xl mx-auto space-y-6">
+        {error && <ActionErrorNotice error={error} />}
+        <SystemPanel header="CHAMBER SELECTION">
+          <div className="p-4 space-y-3">
+            <p className="font-mono text-xs text-slate-500">
+              Choose how each exercise runs. Standard is the default.
+            </p>
+            {exercises.map((ex) => (
+              <div
+                key={ex.exerciseId}
+                className="flex items-center justify-between gap-3 font-mono text-sm"
+              >
+                <span className="text-slate-300">{ex.name}</span>
+                <select
+                  value={overrides[ex.exerciseId] ?? "standard"}
+                  onChange={(e) => {
+                    const value = e.target.value as DungeonType;
+                    setOverrides((prev) => {
+                      const next = { ...prev };
+                      if (value === "standard") {
+                        delete next[ex.exerciseId];
+                      } else {
+                        next[ex.exerciseId] = value;
+                      }
+                      return next;
+                    });
+                  }}
+                  className="bg-shadow-dark border border-system-blue/30 rounded px-2 py-1 text-white"
+                >
+                  <option value="standard">
+                    {DUNGEON_TYPE_CHOICE_LABEL.standard}
+                  </option>
+                  {unlockedDungeonTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {DUNGEON_TYPE_CHOICE_LABEL[type]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+            <button
+              onClick={() => beginSession(overrides)}
+              className="w-full bg-system-blue/10 border border-system-blue/40 text-system-blue
+                font-mono text-sm tracking-widest py-3 rounded hover:bg-system-blue/20 transition-colors"
+            >
+              ▸ ENTER DUNGEON
+            </button>
+          </div>
+        </SystemPanel>
+      </div>
+    );
+  }
+
   // A failure before the plan loaded leaves nothing to render but the reason.
+  // Only reached for the plain auto-start flow — the picker above already
+  // renders its own inline error and never falls through to here.
   if (error && plan.length === 0) {
     return (
       <div className="p-6 md:p-8 max-w-2xl mx-auto">
@@ -290,14 +396,20 @@ function DungeonContent() {
   );
 }
 
-export default function DungeonClient() {
+export default function DungeonClient({
+  exercises,
+  unlockedDungeonTypes,
+}: DungeonContentProps) {
   return (
     <Suspense
       fallback={
         <div className="p-8 font-mono text-sm text-slate-400">Loading...</div>
       }
     >
-      <DungeonContent />
+      <DungeonContent
+        exercises={exercises}
+        unlockedDungeonTypes={unlockedDungeonTypes}
+      />
     </Suspense>
   );
 }

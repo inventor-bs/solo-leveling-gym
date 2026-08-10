@@ -54,6 +54,32 @@ describe("training server actions — auth gate", () => {
     if (result.ok) expect(result.value.sessionId).toBeTruthy();
   });
 
+  it("startSessionAction passes dungeonTypeOverrides through to the session plan", async () => {
+    givenAuthenticated(true);
+    await containerModule.getContainer().store.unlock("dungeon-type:amrap", 1);
+
+    const result = await startSessionAction({
+      programDayId: "upper-a",
+      dungeonTypeOverrides: { "bench-press": "amrap" },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const benchPress = result.value.plan.find(
+      (p) => p.exerciseId === "bench-press",
+    );
+    expect(benchPress?.dungeonType).toBe("amrap");
+  });
+
+  it("startSessionAction rejects a dungeonTypeOverrides value that isn't a real dungeon type", async () => {
+    givenAuthenticated(true);
+    const result = await startSessionAction({
+      programDayId: "upper-a",
+      dungeonTypeOverrides: { "bench-press": "standard" },
+    });
+    expect(result).toEqual({ ok: false, error: "invalid-input" });
+  });
+
   it("logSetAction reports unauthorized instead of throwing", async () => {
     givenAuthenticated(false);
     const result = await logSetAction({

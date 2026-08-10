@@ -16,8 +16,20 @@ import {
 import { logRun, type LogRunResult } from "@/app-services/log-run";
 import type { ActionResult } from "./action-result";
 
+/**
+ * "standard" is deliberately absent — an override exists to REQUEST a
+ * non-standard type. A missing entry already means standard, and
+ * start-session.ts falls back to standard itself for anything the store
+ * hasn't actually unlocked.
+ */
+const dungeonTypeOverridesSchema = z.record(
+  z.string().min(1),
+  z.enum(["amrap", "emom", "dropset"]),
+);
+
 const startSessionSchema = z.object({
   programDayId: z.string().min(1),
+  dungeonTypeOverrides: dungeonTypeOverridesSchema.optional(),
 });
 
 export async function startSessionAction(

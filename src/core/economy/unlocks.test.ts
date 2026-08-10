@@ -7,6 +7,7 @@ import {
   exerciseUnlockKey,
   dungeonTypeUnlockKey,
   meetsRequirement,
+  DUNGEON_TYPE_UNLOCK_IDS,
 } from "./unlocks";
 
 describe("unlock keys", () => {
@@ -29,6 +30,15 @@ describe("UNLOCK_CATALOG", () => {
 
   it("covers three programs, one exercise unlock per muscle group, and three dungeon types", () => {
     expect(UNLOCK_CATALOG).toHaveLength(3 + MUSCLE_GROUPS.length + 3);
+  });
+
+  it("DUNGEON_TYPE_UNLOCK_IDS matches every dungeon-type entry actually in the catalog", () => {
+    const fromCatalog = UNLOCK_CATALOG.filter((u) =>
+      u.key.startsWith("dungeon-type:"),
+    ).map((u) => u.key);
+    expect(DUNGEON_TYPE_UNLOCK_IDS.map(dungeonTypeUnlockKey)).toEqual(
+      fromCatalog,
+    );
   });
 
   it("prices and gates the three programs by level", () => {

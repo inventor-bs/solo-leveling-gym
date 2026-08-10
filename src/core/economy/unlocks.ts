@@ -14,6 +14,13 @@ import {
 export type ProgramUnlockId = "ppl" | "531" | "arnold";
 export type DungeonTypeUnlockId = "amrap" | "emom" | "dropset";
 
+/** Every dungeon-type unlock, in the order the Store lists them. */
+export const DUNGEON_TYPE_UNLOCK_IDS: readonly DungeonTypeUnlockId[] = [
+  "amrap",
+  "emom",
+  "dropset",
+];
+
 export type UnlockRequirement =
   | { readonly kind: "none" }
   | { readonly kind: "level"; readonly minLevel: number }
