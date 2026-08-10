@@ -62,17 +62,18 @@ export default async function StorePage() {
                 <p className="font-mono text-xs text-slate-500">
                   {challenge.description}
                 </p>
+                {/* .bind(null, ...) on a "use server" action produces a
+                    serializable reference across the RSC boundary; a
+                    closure that merely calls the action does not. */}
                 <BuyButton
                   label="BUY"
                   disabled={!challenge.available}
-                  onBuy={() =>
-                    buyChallengeAction({
-                      type: challenge.type,
-                      ...(challenge.nextFloor !== null
-                        ? { floor: challenge.nextFloor }
-                        : {}),
-                    })
-                  }
+                  onBuy={buyChallengeAction.bind(null, {
+                    type: challenge.type,
+                    ...(challenge.nextFloor !== null
+                      ? { floor: challenge.nextFloor }
+                      : {}),
+                  })}
                 />
               </div>
             ))}
@@ -101,7 +102,7 @@ export default async function StorePage() {
                   <BuyButton
                     label="UNLOCK"
                     disabled={!item.available}
-                    onBuy={() => buyUnlockAction({ key: item.key })}
+                    onBuy={buyUnlockAction.bind(null, { key: item.key })}
                   />
                 )}
               </div>
@@ -124,7 +125,7 @@ export default async function StorePage() {
                   <BuyButton
                     label="BUY"
                     disabled={!item.available}
-                    onBuy={() => buyHourglassAction()}
+                    onBuy={buyHourglassAction}
                   />
                 ) : (
                   view.feedableShadows.map((shadow) => (
@@ -132,7 +133,9 @@ export default async function StorePage() {
                       key={shadow.id}
                       label={`FEED ${shadow.name.toUpperCase()}`}
                       disabled={!item.available}
-                      onBuy={() => buyShadowFeedAction({ shadowId: shadow.id })}
+                      onBuy={buyShadowFeedAction.bind(null, {
+                        shadowId: shadow.id,
+                      })}
                     />
                   ))
                 )}
