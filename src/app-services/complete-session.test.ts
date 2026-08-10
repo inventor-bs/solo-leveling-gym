@@ -5,9 +5,11 @@ import { seedProgram } from "@/infra/db/seed/program";
 import { buildContainer } from "@/server/container";
 import { SHADOW_ROSTER } from "@/core/shadow/roster";
 import { expToNextLevel } from "@/core/hunter/progression";
+import { deriveStats } from "@/core/hunter/stats";
 import type { TrainingDay } from "@/core/shared/training-day";
 import type { Container } from "@/server/container";
-import { completeSession } from "./complete-session";
+import { completeSession, currentLuck } from "./complete-session";
+import { buildStatInput } from "./stat-input";
 
 async function containerWithLoggedSession() {
   const db = await makeTestDb();
@@ -1143,5 +1145,66 @@ describe("completeSession — equipment drops", () => {
     if (!result.ok) return;
     expect(result.value.challenge?.cleared).toBe(true);
     expect(result.value.drop?.grade).toBe("epic");
+  });
+});
+
+describe("currentLuck — the cheap read the drop roll actually needs", () => {
+  /**
+   * A non-trivial scenario: several consecutive completed Daily Quests
+   * ending yesterday, so streakDays (and therefore LUCK) is not just zero
+   * either way — a bug that zeroed the streak would still pass a test built
+   * on an empty history.
+   */
+  async function containerWithAStreak(): Promise<Container> {
+    const db = await makeTestDb();
+    await seedProgram(db);
+    const container = buildContainer({
+      db,
+      tzOffsetMinutes: 420,
+      clock: fixedClock("2026-08-05T00:00:00Z"), // "today" = 2026-08-05 ICT
+    });
+    await container.hunters.create({ name: "Jin-Woo", createdAt: 0 });
+    const days = ["2026-08-01", "2026-08-02", "2026-08-03", "2026-08-04"];
+    for (const [i, day] of days.entries()) {
+      await container.quests.create({
+        id: `q-${i}`,
+        day,
+        rank: "E",
+        targetPushups: 20,
+        targetSitups: 20,
+        targetSquats: 20,
+        targetRunKm: 1,
+        createdAt: i,
+      });
+      await container.quests.setStatus(day, "completed", i);
+    }
+    return container;
+  }
+
+  it("matches deriveStats(buildStatInput(...)).luck — the expensive path this replaces", async () => {
+    const container = await containerWithAStreak();
+    const cheap = await currentLuck(container);
+    const expensive = deriveStats(await buildStatInput(container)).luck;
+
+    expect(cheap).toBe(expensive);
+    // Proves the streak actually reached the formula rather than both sides
+    // coincidentally agreeing on zero.
+    expect(cheap).toBeGreaterThan(0);
+  });
+
+  it("reads zero for a hunter with no streak at all, same as the expensive path", async () => {
+    const db = await makeTestDb();
+    await seedProgram(db);
+    const container = buildContainer({
+      db,
+      tzOffsetMinutes: 420,
+      clock: fixedClock("2026-08-05T00:00:00Z"),
+    });
+    await container.hunters.create({ name: "Jin-Woo", createdAt: 0 });
+
+    const cheap = await currentLuck(container);
+    const expensive = deriveStats(await buildStatInput(container)).luck;
+    expect(cheap).toBe(0);
+    expect(expensive).toBe(0);
   });
 });

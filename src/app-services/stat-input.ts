@@ -15,7 +15,7 @@ import type { Container } from "@/server/container";
 export const STAT_WINDOW_DAYS = 28;
 
 /** Long enough that a very long streak is never truncated by the query limit. */
-const QUEST_HISTORY_DAYS = 400;
+export const QUEST_HISTORY_DAYS = 400;
 
 /**
  * Assembles the input to deriveStats entirely from stored training data.

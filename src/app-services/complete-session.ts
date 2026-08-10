@@ -43,8 +43,9 @@ import {
   type EquipmentGrade,
   type EquipmentSlot,
 } from "@/core/economy/pricing";
-import { deriveStats } from "@/core/hunter/stats";
-import { buildStatInput } from "./stat-input";
+import { deriveStats, emptyStatInput } from "@/core/hunter/stats";
+import { currentStreak } from "@/core/quest/streak";
+import { QUEST_HISTORY_DAYS } from "./stat-input";
 import {
   bossRaidGoldPerPr,
   demonCastleTargetVolume,
@@ -388,6 +389,34 @@ async function gradeInSlot(
 }
 
 /**
+ * LUCK, and only LUCK, for the drop roll below.
+ *
+ * deriveStats computes all six stats from a StatInput, and the full one
+ * buildStatInput assembles costs roughly twenty DB round trips: e1RM
+ * history, volume, a run query, and an N+1 loop over recent sessions' sets
+ * — all to support five stats the drop roll never reads. LUCK depends only
+ * on streakDays (hiddenQuestsFound is always zero; there are no Hidden
+ * Quests to find yet), so this builds a StatInput from just that one cheap
+ * read and leaves every other field at emptyStatInput's neutral default.
+ * The other five stats deriveStats computes from it are garbage — that is
+ * fine, since only .luck is read here. deriveStats itself is still the one
+ * and only place the LUCK rule lives; this changes what is fed to it, not
+ * how it is computed.
+ */
+export async function currentLuck(container: Container): Promise<number> {
+  const today = toTrainingDay(container.clock.now(), container.tzOffsetMinutes);
+  const outcomes = await container.quests.recentOutcomes(QUEST_HISTORY_DAYS);
+  const streakDays = currentStreak(
+    outcomes.map((o) => ({
+      day: o.day as TrainingDay,
+      completed: o.completed,
+    })),
+    today,
+  );
+  return deriveStats({ ...emptyStatInput(), streakDays }).luck;
+}
+
+/**
  * Rolls the dungeon's loot, writes it if it is an upgrade, and reports it.
  *
  * The RNG is consumed in a fixed order — chance, then slot, then grade — so
@@ -396,9 +425,8 @@ async function gradeInSlot(
  * LUCK is DERIVED here rather than read from hunter.luck. That column
  * exists but nothing has ever written to it; reading it would have made the
  * bonus permanently zero, and a drop rate that is merely too low still
- * produces drops, so the bug would never have shown itself. deriveStats is
- * the one place the LUCK rule lives, and this reuses it rather than making
- * a second copy that could drift.
+ * produces drops, so the bug would never have shown itself. currentLuck
+ * above is the cheap path to deriveStats' one LUCK rule.
  *
  * `guaranteedGrade` is the cleared Red Gate's epic. It skips both the
  * chance roll and the grade roll, and it also narrows the slot choice to
@@ -422,7 +450,7 @@ async function rollEquipmentDrop(
   }
 
   if (guaranteedGrade === null) {
-    const luck = deriveStats(await buildStatInput(container)).luck;
+    const luck = await currentLuck(container);
     if (container.rng.next() >= dropChance(rank, luck)) return null;
   }
 
