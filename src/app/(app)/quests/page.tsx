@@ -40,6 +40,9 @@ export default async function QuestsPage() {
     : null;
   const graceWindowOpen =
     yesterdayQuest !== null && yesterdayQuest.status === "active";
+  const yesterdayRunDone = graceWindowOpen
+    ? await container.training.kmOnDay(yesterday)
+    : 0;
 
   return (
     <div className="relative min-h-screen p-6 md:p-8">
@@ -109,7 +112,7 @@ export default async function QuestsPage() {
               </p>
               <QuestTracker
                 day={yesterday}
-                runDone={0}
+                runDone={yesterdayRunDone}
                 runTarget={yesterdayQuest.targetRunKm}
                 requirements={[
                   {
