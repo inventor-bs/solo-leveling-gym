@@ -7,6 +7,7 @@ import { seedProgram } from "@/infra/db/seed/program";
 import type { SystemVoicePort } from "@/ports/system-voice.port";
 import { ensureDailyQuest } from "./ensure-daily-quest";
 import { runDailyReset } from "./daily-reset";
+import { runGraceReset } from "./daily-reset-grace";
 
 let container: Container;
 const yesterday = parseTrainingDay("2026-08-05");
@@ -674,5 +675,179 @@ describe("runDailyReset — hourglass deferral", () => {
     await container.mitigation.grantGrace("2026-08-08", 1);
     const summary = await runDailyReset(container);
     expect(summary.yesterdayStatus).toBe("completed");
+  });
+});
+
+describe("runDailyReset / runGraceReset — a deferred day must not wrongly fail the week", () => {
+  /**
+   * The seeded program lifts on ISO weekdays 1, 3, 5 and 6 — for the week of
+   * Monday 2026-08-03 that is the 3rd, 5th, 7th and 8th (matches the Perfect
+   * Week describe block above).
+   */
+  const SCHEDULED = ["2026-08-03", "2026-08-05", "2026-08-07", "2026-08-08"];
+  const WEEK = [
+    "2026-08-03",
+    "2026-08-04",
+    "2026-08-05",
+    "2026-08-06",
+    "2026-08-07",
+    "2026-08-08",
+    "2026-08-09",
+  ];
+
+  /**
+   * Every scheduled lifting day trained, and every day's Daily Quest
+   * finished — EXCEPT Sunday 2026-08-09, which carries a genuine Hourglass
+   * grace row. Its quest is left `active`, but the hunter has actually done
+   * the work: real progress plus a real run, exactly enough to be judged
+   * `completed` once the 04:00 grace window gets to it.
+   */
+  async function weekWithGraceOnSunday(container: Container) {
+    for (const [i, day] of SCHEDULED.entries()) {
+      await container.training.createSession({
+        id: `s-${i}`,
+        day,
+        programDayId: "upper-a",
+        startedAt: i,
+      });
+      await container.training.completeSession(`s-${i}`, i + 1, "C");
+    }
+    // Enough runs to clear the wager's run target on its own.
+    await container.training.createRun({
+      id: "r-0",
+      day: "2026-08-04",
+      distanceKm: 3,
+      durationSec: 1_200,
+      loggedAt: 1,
+    });
+    await container.training.createRun({
+      id: "r-1",
+      day: "2026-08-06",
+      distanceKm: 3,
+      durationSec: 1_200,
+      loggedAt: 2,
+    });
+
+    for (const [i, day] of WEEK.entries()) {
+      await container.quests.create({
+        id: `q-${i}`,
+        day,
+        rank: "E",
+        targetPushups: 20,
+        targetSitups: 20,
+        targetSquats: 20,
+        targetRunKm: 1,
+        createdAt: i,
+      });
+      if (day === "2026-08-09") continue; // judged later, by the grace window
+      await container.quests.setStatus(day, "completed", i);
+    }
+    await container.quests.addProgress("2026-08-09", {
+      pushups: 20,
+      situps: 20,
+      squats: 20,
+    });
+    await container.training.createRun({
+      id: "r-sun",
+      day: "2026-08-09",
+      distanceKm: 1,
+      durationSec: 400,
+      loggedAt: 3,
+    });
+    await container.mitigation.grantGrace("2026-08-09", 1);
+  }
+
+  it("skips Perfect Week and the wager on Monday 00:00 while Sunday is still deferred, then pays both once the grace window judges it complete", async () => {
+    const container = await containerAtDay("2026-08-10"); // Monday
+    await container.wagers.place({
+      weekStart: "2026-08-03",
+      stakeGold: 200,
+      placedAt: 1,
+    });
+    await weekWithGraceOnSunday(container);
+    const before = (await container.hunters.get())?.gold ?? 0;
+
+    const monday = await runDailyReset(container);
+    expect(monday.perfectWeekAwarded).toBe(false);
+    expect(monday.wagersResolved).toBe(0);
+    expect((await container.wagers.byWeek("2026-08-03"))?.status).toBe(
+      "active",
+    );
+    expect((await container.hunters.get())?.gold).toBe(before);
+    expect(
+      (
+        await container.events.between(
+          "2026-08-03" as never,
+          "2026-08-03" as never,
+        )
+      ).some((e) => e.type === "PerfectWeek"),
+    ).toBe(false);
+
+    // 04:00 the same calendar day: the deferred quest is finally judged, and
+    // the weekly checks that skipped it retry now that it has a final status.
+    const grace = await runGraceReset(container);
+    expect(grace.judged).toEqual([{ day: "2026-08-09", status: "completed" }]);
+
+    expect((await container.wagers.byWeek("2026-08-03"))?.status).toBe("won");
+    // +600 from the wager (3x the 200 stake), +500 from Perfect Week.
+    expect((await container.hunters.get())?.gold).toBe(before + 600 + 500);
+    const weekEvents = await container.events.between(
+      "2026-08-03" as never,
+      "2026-08-03" as never,
+    );
+    expect(weekEvents.map((e) => e.type)).toContain("PerfectWeek");
+    expect(weekEvents.map((e) => e.type)).toContain("WagerWon");
+  });
+
+  it("REGRESSION: a normal week with no deferral still pays Perfect Week and the wager on Monday, unchanged", async () => {
+    const container = await containerAtDay("2026-08-10");
+    await container.wagers.place({
+      weekStart: "2026-08-03",
+      stakeGold: 200,
+      placedAt: 1,
+    });
+    for (const [i, day] of SCHEDULED.entries()) {
+      await container.training.createSession({
+        id: `s-${i}`,
+        day,
+        programDayId: "upper-a",
+        startedAt: i,
+      });
+      await container.training.completeSession(`s-${i}`, i + 1, "C");
+    }
+    await container.training.createRun({
+      id: "r-0",
+      day: "2026-08-04",
+      distanceKm: 3,
+      durationSec: 1_200,
+      loggedAt: 1,
+    });
+    await container.training.createRun({
+      id: "r-1",
+      day: "2026-08-06",
+      distanceKm: 3,
+      durationSec: 1_200,
+      loggedAt: 2,
+    });
+    for (const [i, day] of WEEK.entries()) {
+      await container.quests.create({
+        id: `q-${i}`,
+        day,
+        rank: "E",
+        targetPushups: 20,
+        targetSitups: 20,
+        targetSquats: 20,
+        targetRunKm: 1,
+        createdAt: i,
+      });
+      await container.quests.setStatus(day, "completed", i);
+    }
+    const before = (await container.hunters.get())?.gold ?? 0;
+
+    const summary = await runDailyReset(container);
+    expect(summary.perfectWeekAwarded).toBe(true);
+    expect(summary.wagersResolved).toBe(1);
+    expect((await container.wagers.byWeek("2026-08-03"))?.status).toBe("won");
+    expect((await container.hunters.get())?.gold).toBe(before + 600 + 500);
   });
 });

@@ -4,6 +4,7 @@ import { isQuestComplete } from "@/core/quest/daily-quest";
 import type { QuestStatus } from "@/infra/db/schema/quest";
 import type { Container } from "@/server/container";
 import { enterPenalty } from "./enter-penalty";
+import { runWeeklyEconomyChecks } from "./daily-reset";
 
 export type GraceResetSummary = {
   today: string;
@@ -91,6 +92,15 @@ export async function runGraceReset(
       }
     }
   }
+
+  // Runs after the judgment loop, so any day judged above is no longer
+  // deferred by the time this reads it. The same Perfect Week and wager
+  // checks the 00:00 reset runs, retried now with a final status for
+  // whatever this loop just judged — see runWeeklyEconomyChecks' own doc
+  // comment for why a deferred day must skip those checks in the first
+  // place rather than count as "not completed".
+  const weekly = await runWeeklyEconomyChecks(container, today);
+  events.push(...weekly.events);
 
   return { today, judged, penaltyOpened, events };
 }

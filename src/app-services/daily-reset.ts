@@ -40,6 +40,214 @@ export type DailyResetSummary = {
 };
 
 /**
+ * Whether `day`'s Daily Quest judgment is still deferred to the 04:00 grace
+ * window — an Hourglass was bought for it, and the quest row is still
+ * `active` because runGraceReset has not gotten to it yet.
+ *
+ * A day in this state must never be read as "not completed": the hunter may
+ * have actually finished it, and the true answer will only exist once the
+ * grace window judges it.
+ */
+async function isDayDeferred(
+  container: Container,
+  day: TrainingDay,
+): Promise<boolean> {
+  const grace = await container.mitigation.graceForDay(day);
+  if (grace === null) return false;
+  const quest = await container.quests.byDay(day);
+  return quest !== null && quest.status === "active";
+}
+
+async function anyDeferredInRange(
+  container: Container,
+  from: TrainingDay,
+  to: TrainingDay,
+): Promise<boolean> {
+  for (let cursor = from; cursor <= to; cursor = addDays(cursor, 1)) {
+    if (await isDayDeferred(container, cursor)) return true;
+  }
+  return false;
+}
+
+/**
+ * Perfect Week and wager resolution, the two checks that read a whole
+ * week's worth of Daily Quest outcomes at once.
+ *
+ * Shared between the 00:00 reset and the 04:00 grace reset so a week that
+ * is skipped here because one of its days is still deferred (see
+ * isDayDeferred) gets a second chance once that day's grace window closes.
+ * Neither check consumes anything by being skipped: Perfect Week's
+ * idempotency guard is "was a PerfectWeek event already recorded for this
+ * week", and a skipped wager is simply left `active` for `activeBefore` to
+ * find again.
+ */
+export async function runWeeklyEconomyChecks(
+  container: Container,
+  today: TrainingDay,
+): Promise<{
+  perfectWeekAwarded: boolean;
+  wagersResolved: number;
+  events: DomainEvent[];
+}> {
+  const events: DomainEvent[] = [];
+  const weekEvents: { day: TrainingDay; event: DomainEvent }[] = [];
+  let perfectWeekAwarded = false;
+  let wagersResolved = 0;
+
+  // Judged on Monday, for the seven days that just ended.
+  if (isoWeekdayOf(today) === 1) {
+    const weekStart = addDays(startOfIsoWeek(today), -7);
+    const weekEnd = addDays(startOfIsoWeek(today), -1);
+
+    // The award event is stamped with the week it describes, not the day
+    // it was computed on, so finding one here is the idempotency check: a
+    // cron that fires twice on the same Monday pays exactly once.
+    const alreadyPaid = (
+      await container.events.between(weekStart, weekStart)
+    ).some((e) => e.type === "PerfectWeek");
+
+    const weekHasDeferredDay =
+      !alreadyPaid && (await anyDeferredInRange(container, weekStart, weekEnd));
+
+    if (!alreadyPaid && !weekHasDeferredDay) {
+      const scheduledWeekdays = new Set(
+        (await container.programs.allDays()).map((d) => d.weekday),
+      );
+      const scheduledDays: string[] = [];
+      for (
+        let cursor: TrainingDay = weekStart;
+        cursor <= weekEnd;
+        cursor = addDays(cursor, 1)
+      ) {
+        if (scheduledWeekdays.has(isoWeekdayOf(cursor))) {
+          scheduledDays.push(cursor);
+        }
+      }
+
+      const trainedDays = await container.training.completedSessionDaysBetween(
+        weekStart,
+        weekEnd,
+      );
+      const questsInWeek = await container.quests.between(weekStart, weekEnd);
+      const penaltiesStarted = (
+        await container.penalties.between(weekStart, weekEnd)
+      ).filter(
+        (p) => p.startedDay >= weekStart && p.startedDay <= weekEnd,
+      ).length;
+
+      const perfect = isPerfectWeek({
+        scheduledDays,
+        trainedDays,
+        questsIssued: questsInWeek.length,
+        questsCompleted: questsInWeek.filter((q) => q.status === "completed")
+          .length,
+        penaltiesStarted,
+      });
+
+      if (perfect) {
+        const hunter = await container.hunters.get();
+        if (hunter) {
+          await container.hunters.update({
+            gold: hunter.gold + PERFECT_WEEK_GOLD,
+          });
+          perfectWeekAwarded = true;
+          // Recorded immediately, right after the gold that pays for it —
+          // not deferred to weekEvents below, which is only reached after
+          // the wager loop runs. A crash between the gold update and this
+          // record would otherwise leave nothing to stop a retry from
+          // paying twice, since the idempotency check above looks for
+          // exactly this event.
+          const event: DomainEvent = {
+            type: "PerfectWeek",
+            weekStart,
+            goldAwarded: makeGold(PERFECT_WEEK_GOLD),
+          };
+          await container.events.record(
+            [event],
+            weekStart,
+            container.clock.now(),
+          );
+          events.push(event);
+        }
+      }
+    }
+  }
+
+  // Every unresolved week that has already ended — not only last week.
+  // A cron that never fired on some Monday would otherwise leave a staked
+  // week unjudged for good, with the gold already gone.
+  const thisWeekStart = startOfIsoWeek(today);
+  for (const staked of await container.wagers.activeBefore(thisWeekStart)) {
+    const weekStart = parseTrainingDay(staked.weekStart);
+    const weekEnd = addDays(weekStart, 6);
+
+    // Left active — activeBefore will find it again on a later run, once
+    // the deferred day inside this wager's own week has a final status.
+    if (await anyDeferredInRange(container, weekStart, weekEnd)) continue;
+
+    const dungeonsCleared = (
+      await container.training.completedSessionsBetween(weekStart, weekEnd)
+    ).length;
+    const runsLogged = (
+      await container.training.runsBetween(weekStart, weekEnd)
+    ).length;
+    const dailyQuestsCompleted = (
+      await container.quests.between(weekStart, weekEnd)
+    ).filter((q) => q.status === "completed").length;
+
+    const won = wagerWon({
+      dungeonsCleared,
+      runsLogged,
+      dailyQuestsCompleted,
+    });
+
+    // resolve() only touches a row still marked active, so a cron that
+    // retries cannot turn a recorded win into a loss or pay twice.
+    await container.wagers.resolve(
+      weekStart,
+      won ? "won" : "lost",
+      container.clock.now(),
+    );
+    wagersResolved += 1;
+
+    if (won) {
+      const payout = wagerPayout(staked.stakeGold);
+      const hunter = await container.hunters.get();
+      if (hunter) {
+        await container.hunters.update({ gold: hunter.gold + payout });
+      }
+      weekEvents.push({
+        day: weekStart,
+        event: {
+          type: "WagerWon",
+          weekStart,
+          stakeGold: makeGold(staked.stakeGold),
+          payoutGold: makeGold(payout),
+        },
+      });
+    } else {
+      // Nothing further is taken. The stake left at placement, and that
+      // is the whole of the loss.
+      weekEvents.push({
+        day: weekStart,
+        event: {
+          type: "WagerLost",
+          weekStart,
+          stakeGold: makeGold(staked.stakeGold),
+        },
+      });
+    }
+  }
+
+  for (const { day, event } of weekEvents) {
+    await container.events.record([event], day, container.clock.now());
+    events.push(event);
+  }
+
+  return { perfectWeekAwarded, wagersResolved, events };
+}
+
+/**
  * Closes the book on yesterday, then opens today.
  *
  * Judging happens first so a quest can never be issued for a day whose
@@ -103,23 +311,30 @@ export async function runDailyReset(
   let wagersResolved = 0;
   const runEconomyUpkeep = async (): Promise<void> => {
     const upkeepEvents: DomainEvent[] = [];
-    // Written under `weekStart`, which is what makes the idempotency
-    // lookup below able to find it on a repeated run.
-    const weekEvents: { day: TrainingDay; event: DomainEvent }[] = [];
 
     const pending = await container.store.pendingChallenge();
-    if (pending !== null && isChallengeType(pending.type)) {
-      const purchasedDay = toTrainingDay(
-        epoch(pending.purchasedAt),
-        container.tzOffsetMinutes,
-      );
-      // Bought today and not yet attempted — the session is still to come.
-      if (purchasedDay < today) {
-        await container.store.clearPendingChallenge();
-        challengesExpired += 1;
-        if (pending.type === "red-gate") {
-          upkeepEvents.push({ type: "RedGateFailed", day: purchasedDay });
+    if (pending !== null) {
+      if (isChallengeType(pending.type)) {
+        const purchasedDay = toTrainingDay(
+          epoch(pending.purchasedAt),
+          container.tzOffsetMinutes,
+        );
+        // Bought today and not yet attempted — the session is still to come.
+        if (purchasedDay < today) {
+          await container.store.clearPendingChallenge();
+          challengesExpired += 1;
+          if (pending.type === "red-gate") {
+            upkeepEvents.push({ type: "RedGateFailed", day: purchasedDay });
+          }
         }
+      } else {
+        // A pending_challenge row whose type isn't one of the real
+        // ChallengeType values — never produced by buyChallenge, only by a
+        // hand-edited row. buyChallenge's "already pending" guard only
+        // checks that a row exists, not that it is valid, so a row like
+        // this would otherwise block every future challenge purchase
+        // forever. Cleared the same way an expired row is.
+        await container.store.clearPendingChallenge();
       }
     }
 
@@ -128,140 +343,10 @@ export async function runDailyReset(
       events.push(...upkeepEvents);
     }
 
-    // Judged on Monday, for the seven days that just ended.
-    if (isoWeekdayOf(today) === 1) {
-      const weekStart = addDays(startOfIsoWeek(today), -7);
-      const weekEnd = addDays(startOfIsoWeek(today), -1);
-
-      // The award event is stamped with the week it describes, not the day
-      // it was computed on, so finding one here is the idempotency check: a
-      // cron that fires twice on the same Monday pays exactly once.
-      const alreadyPaid = (
-        await container.events.between(weekStart, weekStart)
-      ).some((e) => e.type === "PerfectWeek");
-
-      if (!alreadyPaid) {
-        const scheduledWeekdays = new Set(
-          (await container.programs.allDays()).map((d) => d.weekday),
-        );
-        const scheduledDays: string[] = [];
-        for (
-          let cursor: TrainingDay = weekStart;
-          cursor <= weekEnd;
-          cursor = addDays(cursor, 1)
-        ) {
-          if (scheduledWeekdays.has(isoWeekdayOf(cursor))) {
-            scheduledDays.push(cursor);
-          }
-        }
-
-        const trainedDays =
-          await container.training.completedSessionDaysBetween(
-            weekStart,
-            weekEnd,
-          );
-        const questsInWeek = await container.quests.between(weekStart, weekEnd);
-        const penaltiesStarted = (
-          await container.penalties.between(weekStart, weekEnd)
-        ).filter(
-          (p) => p.startedDay >= weekStart && p.startedDay <= weekEnd,
-        ).length;
-
-        const perfect = isPerfectWeek({
-          scheduledDays,
-          trainedDays,
-          questsIssued: questsInWeek.length,
-          questsCompleted: questsInWeek.filter((q) => q.status === "completed")
-            .length,
-          penaltiesStarted,
-        });
-
-        if (perfect) {
-          const hunter = await container.hunters.get();
-          if (hunter) {
-            await container.hunters.update({
-              gold: hunter.gold + PERFECT_WEEK_GOLD,
-            });
-            perfectWeekAwarded = true;
-            weekEvents.push({
-              day: weekStart,
-              event: {
-                type: "PerfectWeek",
-                weekStart,
-                goldAwarded: makeGold(PERFECT_WEEK_GOLD),
-              },
-            });
-          }
-        }
-      }
-    }
-
-    // Every unresolved week that has already ended — not only last week.
-    // A cron that never fired on some Monday would otherwise leave a staked
-    // week unjudged for good, with the gold already gone.
-    const thisWeekStart = startOfIsoWeek(today);
-    for (const staked of await container.wagers.activeBefore(thisWeekStart)) {
-      const weekStart = parseTrainingDay(staked.weekStart);
-      const weekEnd = addDays(weekStart, 6);
-
-      const dungeonsCleared = (
-        await container.training.completedSessionsBetween(weekStart, weekEnd)
-      ).length;
-      const runsLogged = (
-        await container.training.runsBetween(weekStart, weekEnd)
-      ).length;
-      const dailyQuestsCompleted = (
-        await container.quests.between(weekStart, weekEnd)
-      ).filter((q) => q.status === "completed").length;
-
-      const won = wagerWon({
-        dungeonsCleared,
-        runsLogged,
-        dailyQuestsCompleted,
-      });
-
-      // resolve() only touches a row still marked active, so a cron that
-      // retries cannot turn a recorded win into a loss or pay twice.
-      await container.wagers.resolve(
-        weekStart,
-        won ? "won" : "lost",
-        container.clock.now(),
-      );
-      wagersResolved += 1;
-
-      if (won) {
-        const payout = wagerPayout(staked.stakeGold);
-        const hunter = await container.hunters.get();
-        if (hunter) {
-          await container.hunters.update({ gold: hunter.gold + payout });
-        }
-        weekEvents.push({
-          day: weekStart,
-          event: {
-            type: "WagerWon",
-            weekStart,
-            stakeGold: makeGold(staked.stakeGold),
-            payoutGold: makeGold(payout),
-          },
-        });
-      } else {
-        // Nothing further is taken. The stake left at placement, and that
-        // is the whole of the loss.
-        weekEvents.push({
-          day: weekStart,
-          event: {
-            type: "WagerLost",
-            weekStart,
-            stakeGold: makeGold(staked.stakeGold),
-          },
-        });
-      }
-    }
-
-    for (const { day, event } of weekEvents) {
-      await container.events.record([event], day, container.clock.now());
-      events.push(event);
-    }
+    const weekly = await runWeeklyEconomyChecks(container, today);
+    perfectWeekAwarded = weekly.perfectWeekAwarded;
+    wagersResolved = weekly.wagersResolved;
+    events.push(...weekly.events);
   };
 
   // No punishment stacks on a punishment. While an episode is open the quest
