@@ -19,6 +19,19 @@ type PlannedExercise = {
   repMax: number;
   suggestedWeight: number;
   suggestedReps: number;
+  dungeonType: "standard" | "amrap" | "emom" | "dropset";
+  timeLimitSec: number | null;
+};
+
+/** The type's instruction, shown under the exercise name. Display only. */
+const DUNGEON_TYPE_LABEL: Record<
+  PlannedExercise["dungeonType"],
+  string | null
+> = {
+  standard: null,
+  emom: "EMOM — one set on the minute",
+  amrap: "AMRAP — as many reps as the window allows",
+  dropset: "DROP-SET — strip the weight down set by set",
 };
 
 type SetState = { reps: number; weight: number; completed: boolean };
@@ -150,6 +163,34 @@ function DungeonContent() {
                 LEVEL UP ×{result.levelsGained}
               </p>
             )}
+            {result.prGold > 0 && (
+              <p className="font-mono text-sm text-gold">
+                +{result.prGold} Gold — record broken
+              </p>
+            )}
+            {result.levelUpGold > 0 && (
+              <p className="font-mono text-sm text-gold">
+                +{result.levelUpGold} Gold — level reward
+              </p>
+            )}
+            {result.challenge && (
+              <p
+                className={
+                  result.challenge.cleared
+                    ? "font-mono text-sm text-success"
+                    : "font-mono text-sm text-danger"
+                }
+              >
+                {result.challenge.cleared
+                  ? `${result.challenge.type.toUpperCase()} CLEARED`
+                  : `${result.challenge.type.toUpperCase()} FAILED`}
+              </p>
+            )}
+            {result.drop && (
+              <p className="font-mono text-sm text-monarch-light animate-glow-pulse">
+                DROP — {result.drop.name} ({result.drop.grade})
+              </p>
+            )}
             <button
               onClick={() => router.push("/dashboard")}
               className="mt-4 bg-system-blue/10 border border-system-blue/40 text-system-blue
@@ -174,6 +215,13 @@ function DungeonContent() {
       {plan.map((exercise) => (
         <SystemPanel key={exercise.exerciseId} header={exercise.name}>
           <div className="p-4 space-y-2">
+            {DUNGEON_TYPE_LABEL[exercise.dungeonType] && (
+              <p className="font-mono text-xs text-monarch-light">
+                {DUNGEON_TYPE_LABEL[exercise.dungeonType]}
+                {exercise.timeLimitSec !== null &&
+                  ` · ${Math.round(exercise.timeLimitSec / 60)} min`}
+              </p>
+            )}
             {(sets[exercise.exerciseId] ?? []).map((set, i) => (
               <div
                 key={i}

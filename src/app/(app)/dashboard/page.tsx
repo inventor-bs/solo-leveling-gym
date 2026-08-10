@@ -3,12 +3,14 @@ import { redirectOwnerIfPenalised } from "@/server/penalty-guard";
 import { getContainer } from "@/server/container";
 import { rankForLevel } from "@/core/hunter/progression";
 import { toTrainingDay, isoWeekdayOf } from "@/core/shared/training-day";
+import { INSTANT_DUNGEON_KEY_COST } from "@/core/economy/pricing";
 import { getQuestView } from "@/app-services/quest-view";
 import { getNarrativeView } from "@/app-services/narrative-view";
 import { getSystemMessage } from "@/app-services/system-voice-view";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { RankBadge } from "@/ui/components/primitives/RankBadge";
 import { RunLogForm } from "@/ui/components/dungeon/RunLogForm";
+import { InstantDungeonKeyButton } from "@/ui/components/dungeon/InstantDungeonKeyButton";
 import { FragmentCard } from "@/ui/components/narrative/FragmentCard";
 
 export default async function DashboardPage() {
@@ -22,6 +24,14 @@ export default async function DashboardPage() {
   const program = await container.programs.byWeekday(weekday);
   const isRunDay = weekday === 2 || weekday === 4;
   const isRestDay = weekday === 7;
+
+  // Only offered on a day the schedule did NOT open a gate, and only when
+  // the gold is already in hand — a button that always fails is noise.
+  const offScheduleDay = (await container.programs.allDays())[0] ?? null;
+  const canBuyKey =
+    (isRunDay || isRestDay) &&
+    offScheduleDay !== null &&
+    hunter.gold >= INSTANT_DUNGEON_KEY_COST;
 
   const questView = await getQuestView(container);
   const quest = questView.ok ? questView.value : null;
@@ -151,6 +161,21 @@ export default async function DashboardPage() {
             <p className="p-4 font-mono text-sm text-slate-400">
               No dungeon is scheduled. Recovery is part of the training.
             </p>
+          </SystemPanel>
+        )}
+
+        {canBuyKey && offScheduleDay && (
+          <SystemPanel header="INSTANT DUNGEON KEY">
+            <div className="p-4 space-y-2">
+              <p className="font-mono text-xs text-slate-500">
+                No gate is scheduled today. One can be opened anyway.
+              </p>
+              <InstantDungeonKeyButton
+                programDayId={offScheduleDay.id}
+                programDayName={offScheduleDay.name}
+                cost={INSTANT_DUNGEON_KEY_COST}
+              />
+            </div>
           </SystemPanel>
         )}
       </div>
