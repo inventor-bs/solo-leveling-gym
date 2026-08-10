@@ -3,10 +3,13 @@ import { getContainer } from "@/server/container";
 import { getQuestView } from "@/app-services/quest-view";
 import { getHiddenQuestView } from "@/app-services/hidden-quest-view";
 import { getSystemMessage } from "@/app-services/system-voice-view";
+import { addDays, parseTrainingDay } from "@/core/shared/training-day";
+import { getStoreView } from "@/app-services/store-view";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { LockedFeature } from "@/ui/components/primitives/LockedFeature";
 import { QuestTracker } from "@/ui/components/quests/QuestTracker";
 import { HiddenQuestCard } from "@/ui/components/quests/HiddenQuestCard";
+import { WagerForm } from "@/ui/components/store/WagerForm";
 
 export default async function QuestsPage() {
   await redirectOwnerIfPenalised();
@@ -24,6 +27,19 @@ export default async function QuestsPage() {
   }
 
   const q = view.value;
+
+  const store = await getStoreView(container);
+
+  // An Hourglass bought yesterday moves that day's judgment to 04:00 today,
+  // and those extra hours are only usable if yesterday's quest is still
+  // reachable. Without this panel the item would be unspendable in practice.
+  const yesterday = addDays(parseTrainingDay(view.value.day), -1);
+  const graceRow = await container.mitigation.graceForDay(yesterday);
+  const yesterdayQuest = graceRow
+    ? await container.quests.byDay(yesterday)
+    : null;
+  const graceWindowOpen =
+    yesterdayQuest !== null && yesterdayQuest.status === "active";
 
   return (
     <div className="relative min-h-screen p-6 md:p-8">
@@ -83,6 +99,58 @@ export default async function QuestsPage() {
               : `${q.streak} consecutive day${q.streak === 1 ? "" : "s"}.`}
           </p>
         </SystemPanel>
+
+        {graceWindowOpen && yesterdayQuest && (
+          <SystemPanel header="GRACE WINDOW" glowColor="gold">
+            <div className="p-4 space-y-3">
+              <p className="font-mono text-xs text-warning">
+                Yesterday ({yesterday}) is judged at 04:00 instead of midnight.
+                Finish it and it counts.
+              </p>
+              <QuestTracker
+                day={yesterday}
+                runDone={0}
+                runTarget={yesterdayQuest.targetRunKm}
+                requirements={[
+                  {
+                    key: "pushups",
+                    label: "Push-ups",
+                    done: yesterdayQuest.progressPushups,
+                    target: yesterdayQuest.targetPushups,
+                  },
+                  {
+                    key: "situps",
+                    label: "Sit-ups",
+                    done: yesterdayQuest.progressSitups,
+                    target: yesterdayQuest.targetSitups,
+                  },
+                  {
+                    key: "squats",
+                    label: "Squats",
+                    done: yesterdayQuest.progressSquats,
+                    target: yesterdayQuest.targetSquats,
+                  },
+                ]}
+              />
+            </div>
+          </SystemPanel>
+        )}
+
+        {store &&
+          (store.wager.available || store.wager.placedStake !== null) && (
+            <SystemPanel header="WEEKLY WAGER">
+              <div className="p-4">
+                {store.wager.placedStake !== null ? (
+                  <p className="font-mono text-sm text-gold">
+                    {store.wager.placedStake} G staked on this week. Judged next
+                    Monday.
+                  </p>
+                ) : (
+                  <WagerForm maxStake={store.wager.maxStake} />
+                )}
+              </div>
+            </SystemPanel>
+          )}
 
         {hiddenQuests.map((h) => (
           <HiddenQuestCard
