@@ -69,8 +69,9 @@ export function rollGrade(roll: number): EquipmentGrade {
     cumulative += EQUIPMENT_GRADE_WEIGHTS[grade];
     if (clamped < cumulative) return grade;
   }
-  // The weights sum to a hair over 1 in floating point, so a roll very
-  // close to 1 can escape the loop. The top grade is the correct answer.
+  // The weights sum to exactly 1, but `clamped` can itself be exactly 1
+  // (Math.min(roll, 1) above), and the loop's comparison is strict `<`, so
+  // that value escapes every band. The top grade is the correct answer.
   return EQUIPMENT_GRADES[EQUIPMENT_GRADES.length - 1]!;
 }
 
