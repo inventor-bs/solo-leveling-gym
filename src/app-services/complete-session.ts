@@ -324,7 +324,15 @@ export async function completeSession(
 
   const events: DomainEvent[] = [
     { type: "GoldGained", amount: makeGold(rankGold), source: "dungeon" },
-    { type: "ExpGained", amount: expAwarded, source: "dungeon" },
+    // Mirrors rankGold above: the "dungeon" event carries the base award
+    // alone, not the full expAwarded, so that summing every ExpGained row
+    // for a session (this one plus the "boss-set" one below) reproduces
+    // expAwarded exactly instead of double-counting the BOSS-set bonus.
+    {
+      type: "ExpGained",
+      amount: makeExp(expAwarded - bossExp),
+      source: "dungeon",
+    },
     {
       type: "SessionCompleted",
       sessionId: input.sessionId,

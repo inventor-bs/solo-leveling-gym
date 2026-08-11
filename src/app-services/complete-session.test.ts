@@ -812,6 +812,31 @@ describe("completeSession — event persistence", () => {
     expect(rows.some((r) => r.type === "GoldGained")).toBe(true);
     expect(rows.some((r) => r.type === "ExpGained")).toBe(true);
   });
+
+  it("REGRESSION: summing every ExpGained event reproduces expAwarded exactly, not more", async () => {
+    // The fixture's one bench-press set is a BOSS set, so this session
+    // produces two ExpGained events: "dungeon" (the base award) and
+    // "boss-set" (the BOSS bonus). Their amounts must partition
+    // expAwarded, not both carry the full total — the same rule the
+    // "dungeon" GoldGained event already follows for rankGold.
+    const container = await containerWithLoggedSession();
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const expEvents = result.value.events.filter(
+      (e) => e.type === "ExpGained",
+    ) as { type: "ExpGained"; amount: number; source: string }[];
+    expect(expEvents.map((e) => e.source).sort()).toEqual([
+      "boss-set",
+      "dungeon",
+    ]);
+    const total = expEvents.reduce((sum, e) => sum + e.amount, 0);
+    expect(total).toBe(result.value.expAwarded);
+  });
 });
 
 describe("completeSession — equipment buffs", () => {
