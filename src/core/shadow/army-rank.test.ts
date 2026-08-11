@@ -39,4 +39,15 @@ describe("armyRank", () => {
     ];
     expect(armyRank(standings)).toBe("Elite");
   });
+
+  it("average mode returns the mean grade, rounded, instead of the weakest", () => {
+    const standings = [
+      standing("Knight"), // rank 3
+      standing("Elite"), // rank 2
+      standing("Marshal"), // rank 4
+    ];
+    // weakest: Elite. average: (3+2+4)/3 = 3 -> Knight.
+    expect(armyRank(standings, "weakest")).toBe("Elite");
+    expect(armyRank(standings, "average")).toBe("Knight");
+  });
 });

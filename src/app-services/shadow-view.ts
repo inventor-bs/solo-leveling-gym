@@ -15,6 +15,7 @@ import {
   type ShadowStanding,
 } from "@/core/shadow/army-rank";
 import {
+  armyRankMode,
   shadowWeakenAfterDays,
   shadowWeakenRatePerDay,
 } from "@/core/skill/buffs";
@@ -127,7 +128,7 @@ export async function getShadowArmyView(
 
   return {
     shadows: entries,
-    armyRank: computeArmyRank(standings),
+    armyRank: computeArmyRank(standings, armyRankMode(equippedSkills)),
     weakest: weakest
       ? { name: weakest.name, daysSinceTrained: weakest.daysSinceTrained ?? 0 }
       : null,

@@ -136,6 +136,25 @@ describe("getShadowArmyView — skills", () => {
     const tankWithSkill = after.shadows.find((s) => s.id === "tank")!;
     expect(tankWithSkill.weakened).toBe(false); // 8 days is inside the extended 10-day window
   });
+
+  it("Army Discipline switches Army Rank to the average of extracted shadows", async () => {
+    // The default fixture only has Igris extracted, so weakest-link and
+    // average agree trivially with one contributor. Extract a second shadow
+    // at a different grade, trained "today" so neither is weakening, to make
+    // the two modes actually diverge.
+    await container.shadows.extract("tank", 1);
+    await container.shadows.addExp("tank", 40_000, "2026-08-06");
+
+    const before = await getShadowArmyView(container);
+    expect(before.armyRank).toBe("Normal"); // weakest-link: gated by Igris
+
+    await container.skills.seed([{ id: "army-discipline" }]);
+    await container.skills.learn("army-discipline", 100);
+    await container.skills.equip("army-discipline", 100);
+
+    const after = await getShadowArmyView(container);
+    expect(after.armyRank).not.toBe(before.armyRank);
+  });
 });
 
 describe("getShadowArmyView — Shadow Feed", () => {
