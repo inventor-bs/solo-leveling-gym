@@ -127,6 +127,13 @@
       "when": 1786433258029,
       "tag": "0017_minor_vindicator",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1786434842767,
+      "tag": "0018_mysterious_marauders",
+      "breakpoints": true
     }
   ]
 }

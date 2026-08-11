@@ -118,7 +118,14 @@ export async function startSession(
       missedSessions += 1;
     }
   }
-  const multiplier = dungeonBreakMultiplier(missedSessions);
+  // Shadow Storage's pending credit, if any, forgives one of the sessions
+  // this loop just counted as missed — consumed here so it applies to
+  // every place below that would otherwise read the pre-credit count.
+  const creditConsumed = await container.skills.consumeCredit();
+  const effectiveMissedSessions = creditConsumed
+    ? Math.max(0, missedSessions - 1)
+    : missedSessions;
+  const multiplier = dungeonBreakMultiplier(effectiveMissedSessions);
 
   // An override only counts if its type was actually bought. A missing
   // unlock silently falls back to standard rather than failing the call:
@@ -150,7 +157,7 @@ export async function startSession(
       exerciseId: exercise.id,
       name: exercise.name,
       muscle: exercise.muscle,
-      targetSets: carriedSets(slot.targetSets, missedSessions),
+      targetSets: carriedSets(slot.targetSets, effectiveMissedSessions),
       repMin: slot.repMin,
       repMax: slot.repMax,
       suggestedWeight: decision.weight,
@@ -162,8 +169,12 @@ export async function startSession(
   }
 
   const events: DomainEvent[] = [];
-  if (missedSessions > 0) {
-    events.push({ type: "DungeonBreak", missedSessions, multiplier });
+  if (effectiveMissedSessions > 0) {
+    events.push({
+      type: "DungeonBreak",
+      missedSessions: effectiveMissedSessions,
+      multiplier,
+    });
   }
 
   const result: StartSessionResult = {
@@ -172,7 +183,7 @@ export async function startSession(
     programDayId: input.programDayId,
     startedAt: now,
     plan,
-    dungeonBreak: { missedSessions, multiplier },
+    dungeonBreak: { missedSessions: effectiveMissedSessions, multiplier },
     events,
   };
   await container.idempotency.remember(input.clientActionId, result, now);

@@ -17,3 +17,4 @@ export * from "./mitigation";
 export * from "./skill";
 export * from "./quest-override";
 export * from "./weekly-schedule-swap";
+export * from "./session-bank";

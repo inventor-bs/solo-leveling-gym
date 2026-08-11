@@ -325,6 +325,55 @@ describe("startSession — dungeon break", () => {
       : 0;
     expect(missedWithSwap).toBe(missedWithoutSwap - 1);
   });
+
+  it("consumes one pending Shadow Storage credit, reducing missedSessions by 1", async () => {
+    // Same fixture as "carries one skipped session forward at +20 percent"
+    // above: trained Monday 2026-08-03, skipped Wednesday, now Friday
+    // 2026-08-07 — one scheduled day missed by default.
+    const c = await containerOn("2026-08-07T02:00:00.000Z");
+    await c.hunters.create({ name: "Jin-Woo", createdAt: 1 });
+    await c.training.createSession({
+      id: "s1",
+      day: "2026-08-03",
+      programDayId: "upper-a",
+      startedAt: 1,
+    });
+    await c.training.completeSession("s1", 2, "C");
+
+    const baseline = await startSession(c, {
+      programDayId: "upper-b",
+      clientActionId: "credit-base",
+    });
+    expect(baseline.ok).toBe(true);
+    const missedWithoutCredit = baseline.ok
+      ? baseline.value.dungeonBreak.missedSessions
+      : 0;
+    expect(missedWithoutCredit).toBeGreaterThan(0);
+
+    await c.skills.seed([{ id: "shadow-storage" }]);
+    await c.skills.deposit("some-session-id", 100);
+    await c.skills.withdraw(); // bankedSessions -> 0, pendingCredits -> 1
+
+    const withCredit = await startSession(c, {
+      programDayId: "upper-b",
+      clientActionId: "credit-used",
+    });
+    expect(withCredit.ok).toBe(true);
+    const missedWithCredit = withCredit.ok
+      ? withCredit.value.dungeonBreak.missedSessions
+      : 0;
+    expect(missedWithCredit).toBe(missedWithoutCredit - 1);
+
+    // The credit is consumed — a third call gets no further reduction.
+    const afterConsumption = await startSession(c, {
+      programDayId: "upper-b",
+      clientActionId: "credit-gone",
+    });
+    const missedAfter = afterConsumption.ok
+      ? afterConsumption.value.dungeonBreak.missedSessions
+      : 0;
+    expect(missedAfter).toBe(missedWithoutCredit);
+  });
 });
 
 describe("startSession — dungeon types", () => {
