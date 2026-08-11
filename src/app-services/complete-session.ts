@@ -63,7 +63,10 @@ import type { TrainingDay } from "@/core/shared/training-day";
 import type { Kg } from "@/core/shared/units";
 import { awardEarnedTitles } from "./award-titles";
 import { equippedTitleId } from "./equipped-title";
-import { shadowExpMultiplier } from "@/core/skill/buffs";
+import {
+  bloodlustGoldMultiplier,
+  shadowExpMultiplier,
+} from "@/core/skill/buffs";
 
 export type ChallengeOutcome = {
   type: ChallengeType;
@@ -254,9 +257,12 @@ export async function completeSession(
     lastExitAt !== null &&
     (await container.training.completedSessionCountSince(lastExitAt)) === 0;
 
+  const equippedSkills = new Set(await container.skills.equippedIds());
+
   const rankGold = Math.round(
     goldForDungeonRank(dungeonRank) *
       sessionGoldMultiplier(equipped, startedInTheMorning) *
+      bloodlustGoldMultiplier(equippedSkills, dungeonRank) *
       challengeMultiplier,
   );
   const expAwarded = makeExp(
@@ -294,7 +300,6 @@ export async function completeSession(
     fatigue: newFatigue,
   });
 
-  const equippedSkills = new Set(await container.skills.equippedIds());
   const legionMultiplier = shadowExpMultiplier(equippedSkills);
 
   for (const [muscle, volume] of Object.entries(volumeByGroup) as [

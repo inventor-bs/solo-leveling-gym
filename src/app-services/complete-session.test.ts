@@ -543,6 +543,96 @@ describe("completeSession — title buffs", () => {
   });
 });
 
+describe("completeSession — skill buffs", () => {
+  /**
+   * Level 10 with a tying prior session (the same suppression technique the
+   * title-buff tests above use) keeps this test's gold delta down to
+   * rankGold alone: no PR bonus, since the prior session ties session-1's
+   * e1RM rather than beating it, and no level-up bonus, since level 10
+   * needs far more EXP than one session awards. Seven more prior sessions
+   * logged at a lower volume than session-1's own set pull the 8-session
+   * rolling average down enough that session-1's volume clears the B-Rank
+   * ratio threshold (1.1).
+   */
+  async function containerForBloodlustTest() {
+    const container = await containerWithLoggedSession();
+    await container.hunters.update({ level: 10, exp: 0 });
+    await container.training.createSession({
+      id: "prior-bench",
+      day: "2026-08-04",
+      programDayId: "upper-a",
+      startedAt: 0,
+    });
+    await container.training.upsertSetLog({
+      id: "prior-bench-set",
+      sessionId: "prior-bench",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 6,
+      weight: 80,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+    await container.training.completeSession("prior-bench", 0, "C");
+
+    for (let i = 0; i < 7; i += 1) {
+      await container.training.createSession({
+        id: `hist-${i}`,
+        day: "2026-08-01",
+        programDayId: "upper-a",
+        startedAt: i,
+      });
+      await container.training.upsertSetLog({
+        id: `hist-set-${i}`,
+        sessionId: `hist-${i}`,
+        exerciseId: "bench-press",
+        setIndex: 0,
+        reps: 5,
+        weight: 80,
+        completed: true,
+        isPr: false,
+        loggedAt: i,
+      });
+      await container.training.completeSession(`hist-${i}`, i + 1, "C");
+    }
+    return container;
+  }
+
+  it("Bloodlust adds 50% gold on a B-Rank or better dungeon", async () => {
+    // Same-fixture A/B comparison: two identical setups except for whether
+    // Bloodlust is equipped, comparing the resulting gold rather than
+    // hardcoding an expected literal.
+    const baseline = await containerForBloodlustTest();
+    const baselineResult = await completeSession(baseline, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    expect(baselineResult.ok).toBe(true);
+    if (!baselineResult.ok) return;
+    expect(["B", "A"]).toContain(baselineResult.value.rank);
+
+    const withBloodlust = await containerForBloodlustTest();
+    await withBloodlust.skills.seed([{ id: "bloodlust" }]);
+    await withBloodlust.skills.learn("bloodlust", 100);
+    await withBloodlust.skills.equip("bloodlust", 100);
+    const bloodlustResult = await completeSession(withBloodlust, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    expect(bloodlustResult.ok).toBe(true);
+    if (!bloodlustResult.ok) return;
+
+    expect(bloodlustResult.value.rank).toBe(baselineResult.value.rank);
+    expect(bloodlustResult.value.goldAwarded).toBe(
+      Math.round(baselineResult.value.goldAwarded * 1.5),
+    );
+    expect(bloodlustResult.value.expAwarded).toBe(
+      baselineResult.value.expAwarded,
+    );
+  });
+});
+
 describe("completeSession — PR and level-up income", () => {
   it("pays 150 gold for the session's one PR, on top of the rank reward", async () => {
     const container = await containerWithLoggedSession();
