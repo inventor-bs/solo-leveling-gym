@@ -851,3 +851,24 @@ describe("runDailyReset / runGraceReset — a deferred day must not wrongly fail
     expect((await container.hunters.get())?.gold).toBe(before + 600 + 500);
   });
 });
+
+describe("runDailyReset — fatigue decay", () => {
+  it("decays fatigue for yesterday, faster when Advanced Regeneration is equipped", async () => {
+    await container.hunters.update({ fatigue: 50 });
+    // No session logged yesterday in this fixture — decay uses the well-rested rate.
+    await runDailyReset(container);
+    const restedOnly = (await container.hunters.get())?.fatigue;
+    expect(restedOnly).toBe(50 - 18); // FATIGUE_TUNING.decayPerDayWellRested
+
+    await container.hunters.update({ fatigue: 50 });
+    await container.skills.seed([{ id: "advanced-regeneration" }]);
+    await container.skills.learn("advanced-regeneration", 100);
+    await container.skills.equip("advanced-regeneration", 100);
+    // fixedClock has no advance() — move the reset's "today" forward a day by
+    // swapping in a clock frozen 24h later, so this is not a same-day rerun.
+    container.clock = fixedClock("2026-08-06T17:05:00.000Z");
+    await runDailyReset(container);
+    const withSkill = (await container.hunters.get())?.fatigue;
+    expect(withSkill).toBe(50 - Math.round(18 * 1.25));
+  });
+});

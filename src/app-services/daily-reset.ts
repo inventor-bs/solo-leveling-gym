@@ -13,6 +13,8 @@ import { isPerfectWeek } from "@/core/economy/perfect-week";
 import { PERFECT_WEEK_GOLD } from "@/core/economy/pricing";
 import { wagerPayout, wagerWon } from "@/core/economy/wager";
 import { isQuestComplete } from "@/core/quest/daily-quest";
+import { decayFatigue } from "@/core/hunter/fatigue";
+import { fatigueDecayMultiplier } from "@/core/skill/buffs";
 import type { QuestStatus } from "@/infra/db/schema/quest";
 import type { Container } from "@/server/container";
 import { ensureDailyQuest } from "./ensure-daily-quest";
@@ -349,6 +351,34 @@ export async function runDailyReset(
     events.push(...weekly.events);
   };
 
+  /**
+   * Fatigue is the one stat meant to go down, and only rest earns that —
+   * so, like the milestone and economy work above, this must run on EVERY
+   * reset regardless of penalty state. A hunter stuck in the Penalty Zone
+   * still rests overnight; the System does not get to suspend that.
+   *
+   * decayFatigue itself never touches storage beyond the single write
+   * below — it only computes the new value from what's already there.
+   */
+  const runFatigueDecay = async (): Promise<void> => {
+    const hunter = await container.hunters.get();
+    if (!hunter) return;
+
+    const trainedYesterday =
+      (
+        await container.training.completedSessionDaysBetween(
+          yesterday,
+          yesterday,
+        )
+      ).length > 0;
+
+    const equippedSkills = new Set(await container.skills.equippedIds());
+    const decayed = decayFatigue(hunter.fatigue, 1, !trainedYesterday);
+    const multiplier = fatigueDecayMultiplier(equippedSkills);
+    const bonus = Math.round((hunter.fatigue - decayed) * (multiplier - 1));
+    await container.hunters.update({ fatigue: Math.max(0, decayed - bonus) });
+  };
+
   // No punishment stacks on a punishment. While an episode is open the quest
   // is left unjudged entirely, so the debt stays at exactly one Survival Quest
   // however long the hunter is stuck.
@@ -358,6 +388,7 @@ export async function runDailyReset(
     await ensureDailyQuest(container, today);
     await runEconomyUpkeep();
     await runMilestones();
+    await runFatigueDecay();
     return {
       today,
       yesterday,
@@ -440,6 +471,7 @@ export async function runDailyReset(
 
   await runEconomyUpkeep();
   await runMilestones();
+  await runFatigueDecay();
 
   return {
     today,
