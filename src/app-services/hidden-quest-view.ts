@@ -1,4 +1,9 @@
-import { SEVENTH_DAY } from "@/core/quest/hidden-quest";
+import {
+  SEVENTH_DAY,
+  FIVE_DAY_STREAK,
+  FIRST_RECORD,
+  EARLY_RISER,
+} from "@/core/quest/hidden-quest";
 import type { Container } from "@/server/container";
 import { revealHiddenQuests } from "./reveal-hidden-quests";
 
@@ -12,6 +17,9 @@ export type HiddenQuestEntry = {
 
 const REVEAL_LINES = new Map<string, string>([
   [SEVENTH_DAY.id, SEVENTH_DAY.revealLine],
+  [FIVE_DAY_STREAK.id, FIVE_DAY_STREAK.revealLine],
+  [FIRST_RECORD.id, FIRST_RECORD.revealLine],
+  [EARLY_RISER.id, EARLY_RISER.revealLine],
 ]);
 
 /**

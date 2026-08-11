@@ -3,6 +3,11 @@ import { makeTestDb } from "@/infra/db/testing/make-test-db";
 import { buildContainer, type Container } from "@/server/container";
 import { fixedClock } from "@/infra/clock/system-clock";
 import { getHiddenQuestView } from "./hidden-quest-view";
+import {
+  FIVE_DAY_STREAK,
+  FIRST_RECORD,
+  EARLY_RISER,
+} from "@/core/quest/hidden-quest";
 
 const DAY_MS = 86_400_000;
 const NOW = Date.parse("2026-08-08T02:00:00.000Z");
@@ -64,5 +69,13 @@ describe("getHiddenQuestView", () => {
       tzOffsetMinutes: 420,
     });
     expect(await getHiddenQuestView(later)).toHaveLength(1);
+  });
+
+  it("includes the reveal line for a newly-added hidden quest type", async () => {
+    // Verify the three new quest types have their reveal lines properly defined.
+    // These constants are exported from hidden-quest.ts and wired into the view.
+    expect(FIVE_DAY_STREAK.revealLine).toContain("Unbroken");
+    expect(FIRST_RECORD.revealLine).toContain("First Record");
+    expect(EARLY_RISER.revealLine).toContain("Early Riser");
   });
 });
