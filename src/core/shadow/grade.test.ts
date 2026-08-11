@@ -59,4 +59,16 @@ describe("weakenedExp", () => {
   it("treats a negative day count as no decay", () => {
     expect(weakenedExp(20_000, -5)).toBe(20_000);
   });
+
+  it("accepts an overridden grace window and decay rate", () => {
+    // A longer grace window: still inside it at a day count that would
+    // already be decaying under the default window.
+    expect(weakenedExp(10_000, 8, 10)).toBe(10_000);
+    expect(weakenedExp(10_000, 7)).not.toBe(10_000);
+
+    // A slower decay rate, same grace window: less EXP lost per day.
+    const defaultDecay = weakenedExp(10_000, 10);
+    const slowerDecay = weakenedExp(10_000, 10, WEAKEN_AFTER_DAYS, 0.01);
+    expect(slowerDecay).toBeGreaterThan(defaultDecay);
+  });
 });

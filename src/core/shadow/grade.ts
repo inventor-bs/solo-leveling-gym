@@ -40,12 +40,17 @@ function gradeIndex(grade: ShadowGrade): number {
  * floor is what makes "at most one grade" a property of the function rather
  * than a rule someone has to remember to enforce elsewhere.
  */
-export function weakenedExp(storedExp: number, daysInactive: number): number {
+export function weakenedExp(
+  storedExp: number,
+  daysInactive: number,
+  afterDays: number = WEAKEN_AFTER_DAYS,
+  ratePerDay: number = WEAKEN_RATE_PER_DAY,
+): number {
   const days = Math.max(0, Math.floor(daysInactive));
-  if (days < WEAKEN_AFTER_DAYS) return storedExp;
+  if (days < afterDays) return storedExp;
 
-  const decayDays = days - WEAKEN_AFTER_DAYS + 1;
-  const decayed = storedExp * Math.pow(1 - WEAKEN_RATE_PER_DAY, decayDays);
+  const decayDays = days - afterDays + 1;
+  const decayed = storedExp * Math.pow(1 - ratePerDay, decayDays);
 
   const currentGrade = gradeForExp(storedExp);
   const currentIdx = gradeIndex(currentGrade);

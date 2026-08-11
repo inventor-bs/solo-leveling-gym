@@ -14,6 +14,10 @@ import {
   armyRank as computeArmyRank,
   type ShadowStanding,
 } from "@/core/shadow/army-rank";
+import {
+  shadowWeakenAfterDays,
+  shadowWeakenRatePerDay,
+} from "@/core/skill/buffs";
 import type { Container } from "@/server/container";
 
 export type ShadowViewEntry = {
@@ -45,6 +49,9 @@ export async function getShadowArmyView(
       f.extendedUntilDay,
     ]),
   );
+  const equippedSkills = new Set(await container.skills.equippedIds());
+  const afterDays = shadowWeakenAfterDays(equippedSkills);
+  const ratePerDay = shadowWeakenRatePerDay(equippedSkills);
 
   const entries: ShadowViewEntry[] = rows.map((row) => {
     const extracted = row.extractedAt !== null;
@@ -82,7 +89,7 @@ export async function getShadowArmyView(
     const effectiveExp =
       adjustedDaysInactive === null
         ? row.exp
-        : weakenedExp(row.exp, adjustedDaysInactive);
+        : weakenedExp(row.exp, adjustedDaysInactive, afterDays, ratePerDay);
 
     // Bellion has no grade ladder by design — it's extracted-or-not only.
     const grade = row.muscle === null ? null : gradeForExp(effectiveExp);

@@ -115,6 +115,29 @@ describe("getShadowArmyView", () => {
   });
 });
 
+describe("getShadowArmyView — skills", () => {
+  it("Iron Body extends the grace window before a shadow starts weakening", async () => {
+    // Tank isn't extracted on a fresh roster, so extract it and give it exp
+    // trained 8 days before "today" (the fixed clock in beforeEach is
+    // 2026-08-06) — inside Iron Body's 10-day window, but past the default
+    // 7-day one.
+    await container.shadows.extract("tank", 1);
+    await container.shadows.addExp("tank", 10_000, "2026-07-29");
+
+    const before = await getShadowArmyView(container);
+    const tank = before.shadows.find((s) => s.id === "tank")!;
+    expect(tank.weakened).toBe(true); // default 7-day window: already weakening
+
+    await container.skills.seed([{ id: "iron-body" }]);
+    await container.skills.learn("iron-body", 100);
+    await container.skills.equip("iron-body", 100);
+
+    const after = await getShadowArmyView(container);
+    const tankWithSkill = after.shadows.find((s) => s.id === "tank")!;
+    expect(tankWithSkill.weakened).toBe(false); // 8 days is inside the extended 10-day window
+  });
+});
+
 describe("getShadowArmyView — Shadow Feed", () => {
   it("holds a fed shadow at full strength past the weakening threshold", async () => {
     const container = await containerWithShadows("2026-08-15");
