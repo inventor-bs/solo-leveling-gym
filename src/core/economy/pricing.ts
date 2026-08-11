@@ -58,6 +58,10 @@ export const PROGRAM_ARNOLD_MIN_LEVEL = 35;
 export const EXERCISE_UNLOCK_COST = 400;
 export const DUNGEON_TYPE_COST = 1_200;
 
+// ------------------------------------------------------------------ skill
+
+export const RUNE_STONE_COST = 3_000;
+
 // ----------------------------------------------------------------- wager
 
 /** A stake may never exceed this fraction of the gold currently held. */
