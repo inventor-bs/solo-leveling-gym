@@ -13,7 +13,7 @@ export type LearnSkillError =
   | { type: "insufficient-ap" };
 
 /**
- * Spends no gold. AP is earned purely from level and rank (Task 2), so
+ * Spends no gold. AP is earned purely from level and rank, so
  * there is nothing here for a purchase to bypass — every check is a read.
  */
 export async function learnSkill(
