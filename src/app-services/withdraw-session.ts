@@ -20,10 +20,11 @@ export async function withdrawSession(
     return err({ type: "skill-not-equipped" });
   }
 
-  const bank = await container.skills.bank();
-  if (bank.bankedSessions <= 0) return err({ type: "no-banked-sessions" });
+  // withdraw() itself is the atomic guard now — no separate read-then-check
+  // here, which would leave the same TOCTOU gap the repo method just closed.
+  const withdrew = await container.skills.withdraw();
+  if (!withdrew) return err({ type: "no-banked-sessions" });
 
-  await container.skills.withdraw();
   const updated = await container.skills.bank();
   return ok({ pendingCredits: updated.pendingCredits });
 }

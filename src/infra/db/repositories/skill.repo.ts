@@ -160,25 +160,42 @@ export class SkillRepo {
       .where(eq(sessionBank.id, SESSION_BANK_ID));
   }
 
-  /** Moves one banked session into a pending credit, ready to be consumed by the next startSession call. */
-  async withdraw(): Promise<void> {
-    await this.db
+  /**
+   * Moves one banked session into a pending credit, ready to be consumed by
+   * the next startSession call. A single atomic conditional UPDATE rather
+   * than a read-then-write: the `bankedSessions > 0` guard lives in the same
+   * statement that decrements it, so two concurrent calls can never both
+   * pass a separate check and drive the counter negative. Returns whether a
+   * row was actually changed, so the caller can tell "withdrew" from
+   * "nothing to withdraw" without a second read.
+   */
+  async withdraw(): Promise<boolean> {
+    const result = await this.db
       .update(sessionBank)
       .set({
         bankedSessions: sql`${sessionBank.bankedSessions} - 1`,
         pendingCredits: sql`${sessionBank.pendingCredits} + 1`,
       })
-      .where(eq(sessionBank.id, SESSION_BANK_ID));
+      .where(
+        sql`${sessionBank.id} = ${SESSION_BANK_ID} AND ${sessionBank.bankedSessions} > 0`,
+      );
+    return result.rowsAffected > 0;
   }
 
-  /** Consumes exactly one pending credit, if any. Called once per startSession. */
+  /**
+   * Consumes exactly one pending credit, if any. Called once per
+   * startSession. Same atomic-conditional-UPDATE shape as `withdraw()`: the
+   * `pendingCredits > 0` guard is part of the UPDATE's own WHERE clause,
+   * not a preceding SELECT, so two concurrent callers can never both read
+   * "1 credit available" and both decrement it to -1.
+   */
   async consumeCredit(): Promise<boolean> {
-    const current = await this.bank();
-    if (current.pendingCredits <= 0) return false;
-    await this.db
+    const result = await this.db
       .update(sessionBank)
       .set({ pendingCredits: sql`${sessionBank.pendingCredits} - 1` })
-      .where(eq(sessionBank.id, SESSION_BANK_ID));
-    return true;
+      .where(
+        sql`${sessionBank.id} = ${SESSION_BANK_ID} AND ${sessionBank.pendingCredits} > 0`,
+      );
+    return result.rowsAffected > 0;
   }
 }

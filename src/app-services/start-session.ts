@@ -121,7 +121,11 @@ export async function startSession(
   // Shadow Storage's pending credit, if any, forgives one of the sessions
   // this loop just counted as missed — consumed here so it applies to
   // every place below that would otherwise read the pre-credit count.
-  const creditConsumed = await container.skills.consumeCredit();
+  // Only spent when there is an actual miss to apply it to: with zero
+  // missed sessions there is nothing to forgive, and burning a hunter's
+  // credit on an on-schedule session would waste it for no benefit.
+  const creditConsumed =
+    missedSessions > 0 && (await container.skills.consumeCredit());
   const effectiveMissedSessions = creditConsumed
     ? Math.max(0, missedSessions - 1)
     : missedSessions;

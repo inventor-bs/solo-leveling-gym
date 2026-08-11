@@ -83,4 +83,27 @@ describe("depositSession", () => {
     const second = await depositSession(container);
     expect(second).toEqual({ ok: false, error: { type: "already-deposited" } });
   });
+
+  it("treats a Shadow-Exchange-swapped weekday as scheduled, not a surplus, for the week the swap applies to", async () => {
+    // Lower A is seeded on weekday 3 (Wednesday). Swap it for Sunday
+    // (weekday 7) for the ISO week starting 2026-08-10, then train on that
+    // Sunday (2026-08-16). startSession would already treat that Sunday as
+    // scheduled and use it to forgive the missed Wednesday — depositSession
+    // must agree, or the same real session could also bank a credit and
+    // forgive a second, unrelated miss.
+    await container.skills.recordSwap("2026-08-10", 3, 7, 1);
+    await container.training.createSession({
+      id: "s1",
+      day: "2026-08-16",
+      programDayId: "lower-a",
+      startedAt: 0,
+    });
+    await container.training.completeSession("s1", 100, "C");
+
+    const result = await depositSession(container);
+    expect(result).toEqual({
+      ok: false,
+      error: { type: "not-a-surplus-session" },
+    });
+  });
 });

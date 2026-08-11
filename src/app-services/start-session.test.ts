@@ -374,6 +374,39 @@ describe("startSession — dungeon break", () => {
       : 0;
     expect(missedAfter).toBe(missedWithoutCredit);
   });
+
+  it("does not consume a pending Shadow Storage credit when there was no miss to apply it to", async () => {
+    // Same fixture as "leaves the plan alone when the previous scheduled day
+    // was trained" above: trained Monday 2026-08-03, now Wednesday
+    // 2026-08-05 — nothing missed, so a credit has nothing to forgive.
+    const c = await containerOn("2026-08-05T02:00:00.000Z");
+    await c.hunters.create({ name: "Jin-Woo", createdAt: 1 });
+    await c.training.createSession({
+      id: "s1",
+      day: "2026-08-03",
+      programDayId: "upper-a",
+      startedAt: 1,
+    });
+    await c.training.completeSession("s1", 2, "C");
+
+    await c.skills.seed([{ id: "shadow-storage" }]);
+    await c.skills.deposit("some-session-id", 100);
+    await c.skills.withdraw(); // bankedSessions -> 0, pendingCredits -> 1
+
+    const result = await startSession(c, {
+      programDayId: "lower-a",
+      clientActionId: "no-miss-credit",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.dungeonBreak.missedSessions).toBe(0);
+    }
+
+    // The credit must still be sitting there, untouched — burning it on an
+    // on-schedule session would waste it for no benefit.
+    const bank = await c.skills.bank();
+    expect(bank.pendingCredits).toBe(1);
+  });
 });
 
 describe("startSession — dungeon types", () => {

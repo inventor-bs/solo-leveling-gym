@@ -38,4 +38,34 @@ describe("SkillRepo", () => {
     await repo.purchaseSlot();
     expect(await repo.slotsPurchased()).toBe(1);
   });
+
+  it("consumeCredit never drives pendingCredits negative across repeated calls", async () => {
+    await repo.deposit("s1", 100);
+    await repo.withdraw(); // bankedSessions -> 0, pendingCredits -> 1
+
+    const first = await repo.consumeCredit();
+    const second = await repo.consumeCredit();
+    const third = await repo.consumeCredit();
+
+    expect(first).toBe(true);
+    expect(second).toBe(false);
+    expect(third).toBe(false);
+    expect((await repo.bank()).pendingCredits).toBe(0);
+  });
+
+  it("withdraw never drives bankedSessions negative across repeated calls", async () => {
+    await repo.deposit("s1", 100);
+
+    const first = await repo.withdraw();
+    const second = await repo.withdraw();
+    const third = await repo.withdraw();
+
+    expect(first).toBe(true);
+    expect(second).toBe(false);
+    expect(third).toBe(false);
+    const bank = await repo.bank();
+    expect(bank.bankedSessions).toBe(0);
+    // Only the one successful withdraw should have produced a credit.
+    expect(bank.pendingCredits).toBe(1);
+  });
 });
