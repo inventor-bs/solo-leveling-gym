@@ -259,6 +259,36 @@ describe("completeSession — shadow EXP", () => {
       ).toBe(false);
     }
   });
+
+  it("Legion adds 10% to every shadow's EXP gain from this session", async () => {
+    // Run the same fixture session twice — once with Legion equipped, once
+    // without — and compare the resulting gains rather than hardcoding an
+    // expected number, which would just restate the implementation.
+    const baseline = await containerWithLoggedSession();
+    await seedShadows(baseline);
+    await completeSession(baseline, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    const baselineIgris = await baseline.shadows.byId("igris");
+    const baselineGain = baselineIgris?.exp ?? 0;
+
+    const withLegion = await containerWithLoggedSession();
+    await seedShadows(withLegion);
+    await withLegion.skills.seed([{ id: "legion" }]);
+    await withLegion.skills.learn("legion", 100);
+    await withLegion.skills.equip("legion", 100);
+    await completeSession(withLegion, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    const legionIgris = await withLegion.shadows.byId("igris");
+    const legionGain = legionIgris?.exp ?? 0;
+
+    expect(legionGain).toBeGreaterThan(baselineGain);
+    expect(legionGain).toBe(Math.round(baselineGain * 1.1));
+    expect(legionGain % 1).toBe(0); // still rounded to a whole EXP amount
+  });
 });
 
 describe("completeSession — title awarding", () => {

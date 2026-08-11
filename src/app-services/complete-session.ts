@@ -63,6 +63,7 @@ import type { TrainingDay } from "@/core/shared/training-day";
 import type { Kg } from "@/core/shared/units";
 import { awardEarnedTitles } from "./award-titles";
 import { equippedTitleId } from "./equipped-title";
+import { shadowExpMultiplier } from "@/core/skill/buffs";
 
 export type ChallengeOutcome = {
   type: ChallengeType;
@@ -293,6 +294,9 @@ export async function completeSession(
     fatigue: newFatigue,
   });
 
+  const equippedSkills = new Set(await container.skills.equippedIds());
+  const legionMultiplier = shadowExpMultiplier(equippedSkills);
+
   for (const [muscle, volume] of Object.entries(volumeByGroup) as [
     MuscleGroup,
     number,
@@ -300,7 +304,7 @@ export async function completeSession(
     if (volume <= 0 || muscle === "cardio") continue; // cardio only grows via log-run
     await container.shadows.addExp(
       shadowForMuscle(muscle),
-      volume,
+      Math.round(volume * legionMultiplier),
       session.day,
     );
   }
