@@ -3,11 +3,7 @@ import { makeTestDb } from "@/infra/db/testing/make-test-db";
 import { buildContainer, type Container } from "@/server/container";
 import { fixedClock } from "@/infra/clock/system-clock";
 import { getHiddenQuestView } from "./hidden-quest-view";
-import {
-  FIVE_DAY_STREAK,
-  FIRST_RECORD,
-  EARLY_RISER,
-} from "@/core/quest/hidden-quest";
+import { EARLY_RISER, EARLY_RISER_GOLD } from "@/core/quest/hidden-quest";
 
 const DAY_MS = 86_400_000;
 const NOW = Date.parse("2026-08-08T02:00:00.000Z");
@@ -72,10 +68,19 @@ describe("getHiddenQuestView", () => {
   });
 
   it("includes the reveal line for a newly-added hidden quest type", async () => {
-    // Verify the three new quest types have their reveal lines properly defined.
-    // These constants are exported from hidden-quest.ts and wired into the view.
-    expect(FIVE_DAY_STREAK.revealLine).toContain("Unbroken");
-    expect(FIRST_RECORD.revealLine).toContain("First Record");
-    expect(EARLY_RISER.revealLine).toContain("Early Riser");
+    const container = await containerAt(7);
+    // Manually reveal the quest (same as revealHiddenQuests would do internally)
+    // to verify the reveal line is properly wired in getHiddenQuestView.
+    await container.hiddenQuests.reveal({
+      id: EARLY_RISER.id,
+      name: EARLY_RISER.name,
+      revealedDay: "2026-08-08",
+      revealedAt: NOW,
+      goldAwarded: EARLY_RISER_GOLD,
+    });
+
+    const view = await getHiddenQuestView(container);
+    const entry = view.find((e) => e.id === "early-riser");
+    expect(entry?.revealLine).toContain("Early Riser");
   });
 });
