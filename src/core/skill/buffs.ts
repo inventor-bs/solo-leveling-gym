@@ -56,7 +56,7 @@ export function bloodlustGoldMultiplier(
   return BLOODLUST_MIN_RANK.includes(rank) ? BLOODLUST_GOLD_MULTIPLIER : 1;
 }
 
-/** The BOSS-set multiplier before Vital Strike — spec §5.2's baseline. */
+/** The BOSS-set multiplier that applies when Vital Strike is not equipped. */
 export const BOSS_SET_DEFAULT_MULTIPLIER = 1.5;
 const VITAL_STRIKE_MULTIPLIER = 2;
 
