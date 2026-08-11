@@ -9,6 +9,7 @@ import {
 } from "@/core/shared/training-day";
 import { kg, reps } from "@/core/shared/units";
 import { effectiveScheduledWeekdays } from "@/core/skill/schedule-swap";
+import type { WeeklyScheduleSwapRow } from "@/infra/db/schema/weekly-schedule-swap";
 import {
   carriedSets,
   dungeonBreakMultiplier,
@@ -94,11 +95,20 @@ export async function startSession(
     : day;
 
   // A Shadow Exchange swap only changes which weekday counts as scheduled
-  // for the one ISO week it names — every other week in the gap still
-  // uses the base program schedule, so the swap lookup runs per cursor day.
+  // for the one ISO week it names — every other week in the gap still uses
+  // the base program schedule. A long-dormant gap can cross several ISO
+  // weeks, so the lookup key varies with cursor — but never more than once
+  // per distinct week, cached here so a 100-day gap costs one query per
+  // week touched rather than one query per day.
+  const swapsByWeek = new Map<string, WeeklyScheduleSwapRow | null>();
   let missedSessions = 0;
   for (let cursor = windowStart; cursor < day; cursor = addDays(cursor, 1)) {
-    const swap = await container.skills.swapForWeek(startOfIsoWeek(cursor));
+    const weekStart = startOfIsoWeek(cursor);
+    let swap = swapsByWeek.get(weekStart);
+    if (swap === undefined) {
+      swap = await container.skills.swapForWeek(weekStart);
+      swapsByWeek.set(weekStart, swap);
+    }
     const scheduledWeekdays = effectiveScheduledWeekdays(
       baseWeekdays,
       swap,

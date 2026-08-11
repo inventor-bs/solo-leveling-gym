@@ -274,6 +274,57 @@ describe("startSession — dungeon break", () => {
     expect(missedWithSwap).toBeLessThan(missedWithoutSwap);
     expect(missedWithSwap).toBe(0);
   });
+
+  it("REGRESSION: a swap recorded for a later week does not erase a miss in an earlier week", async () => {
+    // Same 12-day dormancy fixture as "three skipped sessions still cap the
+    // carry" above: trained Monday 2026-08-03, now Saturday 2026-08-15. The
+    // gap spans two ISO weeks — 2026-08-03..09 and 2026-08-10..16 — each
+    // with its own missed Wednesday (the 5th and the 12th).
+    const baseline = await containerOn("2026-08-15T02:00:00.000Z");
+    await baseline.hunters.create({ name: "Jin-Woo", createdAt: 1 });
+    await baseline.training.createSession({
+      id: "s1",
+      day: "2026-08-03",
+      programDayId: "upper-a",
+      startedAt: 1,
+    });
+    await baseline.training.completeSession("s1", 2, "C");
+    const withoutSwap = await startSession(baseline, {
+      programDayId: "lower-b",
+      clientActionId: "no-swap-2",
+    });
+    expect(withoutSwap.ok).toBe(true);
+    const missedWithoutSwap = withoutSwap.ok
+      ? withoutSwap.value.dungeonBreak.missedSessions
+      : 0;
+    expect(missedWithoutSwap).toBeGreaterThan(2);
+
+    const c = await containerOn("2026-08-15T02:00:00.000Z");
+    await c.hunters.create({ name: "Jin-Woo", createdAt: 1 });
+    await c.training.createSession({
+      id: "s1",
+      day: "2026-08-03",
+      programDayId: "upper-a",
+      startedAt: 1,
+    });
+    await c.training.completeSession("s1", 2, "C");
+    // Record a swap directly for the week of 2026-08-10 — the LATER of the
+    // two weeks the gap spans — trading its Wednesday (the 12th) for a
+    // Sunday. This must only cancel that one later-week miss; the earlier
+    // week's Wednesday (the 5th) belongs to a different week and has no
+    // swap recorded for it, so it must still count as missed.
+    await c.skills.recordSwap("2026-08-10", 3, 7, 1);
+
+    const withSwap = await startSession(c, {
+      programDayId: "lower-b",
+      clientActionId: "with-swap-2",
+    });
+    expect(withSwap.ok).toBe(true);
+    const missedWithSwap = withSwap.ok
+      ? withSwap.value.dungeonBreak.missedSessions
+      : 0;
+    expect(missedWithSwap).toBe(missedWithoutSwap - 1);
+  });
 });
 
 describe("startSession — dungeon types", () => {
