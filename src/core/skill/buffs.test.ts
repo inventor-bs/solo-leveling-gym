@@ -21,7 +21,9 @@ describe("skill buff functions", () => {
 
   it("fatigueDecayMultiplier is 25% faster only when equipped", () => {
     expect(fatigueDecayMultiplier(none)).toBe(1);
-    expect(fatigueDecayMultiplier(new Set(["advanced-regeneration"]))).toBe(1.25);
+    expect(fatigueDecayMultiplier(new Set(["advanced-regeneration"]))).toBe(
+      1.25,
+    );
   });
 
   it("shadowWeakenAfterDays extends the grace window only when equipped", () => {

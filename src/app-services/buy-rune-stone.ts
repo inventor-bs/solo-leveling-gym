@@ -6,7 +6,10 @@ import type { DomainEvent } from "@/core/shared/events";
 import type { Container } from "@/server/container";
 import { spendGold } from "./spend-gold";
 
-export type BuyRuneStoneResult = { slotCapacity: number; goldRemaining: number };
+export type BuyRuneStoneResult = {
+  slotCapacity: number;
+  goldRemaining: number;
+};
 
 export type BuyRuneStoneError =
   | { type: "hunter-not-found" }

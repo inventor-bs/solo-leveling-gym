@@ -39,7 +39,9 @@ describe("buyRuneStone", () => {
   it("refuses once capacity is already at the maximum", async () => {
     const purchasesNeeded = SKILL_SLOTS_MAX - SKILL_SLOTS_BASE;
     await container.hunters.create({ name: "Jin-Woo", createdAt: 0 });
-    await container.hunters.update({ gold: RUNE_STONE_COST * (purchasesNeeded + 1) });
+    await container.hunters.update({
+      gold: RUNE_STONE_COST * (purchasesNeeded + 1),
+    });
     for (let i = 0; i < purchasesNeeded; i++) {
       const r = await buyRuneStone(container);
       expect(r.ok).toBe(true);

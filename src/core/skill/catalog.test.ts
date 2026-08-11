@@ -6,7 +6,9 @@ describe("SKILL_CATALOG", () => {
     expect(SKILL_CATALOG).toHaveLength(13);
     expect(SKILL_CATALOG.filter((s) => s.branch === "body")).toHaveLength(4);
     expect(SKILL_CATALOG.filter((s) => s.branch === "shadow")).toHaveLength(4);
-    expect(SKILL_CATALOG.filter((s) => s.branch === "sovereign")).toHaveLength(5);
+    expect(SKILL_CATALOG.filter((s) => s.branch === "sovereign")).toHaveLength(
+      5,
+    );
   });
 
   it("every id is unique", () => {

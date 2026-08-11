@@ -44,7 +44,9 @@ export class SkillRepo {
     await this.db
       .update(hunterSkill)
       .set({ learnedAt: at })
-      .where(sql`${hunterSkill.skillId} = ${id} AND ${isNull(hunterSkill.learnedAt)}`);
+      .where(
+        sql`${hunterSkill.skillId} = ${id} AND ${isNull(hunterSkill.learnedAt)}`,
+      );
   }
 
   async equip(id: string, at: number): Promise<void> {

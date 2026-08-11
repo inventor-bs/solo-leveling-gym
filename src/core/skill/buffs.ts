@@ -12,7 +12,8 @@ import type { DungeonRank } from "@/core/training/dungeon-rank";
  */
 type EquippedSkills = ReadonlySet<string>;
 
-const has = (equipped: EquippedSkills, id: SkillId): boolean => equipped.has(id);
+const has = (equipped: EquippedSkills, id: SkillId): boolean =>
+  equipped.has(id);
 
 /** Tenacity: the Penalty Zone takes 5% of current EXP instead of 10%. */
 export function tenacityLossMultiplier(equipped: EquippedSkills): number {
