@@ -5,6 +5,8 @@ import { ShadowRepo } from "../repositories/shadow.repo";
 import { SHADOW_ROSTER } from "@/core/shadow/roster";
 import { TitleRepo } from "../repositories/title.repo";
 import { TITLE_CATALOG } from "@/core/title/catalog";
+import { SkillRepo } from "../repositories/skill.repo";
+import { SKILL_CATALOG } from "@/core/skill/catalog";
 
 /**
  * Runs on every deploy, after migrations. seedProgram and ShadowRepo.seed
@@ -34,6 +36,14 @@ async function main() {
   await titles.seed(
     TITLE_CATALOG.map((t) => ({ id: t.id, name: t.name, earnedAt: null })),
   );
+
+  // This CLI step is the only seed path needed for the skill catalog —
+  // unlike titles/shadows, which also needed an onboarding-time seed to
+  // cover a pre-existing production DB with no hunter row yet, every
+  // hunter already exists by the time this phase ships, so a fresh
+  // onboarding seed path would be dead code.
+  const skills = new SkillRepo(db);
+  await skills.seed(SKILL_CATALOG.map((s) => ({ id: s.id })));
 
   console.log("Seed complete.");
 }
