@@ -4,6 +4,12 @@ import {
   SEVENTH_DAY,
   SEVENTH_DAY_GOLD_PER_ACTIVE_DAY,
   SEVENTH_DAY_WINDOW_DAYS,
+  evaluateFiveDayStreak,
+  FIVE_DAY_STREAK_GOLD,
+  evaluateFirstRecord,
+  FIRST_RECORD_GOLD,
+  evaluateEarlyRiser,
+  EARLY_RISER_GOLD,
 } from "./hidden-quest";
 
 describe("evaluateSeventhDay", () => {
@@ -53,5 +59,66 @@ describe("evaluateSeventhDay", () => {
       .filter(Boolean);
     expect(sentences.length).toBeLessThanOrEqual(3);
     expect(SEVENTH_DAY.revealLine).not.toMatch(/\d/);
+  });
+});
+
+describe("evaluateFiveDayStreak", () => {
+  it("is not revealed below the 5-day threshold", () => {
+    expect(
+      evaluateFiveDayStreak({ streakDays: 4, stealthEquipped: false }),
+    ).toEqual({
+      revealed: false,
+      goldAwarded: 0,
+    });
+  });
+
+  it("reveals at the 5-day threshold and pays a flat amount", () => {
+    expect(
+      evaluateFiveDayStreak({ streakDays: 5, stealthEquipped: false }),
+    ).toEqual({
+      revealed: true,
+      goldAwarded: FIVE_DAY_STREAK_GOLD,
+    });
+  });
+
+  it("Stealth lowers the threshold to 3 days", () => {
+    expect(
+      evaluateFiveDayStreak({ streakDays: 3, stealthEquipped: false }).revealed,
+    ).toBe(false);
+    expect(
+      evaluateFiveDayStreak({ streakDays: 3, stealthEquipped: true }).revealed,
+    ).toBe(true);
+  });
+});
+
+describe("evaluateFirstRecord", () => {
+  it("is not revealed with zero PRs logged", () => {
+    expect(evaluateFirstRecord({ prCountEver: 0 })).toEqual({
+      revealed: false,
+      goldAwarded: 0,
+    });
+  });
+
+  it("reveals on the first PR", () => {
+    expect(evaluateFirstRecord({ prCountEver: 1 })).toEqual({
+      revealed: true,
+      goldAwarded: FIRST_RECORD_GOLD,
+    });
+  });
+});
+
+describe("evaluateEarlyRiser", () => {
+  it("is not revealed without an early session", () => {
+    expect(evaluateEarlyRiser({ hasEarlySession: false })).toEqual({
+      revealed: false,
+      goldAwarded: 0,
+    });
+  });
+
+  it("reveals on the first session started before 07:00", () => {
+    expect(evaluateEarlyRiser({ hasEarlySession: true })).toEqual({
+      revealed: true,
+      goldAwarded: EARLY_RISER_GOLD,
+    });
   });
 });

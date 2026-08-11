@@ -60,3 +60,76 @@ export function evaluateSeventhDay(input: SeventhDayInput): SeventhDayOutcome {
     goldAwarded: days * SEVENTH_DAY_GOLD_PER_ACTIVE_DAY,
   };
 }
+
+export const FIVE_DAY_STREAK_WINDOW_DAYS = 5;
+export const FIVE_DAY_STREAK_STEALTH_WINDOW_DAYS = 3;
+export const FIVE_DAY_STREAK_GOLD = 200;
+
+export const FIVE_DAY_STREAK: HiddenQuestDef = {
+  id: "five-day-streak",
+  name: "Unbroken",
+  revealLine:
+    "Hidden Quest complete: Unbroken. Five days, no excuses. The System was watching to see if you would blink.",
+};
+
+export type FiveDayStreakInput = {
+  readonly streakDays: number;
+  readonly stealthEquipped: boolean;
+};
+export type FiveDayStreakOutcome = {
+  readonly revealed: boolean;
+  readonly goldAwarded: number;
+};
+
+/** Stealth shortens the window to 3 days — hidden quests trigger denser when equipped. */
+export function evaluateFiveDayStreak(
+  input: FiveDayStreakInput,
+): FiveDayStreakOutcome {
+  const threshold = input.stealthEquipped
+    ? FIVE_DAY_STREAK_STEALTH_WINDOW_DAYS
+    : FIVE_DAY_STREAK_WINDOW_DAYS;
+  if (input.streakDays < threshold) return { revealed: false, goldAwarded: 0 };
+  return { revealed: true, goldAwarded: FIVE_DAY_STREAK_GOLD };
+}
+
+export const FIRST_RECORD_GOLD = 100;
+
+export const FIRST_RECORD: HiddenQuestDef = {
+  id: "first-record",
+  name: "First Record",
+  revealLine:
+    "Hidden Quest complete: First Record. The number that used to be your limit is now just a number you passed.",
+};
+
+export type FirstRecordInput = { readonly prCountEver: number };
+export type FirstRecordOutcome = {
+  readonly revealed: boolean;
+  readonly goldAwarded: number;
+};
+
+export function evaluateFirstRecord(
+  input: FirstRecordInput,
+): FirstRecordOutcome {
+  if (input.prCountEver < 1) return { revealed: false, goldAwarded: 0 };
+  return { revealed: true, goldAwarded: FIRST_RECORD_GOLD };
+}
+
+export const EARLY_RISER_GOLD = 100;
+
+export const EARLY_RISER: HiddenQuestDef = {
+  id: "early-riser",
+  name: "Early Riser",
+  revealLine:
+    "Hidden Quest complete: Early Riser. Most hunters are still asleep. You were already in the gate.",
+};
+
+export type EarlyRiserInput = { readonly hasEarlySession: boolean };
+export type EarlyRiserOutcome = {
+  readonly revealed: boolean;
+  readonly goldAwarded: number;
+};
+
+export function evaluateEarlyRiser(input: EarlyRiserInput): EarlyRiserOutcome {
+  if (!input.hasEarlySession) return { revealed: false, goldAwarded: 0 };
+  return { revealed: true, goldAwarded: EARLY_RISER_GOLD };
+}
