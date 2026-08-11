@@ -6,6 +6,10 @@ import {
   SKILL_SLOT_UNLOCK_ID,
   type HunterSkillRow,
 } from "../schema/skill";
+import {
+  weeklyScheduleSwap,
+  type WeeklyScheduleSwapRow,
+} from "../schema/weekly-schedule-swap";
 
 export type SeedSkillInput = { id: string };
 
@@ -86,5 +90,31 @@ export class SkillRepo {
       .update(skillSlotUnlock)
       .set({ slotsPurchased: sql`${skillSlotUnlock.slotsPurchased} + 1` })
       .where(eq(skillSlotUnlock.id, SKILL_SLOT_UNLOCK_ID));
+  }
+
+  /** Null when no swap has been recorded for that ISO week's Monday. */
+  async swapForWeek(weekStart: string): Promise<WeeklyScheduleSwapRow | null> {
+    const rows = await this.db
+      .select()
+      .from(weeklyScheduleSwap)
+      .where(eq(weeklyScheduleSwap.weekStart, weekStart))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  /**
+   * The primary key on `weekStart` already makes a second swap in the same
+   * week impossible at the schema level — the caller still checks first so
+   * it can return a typed error instead of letting the insert fail.
+   */
+  async recordSwap(
+    weekStart: string,
+    weekdayFrom: number,
+    weekdayTo: number,
+    at: number,
+  ): Promise<void> {
+    await this.db
+      .insert(weeklyScheduleSwap)
+      .values({ weekStart, weekdayFrom, weekdayTo, swappedAt: at });
   }
 }

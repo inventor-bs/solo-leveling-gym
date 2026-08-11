@@ -120,6 +120,13 @@
       "when": 1786432570272,
       "tag": "0016_adorable_gauntlet",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1786433258029,
+      "tag": "0017_minor_vindicator",
+      "breakpoints": true
     }
   ]
 }

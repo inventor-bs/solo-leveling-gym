@@ -3,10 +3,12 @@ import { ok, err, type Result } from "@/core/shared/result";
 import {
   addDays,
   isoWeekdayOf,
+  startOfIsoWeek,
   toTrainingDay,
   type TrainingDay,
 } from "@/core/shared/training-day";
 import { kg, reps } from "@/core/shared/units";
+import { effectiveScheduledWeekdays } from "@/core/skill/schedule-swap";
 import {
   carriedSets,
   dungeonBreakMultiplier,
@@ -85,14 +87,23 @@ export async function startSession(
   });
 
   const scheduled = await container.programs.allDays();
-  const scheduledWeekdays = new Set(scheduled.map((d) => d.weekday));
+  const baseWeekdays = new Set(scheduled.map((d) => d.weekday));
   const lastCompleted = await container.training.lastCompletedSessionDay();
   const windowStart = lastCompleted
     ? addDays(lastCompleted as TrainingDay, 1)
     : day;
 
+  // A Shadow Exchange swap only changes which weekday counts as scheduled
+  // for the one ISO week it names — every other week in the gap still
+  // uses the base program schedule, so the swap lookup runs per cursor day.
   let missedSessions = 0;
   for (let cursor = windowStart; cursor < day; cursor = addDays(cursor, 1)) {
+    const swap = await container.skills.swapForWeek(startOfIsoWeek(cursor));
+    const scheduledWeekdays = effectiveScheduledWeekdays(
+      baseWeekdays,
+      swap,
+      cursor,
+    );
     if (scheduledWeekdays.has(isoWeekdayOf(cursor))) {
       missedSessions += 1;
     }

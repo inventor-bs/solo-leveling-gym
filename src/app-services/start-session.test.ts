@@ -4,6 +4,7 @@ import { makeTestDb } from "@/infra/db/testing/make-test-db";
 import { seedProgram } from "@/infra/db/seed/program";
 import { buildContainer } from "@/server/container";
 import { startSession } from "./start-session";
+import { swapWeeklySchedule } from "./swap-weekly-schedule";
 
 async function testContainer() {
   const db = await makeTestDb();
@@ -225,6 +226,53 @@ describe("startSession — dungeon break", () => {
       expect(result.value.dungeonBreak.missedSessions).toBeGreaterThan(2);
       expect(result.value.dungeonBreak.multiplier).toBe(1.4);
     }
+  });
+
+  it("Shadow Exchange's swap changes which weekdays count as missed", async () => {
+    // Same fixture as "carries one skipped session forward at +20 percent"
+    // above: trained Monday 2026-08-03, skipped Wednesday, now Friday
+    // 2026-08-07 — one scheduled day (Wednesday) missed by default.
+    const c = await containerOn("2026-08-07T02:00:00.000Z");
+    await c.hunters.create({ name: "Jin-Woo", createdAt: 1 });
+    await c.training.createSession({
+      id: "s1",
+      day: "2026-08-03",
+      programDayId: "upper-a",
+      startedAt: 1,
+    });
+    await c.training.completeSession("s1", 2, "C");
+
+    const withoutSwap = await startSession(c, {
+      programDayId: "upper-b",
+      clientActionId: "no-swap-1",
+    });
+    expect(withoutSwap.ok).toBe(true);
+    const missedWithoutSwap = withoutSwap.ok
+      ? withoutSwap.value.dungeonBreak.missedSessions
+      : 0;
+    expect(missedWithoutSwap).toBeGreaterThan(0); // this fixture must actually have a miss to swap away
+
+    // Learn and equip Shadow Exchange, then trade the missed Wednesday
+    // (weekday 3) for Sunday (weekday 7) instead. Sunday falls after the
+    // gap window being counted (Tue-Thu), so the swap should erase the
+    // miss entirely rather than just relocating it to another day inside
+    // that window.
+    await c.skills.seed([{ id: "shadow-exchange" }]);
+    await c.skills.learn("shadow-exchange", 100);
+    await c.skills.equip("shadow-exchange", 100);
+    const swapResult = await swapWeeklySchedule(c, 3, 7);
+    expect(swapResult.ok).toBe(true);
+
+    const withSwap = await startSession(c, {
+      programDayId: "upper-b",
+      clientActionId: "with-swap-1",
+    });
+    expect(withSwap.ok).toBe(true);
+    const missedWithSwap = withSwap.ok
+      ? withSwap.value.dungeonBreak.missedSessions
+      : 0;
+    expect(missedWithSwap).toBeLessThan(missedWithoutSwap);
+    expect(missedWithSwap).toBe(0);
   });
 });
 
