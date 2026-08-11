@@ -125,6 +125,32 @@ describe("EventLogRepo", () => {
     expect(rows.map((r) => r.occurredAt)).toEqual([100, 200]);
   });
 
+  it("countByType counts only rows of the given type", async () => {
+    const at = Date.now();
+    await events.record(
+      [
+        {
+          type: "PrAchieved",
+          exerciseId: "squat",
+          newE1rm: kg(100),
+          previousE1rm: kg(90),
+        },
+        {
+          type: "PrAchieved",
+          exerciseId: "bench",
+          newE1rm: kg(60),
+          previousE1rm: kg(55),
+        },
+        { type: "SetLogged", exerciseId: "squat", setIndex: 0 },
+      ],
+      "2026-08-10" as TrainingDay,
+      at,
+    );
+    expect(await events.countByType("PrAchieved")).toBe(2);
+    expect(await events.countByType("SetLogged")).toBe(1);
+    expect(await events.countByType("LevelUp")).toBe(0);
+  });
+
   it("REGRESSION: orders by day first, even when a later day's event has an earlier occurredAt", async () => {
     // daily-reset deliberately stamps yesterday's judged events with TODAY's
     // occurredAt, so occurredAt alone is not a reliable timeline order — a

@@ -3,6 +3,7 @@ import { makeTestDb } from "@/infra/db/testing/make-test-db";
 import { buildContainer, type Container } from "@/server/container";
 import { fixedClock } from "@/infra/clock/system-clock";
 import { parseTrainingDay } from "@/core/shared/training-day";
+import { FIVE_DAY_STREAK_GOLD } from "@/core/quest/hidden-quest";
 import { seedProgram } from "@/infra/db/seed/program";
 import type { SystemVoicePort } from "@/ports/system-voice.port";
 import { ensureDailyQuest } from "./ensure-daily-quest";
@@ -404,7 +405,11 @@ describe("runDailyReset — Perfect Week", () => {
 
     const summary = await runDailyReset(container);
     expect(summary.perfectWeekAwarded).toBe(true);
-    expect((await container.hunters.get())?.gold).toBe(before + 500);
+    // A full seven-day quest-completion streak also earns Unbroken, on top
+    // of the 500 for Perfect Week itself.
+    expect((await container.hunters.get())?.gold).toBe(
+      before + 500 + FIVE_DAY_STREAK_GOLD,
+    );
     expect(summary.events).toContainEqual({
       type: "PerfectWeek",
       weekStart: "2026-08-03",
@@ -426,7 +431,9 @@ describe("runDailyReset — Perfect Week", () => {
     await runDailyReset(container);
     const second = await runDailyReset(container);
     expect(second.perfectWeekAwarded).toBe(false);
-    expect((await container.hunters.get())?.gold).toBe(before + 500);
+    expect((await container.hunters.get())?.gold).toBe(
+      before + 500 + FIVE_DAY_STREAK_GOLD,
+    );
   });
 
   it("pays nothing when a scheduled day went untrained", async () => {
@@ -529,7 +536,11 @@ describe("runDailyReset — wager resolution", () => {
     const summary = await runDailyReset(container);
     expect(summary.wagersResolved).toBe(1);
     expect((await container.wagers.byWeek("2026-08-03"))?.status).toBe("won");
-    expect((await container.hunters.get())?.gold).toBe(before + 600);
+    // The wager's own seven completed quests also earn Unbroken alongside
+    // the 3x stake payout.
+    expect((await container.hunters.get())?.gold).toBe(
+      before + 600 + FIVE_DAY_STREAK_GOLD,
+    );
     expect(summary.events).toContainEqual({
       type: "WagerWon",
       weekStart: "2026-08-03",
@@ -550,7 +561,11 @@ describe("runDailyReset — wager resolution", () => {
 
     const summary = await runDailyReset(container);
     expect((await container.wagers.byWeek("2026-08-03"))?.status).toBe("lost");
-    expect((await container.hunters.get())?.gold).toBe(before);
+    // The wager itself pays nothing, but the fixture's seven completed
+    // quests are a real streak — Unbroken still fires on top of the loss.
+    expect((await container.hunters.get())?.gold).toBe(
+      before + FIVE_DAY_STREAK_GOLD,
+    );
     expect(summary.events).toContainEqual({
       type: "WagerLost",
       weekStart: "2026-08-03",
@@ -584,7 +599,9 @@ describe("runDailyReset — wager resolution", () => {
     await runDailyReset(container);
     const second = await runDailyReset(container);
     expect(second.wagersResolved).toBe(0);
-    expect((await container.hunters.get())?.gold).toBe(before + 600);
+    expect((await container.hunters.get())?.gold).toBe(
+      before + 600 + FIVE_DAY_STREAK_GOLD,
+    );
   });
 
   it("still resolves a wager while a penalty episode is open", async () => {
@@ -848,7 +865,10 @@ describe("runDailyReset / runGraceReset — a deferred day must not wrongly fail
     expect(summary.perfectWeekAwarded).toBe(true);
     expect(summary.wagersResolved).toBe(1);
     expect((await container.wagers.byWeek("2026-08-03"))?.status).toBe("won");
-    expect((await container.hunters.get())?.gold).toBe(before + 600 + 500);
+    // Plus Unbroken, earned by this same fixture's seven completed quests.
+    expect((await container.hunters.get())?.gold).toBe(
+      before + 600 + 500 + FIVE_DAY_STREAK_GOLD,
+    );
   });
 });
 

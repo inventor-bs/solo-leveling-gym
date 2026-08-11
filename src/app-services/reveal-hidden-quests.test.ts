@@ -3,6 +3,8 @@ import { makeTestDb } from "@/infra/db/testing/make-test-db";
 import { seedProgram } from "@/infra/db/seed/program";
 import { buildContainer, type Container } from "@/server/container";
 import { fixedClock } from "@/infra/clock/system-clock";
+import { addDays, type TrainingDay } from "@/core/shared/training-day";
+import { kg } from "@/core/shared/units";
 import { revealHiddenQuests } from "./reveal-hidden-quests";
 
 const DAY_MS = 86_400_000;
@@ -23,16 +25,48 @@ async function containerAt(createdDaysAgo: number): Promise<Container> {
   return container;
 }
 
-/** A completed session on `day`, the cheapest possible "this day was active". */
-async function logSessionOn(container: Container, day: string): Promise<void> {
+/**
+ * A completed session on `day`, the cheapest possible "this day was active".
+ * `startedAt` defaults to an instant whose local hour (tzOffsetMinutes 420)
+ * is exactly 07:00 — never before MORNING_BEFORE_HOUR — so callers that
+ * don't care about Early Riser can't trigger it by accident.
+ */
+async function logSessionOn(
+  container: Container,
+  day: string,
+  startedAt = 1,
+): Promise<void> {
   const id = `s-${day}`;
   await container.training.createSession({
     id,
     day,
     programDayId: "upper-a",
-    startedAt: 1,
+    startedAt,
   });
   await container.training.completeSession(id, 2, "E");
+}
+
+/** `days` consecutive completed Daily Quests ending on `endDay`. */
+async function completedQuestStreak(
+  container: Container,
+  days: number,
+  endDay: TrainingDay,
+): Promise<void> {
+  let day = endDay;
+  for (let i = 0; i < days; i += 1) {
+    await container.quests.create({
+      id: `q-${day}`,
+      day,
+      rank: "E",
+      targetPushups: 20,
+      targetSitups: 20,
+      targetSquats: 20,
+      targetRunKm: 1,
+      createdAt: 1,
+    });
+    await container.quests.setStatus(day, "completed", 1);
+    day = addDays(day, -1);
+  }
 }
 
 describe("revealHiddenQuests", () => {
@@ -131,5 +165,80 @@ describe("revealHiddenQuests", () => {
       "2026-08-08" as never,
     );
     expect(rows.map((r) => r.type)).toContain("HiddenQuestRevealed");
+  });
+
+  it("reveals Early Riser the first time a session started before 07:00", async () => {
+    const container = await containerAt(7);
+    // Local hour 6 at tzOffsetMinutes 420 — one hour before MORNING_BEFORE_HOUR.
+    await logSessionOn(container, "2026-08-02", -3_600_000);
+    const events = await revealHiddenQuests(container);
+    expect(
+      events.some(
+        (e) => e.type === "HiddenQuestRevealed" && e.questId === "early-riser",
+      ),
+    ).toBe(true);
+  });
+
+  it("reveals First Record the first time a PR has ever been logged", async () => {
+    const container = await containerAt(7);
+    await container.events.record(
+      [
+        {
+          type: "PrAchieved",
+          exerciseId: "squat",
+          newE1rm: kg(100),
+          previousE1rm: kg(90),
+        },
+      ],
+      "2026-08-08" as TrainingDay,
+      1,
+    );
+    const events = await revealHiddenQuests(container);
+    expect(
+      events.some(
+        (e) => e.type === "HiddenQuestRevealed" && e.questId === "first-record",
+      ),
+    ).toBe(true);
+  });
+
+  it("reveals Unbroken at a 5-day streak, or a 3-day streak with Stealth equipped", async () => {
+    const container = await containerAt(7);
+    await container.skills.seed([{ id: "stealth" }]);
+    await container.skills.learn("stealth", 100);
+    await container.skills.equip("stealth", 100);
+    await completedQuestStreak(container, 3, "2026-08-08" as TrainingDay);
+    const events = await revealHiddenQuests(container);
+    expect(
+      events.some(
+        (e) =>
+          e.type === "HiddenQuestRevealed" && e.questId === "five-day-streak",
+      ),
+    ).toBe(true);
+  });
+
+  it("never reveals the same hidden quest twice", async () => {
+    const container = await containerAt(7);
+    await logSessionOn(container, "2026-08-02", -3_600_000);
+    await container.skills.seed([{ id: "stealth" }]);
+    await container.skills.learn("stealth", 100);
+    await container.skills.equip("stealth", 100);
+    await completedQuestStreak(container, 3, "2026-08-08" as TrainingDay);
+    await container.events.record(
+      [
+        {
+          type: "PrAchieved",
+          exerciseId: "squat",
+          newE1rm: kg(100),
+          previousE1rm: kg(90),
+        },
+      ],
+      "2026-08-08" as TrainingDay,
+      1,
+    );
+
+    const first = await revealHiddenQuests(container);
+    expect(first.length).toBeGreaterThan(0);
+    const second = await revealHiddenQuests(container);
+    expect(second).toEqual([]);
   });
 });

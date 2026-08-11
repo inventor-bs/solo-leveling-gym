@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { and, gte, lte, asc } from "drizzle-orm";
+import { and, eq, gte, lte, asc } from "drizzle-orm";
 import type { Db } from "../client";
 import { eventLog, type EventLogRow } from "../schema/event-log";
 import type { DomainEvent } from "@/core/shared/events";
@@ -49,5 +49,18 @@ export class EventLogRepo {
       .from(eventLog)
       .where(and(gte(eventLog.day, from), lte(eventLog.day, to)))
       .orderBy(asc(eventLog.day), asc(eventLog.occurredAt));
+  }
+
+  /**
+   * How many events of `type` have ever been recorded, with no day bound.
+   * Exists for conditions that ask "has this ever happened," where a
+   * windowed query would be the wrong tool.
+   */
+  async countByType(type: string): Promise<number> {
+    const rows = await this.db
+      .select({ id: eventLog.id })
+      .from(eventLog)
+      .where(eq(eventLog.type, type));
+    return rows.length;
   }
 }
