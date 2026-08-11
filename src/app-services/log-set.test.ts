@@ -283,6 +283,83 @@ describe("logSet — shadow extraction", () => {
     }
   });
 
+  it("a PR on the muscle group's main lift still extracts the shadow unconditionally", async () => {
+    // barbell-row is a main lift mapped to muscle "back" -> shadow "tank",
+    // seeded not-yet-extracted by containerWithActiveSessionAndShadows.
+    // Reuses the same setup as the "extracts the matching shadow" case
+    // above, just asserted through the events array to confirm this task's
+    // new gating logic left the main-lift path unaffected.
+    const container = await containerWithActiveSessionAndShadows();
+    const mainLiftPrInput = {
+      sessionId: "session-1",
+      exerciseId: "barbell-row",
+      setIndex: 0,
+      reps: 8,
+      weight: 60,
+      completed: true,
+    };
+    const result = await logSet(container, {
+      ...mainLiftPrInput,
+      clientActionId: "main-1",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.events.some((e) => e.type === "ShadowArisen")).toBe(
+        true,
+      );
+    }
+  });
+
+  it("a PR on an accessory exercise does NOT extract a shadow without Shadow Extraction+", async () => {
+    // db-curl is an accessory exercise mapped to muscle "arms" -> shadow
+    // "jima", also seeded not-yet-extracted.
+    const container = await containerWithActiveSessionAndShadows();
+    const accessoryPrInput = {
+      sessionId: "session-1",
+      exerciseId: "db-curl",
+      setIndex: 0,
+      reps: 10,
+      weight: 15,
+      completed: true,
+    };
+    const result = await logSet(container, {
+      ...accessoryPrInput,
+      clientActionId: "acc-1",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.events.some((e) => e.type === "ShadowArisen")).toBe(
+        false,
+      );
+    }
+  });
+
+  it("a PR on an accessory exercise DOES extract a shadow once Shadow Extraction+ is equipped", async () => {
+    const container = await containerWithActiveSessionAndShadows();
+    await container.skills.seed([{ id: "shadow-extraction-plus" }]);
+    await container.skills.learn("shadow-extraction-plus", 100);
+    await container.skills.equip("shadow-extraction-plus", 100);
+
+    const accessoryPrInput = {
+      sessionId: "session-1",
+      exerciseId: "db-curl",
+      setIndex: 0,
+      reps: 10,
+      weight: 15,
+      completed: true,
+    };
+    const result = await logSet(container, {
+      ...accessoryPrInput,
+      clientActionId: "acc-2",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.events.some((e) => e.type === "ShadowArisen")).toBe(
+        true,
+      );
+    }
+  });
+
   it("REGRESSION: does nothing when the shadow roster hasn't been seeded", async () => {
     const container = await containerWithActiveSession(); // no shadows.seed call
     const result = await logSet(container, {

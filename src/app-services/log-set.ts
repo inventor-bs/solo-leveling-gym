@@ -86,7 +86,12 @@ export async function logSet(
     if (exercise) {
       const shadowId = shadowForMuscle(exercise.muscle as MuscleGroup);
       const shadow = await container.shadows.byId(shadowId);
-      if (shadow && shadow.extractedAt === null) {
+      // A main-lift PR always extracts. An accessory-lift PR only extracts
+      // once Shadow Extraction+ has been learned and equipped.
+      const equippedSkills = new Set(await container.skills.equippedIds());
+      const canExtract =
+        exercise.isMainLift || equippedSkills.has("shadow-extraction-plus");
+      if (shadow && shadow.extractedAt === null && canExtract) {
         await container.shadows.extract(shadowId, now);
         events.push({
           type: "ShadowArisen",
