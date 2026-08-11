@@ -66,7 +66,9 @@ import { equippedTitleId } from "./equipped-title";
 import {
   bloodlustGoldMultiplier,
   shadowExpMultiplier,
+  vitalStrikeBossMultiplier,
 } from "@/core/skill/buffs";
+import { bossSets, bossSetExp } from "@/core/training/boss-set";
 
 export type ChallengeOutcome = {
   type: ChallengeType;
@@ -259,6 +261,12 @@ export async function completeSession(
 
   const equippedSkills = new Set(await container.skills.equippedIds());
 
+  const bossSetCount = bossSets(sets, catalog);
+  const bossExp = bossSetExp(
+    bossSetCount,
+    vitalStrikeBossMultiplier(equippedSkills),
+  );
+
   const rankGold = Math.round(
     goldForDungeonRank(dungeonRank) *
       sessionGoldMultiplier(equipped, startedInTheMorning) *
@@ -271,7 +279,7 @@ export async function completeSession(
         sessionExpMultiplier(equipped, firstSessionAfterExit) *
         equipmentExpMultiplier(weaponGrade, volumeByGroup.back) *
         challengeMultiplier,
-    ),
+    ) + bossExp,
   );
 
   const now = container.clock.now();
@@ -333,6 +341,13 @@ export async function completeSession(
       type: "GoldGained",
       amount: makeGold(levelUpGold),
       source: "level-up",
+    });
+  }
+  if (bossExp > 0) {
+    events.push({
+      type: "ExpGained",
+      amount: makeExp(bossExp),
+      source: "boss-set",
     });
   }
   if (progression.levelsGained > 0) {

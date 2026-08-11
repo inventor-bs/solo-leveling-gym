@@ -10,6 +10,8 @@ import type { TrainingDay } from "@/core/shared/training-day";
 import type { Container } from "@/server/container";
 import { completeSession, currentLuck } from "./complete-session";
 import { buildStatInput } from "./stat-input";
+import { bossSetExp } from "@/core/training/boss-set";
+import { vitalStrikeBossMultiplier } from "@/core/skill/buffs";
 
 async function containerWithLoggedSession() {
   const db = await makeTestDb();
@@ -413,7 +415,9 @@ describe("completeSession — title buffs", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.goldAwarded).toBe(70);
-      expect(result.value.expAwarded).toBe(350);
+      // 350 base C-rank EXP + round(15 * 1.5) = 23 for the fixture's one
+      // BOSS set (the bench-press set) at the default 1.5x multiplier.
+      expect(result.value.expAwarded).toBe(373);
     }
   });
 
@@ -459,7 +463,9 @@ describe("completeSession — title buffs", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.goldAwarded).toBe(81); // round(70 * 1.15)
-      expect(result.value.expAwarded).toBe(350); // EXP is untouched
+      // EXP is untouched by the title buff — still 350 base + the fixture's
+      // one BOSS set bonus of round(15 * 1.5) = 23.
+      expect(result.value.expAwarded).toBe(373);
     }
   });
 
@@ -482,7 +488,10 @@ describe("completeSession — title buffs", () => {
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.expAwarded).toBe(385); // round(350 * 1.1)
+      // round(350 * 1.1) = 385, then + round(15 * 1.5) = 23 for the
+      // fixture's one BOSS set, added after the title multiplier rather
+      // than scaled by it.
+      expect(result.value.expAwarded).toBe(408);
       expect(result.value.goldAwarded).toBe(70); // gold is untouched
     }
   });
@@ -528,7 +537,9 @@ describe("completeSession — title buffs", () => {
       clientActionId: "a2",
     });
     expect(second.ok).toBe(true);
-    if (second.ok) expect(second.value.expAwarded).toBe(350);
+    // 350 base + round(15 * 1.5) = 23 for session-2's own one BOSS set —
+    // the title bonus applied once, not this untitled second session.
+    if (second.ok) expect(second.value.expAwarded).toBe(373);
   });
 
   it("REGRESSION: One Who Returned pays nothing when the hunter has never been penalised", async () => {
@@ -539,7 +550,8 @@ describe("completeSession — title buffs", () => {
       clientActionId: "a1",
     });
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value.expAwarded).toBe(350);
+    // 350 base + round(15 * 1.5) = 23 for the fixture's one BOSS set.
+    if (result.ok) expect(result.value.expAwarded).toBe(373);
   });
 });
 
@@ -631,6 +643,41 @@ describe("completeSession — skill buffs", () => {
       baselineResult.value.expAwarded,
     );
   });
+
+  it("Vital Strike doubles the BOSS-set EXP bonus instead of 1.5x", async () => {
+    // Same-fixture A/B comparison, the same pattern as the Bloodlust test
+    // above. session-1's one completed bench-press set is its only BOSS
+    // set, so the whole delta between these two runs is that single BOSS
+    // set's bonus moving from the default 1.5x multiplier to Vital
+    // Strike's 2x.
+    const baseline = await containerWithLoggedSession();
+    const baselineResult = await completeSession(baseline, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    expect(baselineResult.ok).toBe(true);
+    if (!baselineResult.ok) return;
+
+    const withVitalStrike = await containerWithLoggedSession();
+    await withVitalStrike.skills.seed([{ id: "vital-strike" }]);
+    await withVitalStrike.skills.learn("vital-strike", 100);
+    await withVitalStrike.skills.equip("vital-strike", 100);
+    const vitalStrikeResult = await completeSession(withVitalStrike, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    expect(vitalStrikeResult.ok).toBe(true);
+    if (!vitalStrikeResult.ok) return;
+
+    const defaultBonus = bossSetExp(1, vitalStrikeBossMultiplier(new Set()));
+    const vitalStrikeBonus = bossSetExp(
+      1,
+      vitalStrikeBossMultiplier(new Set(["vital-strike"])),
+    );
+    expect(vitalStrikeResult.value.expAwarded).toBe(
+      baselineResult.value.expAwarded - defaultBonus + vitalStrikeBonus,
+    );
+  });
 });
 
 describe("completeSession — PR and level-up income", () => {
@@ -710,10 +757,14 @@ describe("completeSession — PR and level-up income", () => {
       clientActionId: "a1",
     });
     if (!result.ok) return;
-    // A first session with no history ranks C and pays 350 EXP, which
-    // carries a level-1 hunter to level 2 (100 EXP) and no further.
-    expect(result.value.levelsGained).toBe(1);
-    expect(result.value.levelUpGold).toBe(200);
+    // A first session with no history ranks C and pays 350 base EXP plus
+    // round(15 * 1.5) = 23 for the fixture's one BOSS set, 373 total. That
+    // carries a level-1 hunter past level 2's 100-EXP threshold AND level
+    // 3's round(100 * 2^1.35) = 255-EXP threshold (100 + 255 = 355 < 373),
+    // two levels crossed, paying 100*2 gold for level 2 plus 100*3 for
+    // level 3.
+    expect(result.value.levelsGained).toBe(2);
+    expect(result.value.levelUpGold).toBe(500);
   });
 
   it("credits the hunter the rank reward plus both new income sources", async () => {
@@ -801,8 +852,14 @@ describe("completeSession — equipment buffs", () => {
     });
 
     if (!baseline.ok || !buffed.ok) return;
-    expect(buffed.value.expAwarded).toBe(
-      Math.round(baseline.value.expAwarded * 1.25),
+    // Both fixtures log the same two main-compound-lift sets (bench-press
+    // and barbell-row), so both carry the identical BOSS-set bonus —
+    // round(2 * 15 * 1.5) — added AFTER Knight Killer's 1.25x, not scaled
+    // by it. Subtract it from both sides before checking the proportional
+    // relationship the equipment multiplier alone is responsible for.
+    const bossBonus = bossSetExp(2, vitalStrikeBossMultiplier(new Set()));
+    expect(buffed.value.expAwarded - bossBonus).toBe(
+      Math.round((baseline.value.expAwarded - bossBonus) * 1.25),
     );
   });
 
@@ -914,8 +971,10 @@ describe("completeSession — challenge resolution", () => {
     });
     expect(result.value.events.map((e) => e.type)).toContain("RedGateCleared");
     // 2000 volume against a 1000 average is a 2.0 ratio, so A-rank: 120 gold
-    // and 600 EXP at the base rate, both multiplied by four.
-    expect(result.value.expAwarded).toBe(2_400);
+    // and 600 EXP at the base rate, both multiplied by four (2,400 EXP),
+    // plus round(15 * 1.5) = 23 for the session's one BOSS set — added
+    // after the challenge multiplier, not scaled by it.
+    expect(result.value.expAwarded).toBe(2_423);
   });
 
   it("pays nothing extra and reports failure when the Red Gate target is missed", async () => {
