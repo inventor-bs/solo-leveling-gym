@@ -15,3 +15,4 @@ export * from "./equipment";
 export * from "./wager";
 export * from "./mitigation";
 export * from "./skill";
+export * from "./quest-override";

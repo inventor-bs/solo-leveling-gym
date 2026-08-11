@@ -5,6 +5,9 @@ import {
   type DailyQuestRow,
   type QuestStatus,
 } from "../schema/quest";
+import { questOverride, type QuestOverrideRow } from "../schema/quest-override";
+
+export type QuestTargetField = "pushups" | "situps" | "squats" | "runKm";
 
 export type CreateQuestInput = {
   id: string;
@@ -62,6 +65,62 @@ export class QuestRepo {
         progressSquats: sql`${dailyQuest.progressSquats} + ${squats}`,
       })
       .where(eq(dailyQuest.day, day));
+  }
+
+  /** Overwrites exactly one target field on today's row, leaving the rest untouched. */
+  async setTarget(
+    day: string,
+    field: QuestTargetField,
+    value: number,
+  ): Promise<void> {
+    switch (field) {
+      case "pushups":
+        await this.db
+          .update(dailyQuest)
+          .set({ targetPushups: value })
+          .where(eq(dailyQuest.day, day));
+        return;
+      case "situps":
+        await this.db
+          .update(dailyQuest)
+          .set({ targetSitups: value })
+          .where(eq(dailyQuest.day, day));
+        return;
+      case "squats":
+        await this.db
+          .update(dailyQuest)
+          .set({ targetSquats: value })
+          .where(eq(dailyQuest.day, day));
+        return;
+      case "runKm":
+        await this.db
+          .update(dailyQuest)
+          .set({ targetRunKm: value })
+          .where(eq(dailyQuest.day, day));
+        return;
+    }
+  }
+
+  /** Null until this day's one allowed override has been recorded. */
+  async overrideOnDay(day: string): Promise<QuestOverrideRow | null> {
+    const rows = await this.db
+      .select()
+      .from(questOverride)
+      .where(eq(questOverride.day, day))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  async recordOverride(
+    day: string,
+    field: string,
+    previousValue: number,
+    newValue: number,
+    at: number,
+  ): Promise<void> {
+    await this.db
+      .insert(questOverride)
+      .values({ day, field, previousValue, newValue, appliedAt: at });
   }
 
   async setStatus(day: string, status: QuestStatus, at: number): Promise<void> {

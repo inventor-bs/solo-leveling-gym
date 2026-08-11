@@ -63,6 +63,29 @@ describe("QuestRepo", () => {
     expect(row?.completedAt).toBe(2_000);
   });
 
+  it("setTarget overwrites exactly one target field on today's row", async () => {
+    await quests.create(base);
+    await quests.setTarget("2026-08-06", "squats", 5);
+    const row = await quests.byDay("2026-08-06");
+    expect(row?.targetSquats).toBe(5);
+    expect(row?.targetPushups).toBe(20); // untouched
+  });
+
+  it("overrideOnDay is null until an override is recorded, then reflects it", async () => {
+    await quests.create(base);
+    expect(await quests.overrideOnDay("2026-08-06")).toBeNull();
+
+    await quests.recordOverride("2026-08-06", "squats", 20, 5, 1_000);
+    const recorded = await quests.overrideOnDay("2026-08-06");
+    expect(recorded).toMatchObject({
+      day: "2026-08-06",
+      field: "squats",
+      previousValue: 20,
+      newValue: 5,
+      appliedAt: 1_000,
+    });
+  });
+
   it("returns recent outcomes newest-first, flagging only completed days", async () => {
     await quests.create({ ...base, id: "a", day: "2026-08-04" });
     await quests.create({ ...base, id: "b", day: "2026-08-05" });
