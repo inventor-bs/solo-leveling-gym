@@ -359,8 +359,18 @@ export async function runDailyReset(
    *
    * decayFatigue itself never touches storage beyond the single write
    * below — it only computes the new value from what's already there.
+   *
+   * Guarded by a marker event, the same idempotency pattern
+   * runWeeklyEconomyChecks uses for Perfect Week: a cron that retries must
+   * not punish twice, and repeated decay on the same day would otherwise
+   * quietly erase fatigue far faster than resting ever earns.
    */
   const runFatigueDecay = async (): Promise<void> => {
+    const alreadyDecayed = (await container.events.between(today, today)).some(
+      (e) => e.type === "FatigueDecayed",
+    );
+    if (alreadyDecayed) return;
+
     const hunter = await container.hunters.get();
     if (!hunter) return;
 
@@ -377,6 +387,14 @@ export async function runDailyReset(
     const multiplier = fatigueDecayMultiplier(equippedSkills);
     const bonus = Math.round((hunter.fatigue - decayed) * (multiplier - 1));
     await container.hunters.update({ fatigue: Math.max(0, decayed - bonus) });
+
+    // Not folded into the caller-facing `events` array — this is a silent
+    // internal bookkeeping marker, not something worth surfacing to the UI.
+    await container.events.record(
+      [{ type: "FatigueDecayed", day: today }],
+      today,
+      container.clock.now(),
+    );
   };
 
   // No punishment stacks on a punishment. While an episode is open the quest

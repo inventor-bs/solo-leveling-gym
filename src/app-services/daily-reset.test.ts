@@ -871,4 +871,46 @@ describe("runDailyReset — fatigue decay", () => {
     const withSkill = (await container.hunters.get())?.fatigue;
     expect(withSkill).toBe(50 - Math.round(18 * 1.25));
   });
+
+  it("decays fatigue at the slower rate when a session was completed yesterday", async () => {
+    await seedProgram(container.db);
+    await container.training.createSession({
+      id: "s-yesterday",
+      day: yesterday,
+      programDayId: "upper-a",
+      startedAt: 1,
+    });
+    await container.training.completeSession("s-yesterday", 2, "C");
+    await container.hunters.update({ fatigue: 50 });
+
+    await runDailyReset(container);
+    const result = (await container.hunters.get())?.fatigue;
+    expect(result).toBe(50 - 12); // FATIGUE_TUNING.decayPerDay, not the well-rested rate
+  });
+
+  it("REGRESSION: decays fatigue only once however many times the cron runs on the same day", async () => {
+    await container.hunters.update({ fatigue: 50 });
+    await runDailyReset(container);
+    await runDailyReset(container);
+    await runDailyReset(container);
+    const result = (await container.hunters.get())?.fatigue;
+    expect(result).toBe(50 - 18);
+  });
+
+  it("still decays fatigue while a penalty episode is open — resting is not something a penalty suspends", async () => {
+    await container.hunters.update({ fatigue: 50 });
+    await container.penalties.create({
+      id: "p1",
+      startedDay: yesterday,
+      startedAt: 1,
+      reason: "daily-quest-missed",
+      variantId: 1,
+      expLost: 10,
+    });
+
+    const summary = await runDailyReset(container);
+    expect(summary.yesterdayStatus).toBe("skipped-penalty-active");
+    const result = (await container.hunters.get())?.fatigue;
+    expect(result).toBe(50 - 18);
+  });
 });
