@@ -154,12 +154,20 @@ describe("enterPenalty — Unyielding", () => {
 });
 
 describe("enterPenalty — Tenacity", () => {
-  async function givenHunterWith(exp: number) {
+  async function givenHunterWith(exp: number, title: string | null = null) {
     await container.hunters.create({ name: "Jin-Woo", createdAt: 1 });
-    await container.hunters.update({ exp });
+    await container.hunters.update({ exp, title });
   }
 
-  it("Tenacity halves the loss on top of any title multiplier already active", async () => {
+  async function givenUnyieldingEarned() {
+    const { TITLE_CATALOG } = await import("@/core/title/catalog");
+    await container.titles.seed(
+      TITLE_CATALOG.map((t) => ({ id: t.id, name: t.name, earnedAt: null })),
+    );
+    await container.titles.earn("unyielding", 1);
+  }
+
+  it("Tenacity halves the loss when no title is worn", async () => {
     await container.skills.seed([{ id: "tenacity" }]);
     await container.skills.learn("tenacity", 100);
     await container.skills.equip("tenacity", 100);
@@ -170,7 +178,7 @@ describe("enterPenalty — Tenacity", () => {
       parseTrainingDay("2026-08-06"),
     );
     expect(result.ok).toBe(true);
-    // 10% base loss halved by Tenacity alone (no title equipped in this case) = 5%.
+    // 10% base loss halved by Tenacity alone = 5%.
     if (result.ok) expect(result.value.expLost).toBe(50);
   });
 
@@ -185,5 +193,25 @@ describe("enterPenalty — Tenacity", () => {
     );
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.expLost).toBe(100);
+  });
+
+  it("composes with an equipped title instead of overriding it", async () => {
+    await givenUnyieldingEarned();
+    await container.skills.seed([{ id: "tenacity" }]);
+    await container.skills.learn("tenacity", 100);
+    await container.skills.equip("tenacity", 100);
+    await givenHunterWith(1000, "unyielding");
+
+    const result = await enterPenalty(
+      container,
+      parseTrainingDay("2026-08-06"),
+    );
+    expect(result.ok).toBe(true);
+    // Unyielding (0.8) times Tenacity (0.5) is a combined 0.4 multiplier:
+    // 10% base loss * 0.4 = 4% of 1000 = 40. Neither multiplier alone
+    // produces 40 (Tenacity alone gives 50, Unyielding alone gives 80),
+    // so this value only holds if both are actually multiplied together
+    // rather than one replacing the other.
+    if (result.ok) expect(result.value.expLost).toBe(40);
   });
 });
