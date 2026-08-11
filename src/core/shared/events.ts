@@ -65,7 +65,10 @@ export type DomainEvent =
       payoutGold: Gold;
     }
   | { type: "WagerLost"; weekStart: string; stakeGold: Gold }
-  | { type: "FatigueDecayed"; day: string };
+  | { type: "FatigueDecayed"; day: string }
+  | { type: "JobChangeQuestStarted"; day: string }
+  | { type: "JobChangeFailed"; retryAtLevel: number }
+  | { type: "ClassAssigned"; classId: string; className: string };
 
 export type DomainEventOfType<T extends DomainEvent["type"]> = Extract<
   DomainEvent,

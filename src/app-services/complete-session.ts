@@ -62,6 +62,7 @@ import type { Container } from "@/server/container";
 import type { TrainingDay } from "@/core/shared/training-day";
 import type { Kg } from "@/core/shared/units";
 import { awardEarnedTitles } from "./award-titles";
+import { checkJobChangeProgress } from "./check-job-change";
 import { equippedTitleId } from "./equipped-title";
 import {
   bloodlustGoldMultiplier,
@@ -387,6 +388,18 @@ export async function completeSession(
   // After training.completeSession stamped endedAt, so this session counts
   // toward the morning-session total.
   events.push(...(await awardEarnedTitles(container)));
+
+  // checkJobChangeProgress persists its own events, the same discipline
+  // awardEarnedTitles follows above — folded into `events` for the caller,
+  // never re-recorded into the batch written a few lines below.
+  events.push(
+    ...(await checkJobChangeProgress(
+      container,
+      session.day,
+      plannedVolume,
+      avgVolume,
+    )),
+  );
 
   const result: CompleteSessionResult = {
     rank: dungeonRank,

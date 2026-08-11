@@ -17,6 +17,7 @@ import { decayFatigue } from "@/core/hunter/fatigue";
 import { fatigueDecayMultiplier } from "@/core/skill/buffs";
 import type { QuestStatus } from "@/infra/db/schema/quest";
 import type { Container } from "@/server/container";
+import { checkJobChangeProgress } from "./check-job-change";
 import { ensureDailyQuest } from "./ensure-daily-quest";
 import { ensureNarrativeUnlocks } from "./ensure-narrative";
 import { enterPenalty } from "./enter-penalty";
@@ -291,6 +292,15 @@ export async function runDailyReset(
       (e) => e.type === "HiddenQuestRevealed",
     ).length;
     events.push(...hiddenEvents);
+
+    // A day with no session still needs its Job Change window checked: the
+    // seven-day window can elapse with nothing logged, and yesterday's
+    // Daily Quest judgment (already written above, before runMilestones
+    // runs) can fail an attempt even though no dungeon was cleared. Zero
+    // volume on both sides means volumeTargetMet always reads "not met",
+    // so this call can only fail or leave the streak unchanged — never
+    // advance it, since only a real session can do that.
+    events.push(...(await checkJobChangeProgress(container, yesterday, 0, 0)));
 
     // Runs last, so the day's messages describe a context that already
     // reflects everything this reset changed.
