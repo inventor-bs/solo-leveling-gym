@@ -15,6 +15,11 @@ import {
   SESSION_BANK_ID,
   type SessionBankRow,
 } from "../schema/session-bank";
+import {
+  jobChangeQuest,
+  JOB_CHANGE_QUEST_ID,
+  type JobChangeQuestRow,
+} from "../schema/job-change-quest";
 
 export type SeedSkillInput = { id: string };
 
@@ -197,5 +202,62 @@ export class SkillRepo {
         sql`${sessionBank.id} = ${SESSION_BANK_ID} AND ${sessionBank.pendingCredits} > 0`,
       );
     return result.rowsAffected > 0;
+  }
+
+  /** Null when no Job Change attempt has ever been started. */
+  async jobChangeAttempt(): Promise<JobChangeQuestRow | null> {
+    const rows = await this.db
+      .select()
+      .from(jobChangeQuest)
+      .where(eq(jobChangeQuest.id, JOB_CHANGE_QUEST_ID))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  /**
+   * Overwrites the singleton row rather than inserting a new one — a fresh
+   * attempt (first ever, or a retry after a prior failure) always starts
+   * from zero progress with no failure or completion timestamp carried over.
+   */
+  async startJobChangeAttempt(startedDay: string, _at: number): Promise<void> {
+    await this.db
+      .insert(jobChangeQuest)
+      .values({
+        id: JOB_CHANGE_QUEST_ID,
+        startedDay,
+        consecutiveCleared: 0,
+        failedAt: null,
+        completedAt: null,
+      })
+      .onConflictDoUpdate({
+        target: jobChangeQuest.id,
+        set: {
+          startedDay,
+          consecutiveCleared: 0,
+          failedAt: null,
+          completedAt: null,
+        },
+      });
+  }
+
+  async updateJobChangeProgress(consecutiveCleared: number): Promise<void> {
+    await this.db
+      .update(jobChangeQuest)
+      .set({ consecutiveCleared })
+      .where(eq(jobChangeQuest.id, JOB_CHANGE_QUEST_ID));
+  }
+
+  async completeJobChangeAttempt(at: number): Promise<void> {
+    await this.db
+      .update(jobChangeQuest)
+      .set({ completedAt: at })
+      .where(eq(jobChangeQuest.id, JOB_CHANGE_QUEST_ID));
+  }
+
+  async failJobChangeAttempt(at: number): Promise<void> {
+    await this.db
+      .update(jobChangeQuest)
+      .set({ failedAt: at })
+      .where(eq(jobChangeQuest.id, JOB_CHANGE_QUEST_ID));
   }
 }

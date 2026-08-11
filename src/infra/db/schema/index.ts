@@ -18,3 +18,4 @@ export * from "./skill";
 export * from "./quest-override";
 export * from "./weekly-schedule-swap";
 export * from "./session-bank";
+export * from "./job-change-quest";

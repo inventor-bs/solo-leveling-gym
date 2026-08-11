@@ -68,4 +68,38 @@ describe("SkillRepo", () => {
     // Only the one successful withdraw should have produced a credit.
     expect(bank.pendingCredits).toBe(1);
   });
+
+  describe("job change attempt tracking", () => {
+    it("has no attempt by default", async () => {
+      expect(await repo.jobChangeAttempt()).toBeNull();
+    });
+
+    it("starts, progresses, and completes an attempt", async () => {
+      await repo.startJobChangeAttempt("2026-08-10", 100);
+      await repo.updateJobChangeProgress(1);
+      await repo.updateJobChangeProgress(2);
+      let attempt = await repo.jobChangeAttempt();
+      expect(attempt).toMatchObject({
+        consecutiveCleared: 2,
+        completedAt: null,
+        failedAt: null,
+      });
+
+      await repo.completeJobChangeAttempt(200);
+      attempt = await repo.jobChangeAttempt();
+      expect(attempt?.completedAt).toBe(200);
+    });
+
+    it("starting a new attempt after a failure replaces the old row", async () => {
+      await repo.startJobChangeAttempt("2026-08-10", 100);
+      await repo.failJobChangeAttempt(150);
+      await repo.startJobChangeAttempt("2026-09-01", 300);
+      const attempt = await repo.jobChangeAttempt();
+      expect(attempt).toMatchObject({
+        startedDay: "2026-09-01",
+        consecutiveCleared: 0,
+        failedAt: null,
+      });
+    });
+  });
 });
