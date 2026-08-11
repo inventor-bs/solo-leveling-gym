@@ -4,6 +4,7 @@ import type { TrainingDay } from "@/core/shared/training-day";
 import { expAfterPenalty } from "@/core/penalty/penalty";
 import { penaltyVariantFor } from "@/core/penalty/variants";
 import { penaltyExpLossMultiplier } from "@/core/title/buffs";
+import { tenacityLossMultiplier } from "@/core/skill/buffs";
 import type { PenaltyRow } from "@/infra/db/schema/penalty";
 import type { Container } from "@/server/container";
 import { equippedTitleId } from "./equipped-title";
@@ -34,9 +35,10 @@ export async function enterPenalty(
   if (!hunter) return err({ type: "hunter-not-found" });
 
   const equipped = await equippedTitleId(container, hunter);
+  const equippedSkills = new Set(await container.skills.equippedIds());
   const remaining = expAfterPenalty(
     hunter.exp,
-    penaltyExpLossMultiplier(equipped),
+    penaltyExpLossMultiplier(equipped) * tenacityLossMultiplier(equippedSkills),
   );
   const expLost = hunter.exp - remaining;
   const variant = penaltyVariantFor(await container.penalties.countAll());

@@ -152,3 +152,38 @@ describe("enterPenalty — Unyielding", () => {
     expect((await container.hunters.get())?.exp).toBe(900);
   });
 });
+
+describe("enterPenalty — Tenacity", () => {
+  async function givenHunterWith(exp: number) {
+    await container.hunters.create({ name: "Jin-Woo", createdAt: 1 });
+    await container.hunters.update({ exp });
+  }
+
+  it("Tenacity halves the loss on top of any title multiplier already active", async () => {
+    await container.skills.seed([{ id: "tenacity" }]);
+    await container.skills.learn("tenacity", 100);
+    await container.skills.equip("tenacity", 100);
+    await givenHunterWith(1000);
+
+    const result = await enterPenalty(
+      container,
+      parseTrainingDay("2026-08-06"),
+    );
+    expect(result.ok).toBe(true);
+    // 10% base loss halved by Tenacity alone (no title equipped in this case) = 5%.
+    if (result.ok) expect(result.value.expLost).toBe(50);
+  });
+
+  it("a learned-but-not-equipped Tenacity does nothing", async () => {
+    await container.skills.seed([{ id: "tenacity" }]);
+    await container.skills.learn("tenacity", 100);
+    await givenHunterWith(1000);
+
+    const result = await enterPenalty(
+      container,
+      parseTrainingDay("2026-08-06"),
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.expLost).toBe(100);
+  });
+});

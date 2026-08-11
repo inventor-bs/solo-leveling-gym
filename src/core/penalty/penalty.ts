@@ -16,10 +16,12 @@ export const SYSTEM_SILENCE_DAY = 7;
  *
  * `lossMultiplier` scales how much of the 10% is actually taken. EXP is a
  * progression number, and progression numbers may be modified — but only by
- * something the hunter earned through training. The one caller that passes
- * anything other than 1 is the Unyielding title, earned by a 30-day streak
- * and impossible to buy. Nothing measured (e1RM, volume, PRs, the six stats)
- * takes a modifier anywhere in this codebase, and that line does not move.
+ * something the hunter earned through training. Every caller that passes
+ * anything other than 1 is either the Unyielding title (a 30-day streak) or
+ * the Tenacity skill (bought with AP, itself earned only by leveling and
+ * ranking up) — never anything purchasable with gold. Nothing measured
+ * (e1RM, volume, PRs, the six stats) takes a modifier anywhere in this
+ * codebase, and that line does not move.
  *
  * The kept fraction is resolved in integer hundredths, for the same reason
  * survivalMultiplier works in integer tenths: EXP_LOSS_RATE * 0.8 evaluates
