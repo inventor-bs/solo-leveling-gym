@@ -40,6 +40,12 @@ describe("secondAwakeningEligible", () => {
     expect(secondAwakeningEligible([...sevenKnights, "Knight"])).toBe(true);
     expect(secondAwakeningEligible([...sevenKnights, "Marshal"])).toBe(true); // Marshal exceeds Knight
   });
+
+  it("is false with fewer than 8 shadows, even if every one present already qualifies", () => {
+    expect(secondAwakeningEligible(Array(7).fill("Knight" as const))).toBe(
+      false,
+    );
+  });
 });
 
 it("CLASS_CATALOG lists Shadow Monarch last, marked hidden-until-eligible", () => {
