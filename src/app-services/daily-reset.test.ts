@@ -934,3 +934,51 @@ describe("runDailyReset — fatigue decay", () => {
     expect(result).toBe(50 - 18);
   });
 });
+
+describe("runDailyReset — Job Change window checks", () => {
+  it("fails an active attempt when the reset judges yesterday's Daily Quest missed", async () => {
+    await container.hunters.update({ level: 40 });
+    await container.skills.startJobChangeAttempt(yesterday, 1);
+    await ensureDailyQuest(container, yesterday);
+    // No progress logged, so the reset judges it missed.
+
+    const summary = await runDailyReset(container);
+    expect(summary.yesterdayStatus).toBe("missed");
+    expect(summary.events.map((e) => e.type)).toContain("JobChangeFailed");
+    const attempt = await container.skills.jobChangeAttempt();
+    expect(attempt?.failedAt).not.toBeNull();
+  });
+
+  it("fails an active attempt once its seven-day window elapses with no session logged", async () => {
+    await container.hunters.update({ level: 40 });
+    await container.skills.startJobChangeAttempt("2026-07-28", 1);
+    const issued = await ensureDailyQuest(container, yesterday);
+    if (!issued.ok) throw new Error("quest issuance failed");
+    await container.quests.addProgress(yesterday, {
+      pushups: issued.value.targetPushups,
+      situps: issued.value.targetSitups,
+      squats: issued.value.targetSquats,
+    });
+    await container.training.createRun({
+      id: "r-jc",
+      day: yesterday,
+      distanceKm: issued.value.targetRunKm,
+      durationSec: 400,
+      loggedAt: 1,
+    });
+
+    const summary = await runDailyReset(container);
+    expect(summary.yesterdayStatus).toBe("completed");
+    expect(summary.events.map((e) => e.type)).toContain("JobChangeFailed");
+    const attempt = await container.skills.jobChangeAttempt();
+    expect(attempt?.failedAt).not.toBeNull();
+  });
+
+  it("REGRESSION: a hunter below level 40 is untouched by the reset's Job Change check", async () => {
+    await container.hunters.update({ level: 39 });
+
+    const summary = await runDailyReset(container);
+    expect(summary.events.map((e) => e.type)).not.toContain("JobChangeFailed");
+    expect(await container.skills.jobChangeAttempt()).toBeNull();
+  });
+});

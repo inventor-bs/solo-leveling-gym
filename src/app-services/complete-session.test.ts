@@ -839,6 +839,89 @@ describe("completeSession — event persistence", () => {
   });
 });
 
+describe("completeSession — Job Change", () => {
+  /** Eight prior sessions of 1000 volume each, so avgVolume is a real 1000. */
+  async function withVolumeHistory(container: Container) {
+    for (let i = 0; i < 8; i += 1) {
+      await container.training.createSession({
+        id: `jc-hist-${i}`,
+        day: "2026-08-01",
+        programDayId: "upper-a",
+        startedAt: i,
+      });
+      await container.training.upsertSetLog({
+        id: `jc-hist-set-${i}`,
+        sessionId: `jc-hist-${i}`,
+        exerciseId: "bench-press",
+        setIndex: 0,
+        reps: 10,
+        weight: 100,
+        completed: true,
+        isPr: false,
+        loggedAt: i,
+      });
+      await container.training.completeSession(`jc-hist-${i}`, i + 1, "C");
+    }
+  }
+
+  it("starts a Job Change attempt when an eligible hunter clears the volume ratio", async () => {
+    const container = await containerWithLoggedSession();
+    await container.hunters.update({ level: 40 });
+    await withVolumeHistory(container);
+    // 1300 against a 1000 average is a 1.3 ratio, above the 1.2 target.
+    await container.training.upsertSetLog({
+      id: "set-1",
+      sessionId: "session-1",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 13,
+      weight: 100,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.events.map((e) => e.type)).toContain(
+      "JobChangeQuestStarted",
+    );
+    const attempt = await container.skills.jobChangeAttempt();
+    expect(attempt?.consecutiveCleared).toBe(1);
+  });
+
+  it("REGRESSION: a hunter below level 40 never starts a Job Change attempt", async () => {
+    const container = await containerWithLoggedSession();
+    await withVolumeHistory(container);
+    await container.training.upsertSetLog({
+      id: "set-1",
+      sessionId: "session-1",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 13,
+      weight: 100,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.events.map((e) => e.type)).not.toContain(
+      "JobChangeQuestStarted",
+    );
+    expect(await container.skills.jobChangeAttempt()).toBeNull();
+  });
+});
+
 describe("completeSession — equipment buffs", () => {
   it("pays more EXP with Knight Killer when the session trained Back", async () => {
     const bare = await containerWithLoggedSession();
