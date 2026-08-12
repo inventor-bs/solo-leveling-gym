@@ -389,22 +389,18 @@ export async function completeSession(
   // toward the morning-session total.
   events.push(...(await awardEarnedTitles(container)));
 
-  // Persisted here, before checkJobChangeProgress runs, rather than in one
-  // batch at the end of the function. checkJobChangeProgress persists its
-  // own events internally (the same discipline awardEarnedTitles's caller
-  // otherwise provides for it via this record call) — recording everything
-  // gathered so far now, then folding checkJobChangeProgress's
-  // already-persisted events into `events` afterward for the returned
-  // result only, is what keeps this function from writing a row twice.
-  await container.events.record(events, session.day as TrainingDay, now);
-
-  events.push(
-    ...(await checkJobChangeProgress(
-      container,
-      session.day,
-      plannedVolume,
-      avgVolume,
-    )),
+  // checkJobChangeProgress persists its own events internally, the same
+  // discipline awardEarnedTitles's caller (this function's record() call
+  // below) otherwise provides for it. Called here, before `result` is
+  // built, so its events can be folded into the returned result for the
+  // caller's benefit — but kept OUT of `events`, the array this function's
+  // own record() call persists a few lines down, so nothing
+  // checkJobChangeProgress already wrote gets written a second time.
+  const jobChangeEvents = await checkJobChangeProgress(
+    container,
+    session.day,
+    plannedVolume,
+    avgVolume,
   );
 
   const result: CompleteSessionResult = {
@@ -416,9 +412,10 @@ export async function completeSession(
     levelUpGold,
     challenge,
     drop,
-    events,
+    events: [...events, ...jobChangeEvents],
   };
   await container.idempotency.remember(input.clientActionId, result, now);
+  await container.events.record(events, session.day as TrainingDay, now);
   return ok(result);
 }
 

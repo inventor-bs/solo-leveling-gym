@@ -892,6 +892,59 @@ describe("completeSession — Job Change", () => {
     );
     const attempt = await container.skills.jobChangeAttempt();
     expect(attempt?.consecutiveCleared).toBe(1);
+    // REGRESSION: checkJobChangeProgress persists its own events, and this
+    // function used to also persist the whole `events` array it folds them
+    // into, writing every Job Change event twice. Asserting a single row
+    // here catches that class of bug directly, rather than the `.some()`
+    // check above, which would pass just as happily on two rows as on one.
+    expect(await container.events.countByType("JobChangeQuestStarted")).toBe(1);
+  });
+
+  it("CRITICAL: reaches consecutiveCleared 1 even while today's own Daily Quest is still active and unjudged", async () => {
+    const container = await containerWithLoggedSession();
+    await container.hunters.update({ level: 40 });
+    await withVolumeHistory(container);
+    // Today's own quest — only ever judged at TOMORROW's reset, so this
+    // row is still "active", never "completed" or "missed", when the
+    // session completes. It must not read as a failure.
+    await container.quests.create({
+      id: "q-today",
+      day: "2026-08-05",
+      rank: "E",
+      targetPushups: 20,
+      targetSitups: 20,
+      targetSquats: 20,
+      targetRunKm: 1,
+      createdAt: 0,
+    });
+    // 1300 against a 1000 average is a 1.3 ratio, above the 1.2 target.
+    await container.training.upsertSetLog({
+      id: "set-1",
+      sessionId: "session-1",
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 13,
+      weight: 100,
+      completed: true,
+      isPr: false,
+      loggedAt: 0,
+    });
+
+    const result = await completeSession(container, {
+      sessionId: "session-1",
+      clientActionId: "a1",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.events.map((e) => e.type)).toContain(
+      "JobChangeQuestStarted",
+    );
+    expect(result.value.events.map((e) => e.type)).not.toContain(
+      "JobChangeFailed",
+    );
+    const attempt = await container.skills.jobChangeAttempt();
+    expect(attempt?.consecutiveCleared).toBe(1);
+    expect(attempt?.failedAt).toBeNull();
   });
 
   it("REGRESSION: a hunter below level 40 never starts a Job Change attempt", async () => {

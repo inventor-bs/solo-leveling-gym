@@ -16,11 +16,14 @@ import type { Container } from "@/server/container";
 /**
  * Re-evaluates the Job Change Quest against one day's training outcome.
  *
- * Called once per completed session (with that session's real volume) and
- * once per daily reset (with plannedVolume and avgVolume both 0, which
- * volumeTargetMet always reads as "not met" — a reset with no session
- * cannot advance the clear streak, but it must still catch an elapsed
- * seven-day window or a Daily Quest failure judged during that reset).
+ * Called once per completed session (with that session's real volume,
+ * which can start a brand-new attempt) and once per daily reset (with
+ * plannedVolume and avgVolume both 0). The zero-volume reset call can only
+ * ever check an attempt already in progress — for an elapsed seven-day
+ * window or a Daily Quest failure judged during that same reset — and
+ * never opens a new one: a hunter who has never trained a qualifying
+ * session must never have an attempt silently started (and possibly
+ * immediately failed) by a reset that ran on an ordinary day.
  *
  * Persists its own events, the same discipline awardEarnedTitles and
  * revealHiddenQuests already follow: a caller that has events of its own
@@ -46,13 +49,22 @@ export async function checkJobChangeProgress(
 
   if (!jobChangeEligible(hunter.level, attemptState)) return [];
 
-  const now = container.clock.now();
-  const events: DomainEvent[] = [];
-
   const active =
     existing && existing.completedAt === null && existing.failedAt === null
       ? existing
       : null;
+
+  // A zero-volume call — the daily-reset path — exists only to catch an
+  // ALREADY-ACTIVE attempt's window expiry or a Daily Quest failure. It
+  // must never open a new attempt of its own: a hunter who has never
+  // trained a qualifying session could otherwise get one silently opened
+  // (and possibly immediately failed) by a reset that ran on an ordinary
+  // day, with zero training involved.
+  if (!active && plannedVolume <= 0) return [];
+
+  const now = container.clock.now();
+  const events: DomainEvent[] = [];
+
   if (!active) {
     await container.skills.startJobChangeAttempt(day, now);
     events.push({ type: "JobChangeQuestStarted", day });
@@ -61,10 +73,12 @@ export async function checkJobChangeProgress(
   const startedDay = active?.startedDay ?? day;
   const consecutiveCleared = active?.consecutiveCleared ?? 0;
 
-  const outcomes = await container.quests.recentOutcomes(400);
-  const dailyQuestFailedInWindow = outcomes.some(
-    (o) => o.day >= startedDay && o.day <= day && !o.completed,
-  );
+  // Only a row actually judged "missed" counts as a failure. A row still
+  // "active" — today's own quest, only ever judged at tomorrow's reset, or
+  // a day deferred to the Hourglass grace window — must never be read as a
+  // failure just because it has not been marked completed yet.
+  const rows = await container.quests.between(startedDay, day);
+  const dailyQuestFailedInWindow = rows.some((r) => r.status === "missed");
 
   const sessionMetTarget =
     plannedVolume > 0 &&

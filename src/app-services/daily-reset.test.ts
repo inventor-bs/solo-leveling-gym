@@ -981,4 +981,27 @@ describe("runDailyReset — Job Change window checks", () => {
     expect(summary.events.map((e) => e.type)).not.toContain("JobChangeFailed");
     expect(await container.skills.jobChangeAttempt()).toBeNull();
   });
+
+  it("CRITICAL: a hunter with no existing attempt does not get one opened by the reset, even after a missed Daily Quest", async () => {
+    await container.hunters.update({ level: 40 });
+    await ensureDailyQuest(container, yesterday);
+    // No progress logged, so the reset judges it missed — but this hunter
+    // has never started a Job Change attempt, and the reset must never
+    // start one on their behalf just because it is checking for expiry.
+
+    const summary = await runDailyReset(container);
+    expect(summary.yesterdayStatus).toBe("missed");
+    expect(summary.events.map((e) => e.type)).not.toContain(
+      "JobChangeQuestStarted",
+    );
+    expect(summary.events.map((e) => e.type)).not.toContain("JobChangeFailed");
+    expect(await container.skills.jobChangeAttempt()).toBeNull();
+  });
+
+  it("CRITICAL: an eligible hunter with no session and no quest at all gets no attempt opened by an ordinary reset", async () => {
+    await container.hunters.update({ level: 40 });
+
+    await runDailyReset(container);
+    expect(await container.skills.jobChangeAttempt()).toBeNull();
+  });
 });
