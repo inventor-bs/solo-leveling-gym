@@ -389,9 +389,15 @@ export async function completeSession(
   // toward the morning-session total.
   events.push(...(await awardEarnedTitles(container)));
 
-  // checkJobChangeProgress persists its own events, the same discipline
-  // awardEarnedTitles follows above — folded into `events` for the caller,
-  // never re-recorded into the batch written a few lines below.
+  // Persisted here, before checkJobChangeProgress runs, rather than in one
+  // batch at the end of the function. checkJobChangeProgress persists its
+  // own events internally (the same discipline awardEarnedTitles's caller
+  // otherwise provides for it via this record call) — recording everything
+  // gathered so far now, then folding checkJobChangeProgress's
+  // already-persisted events into `events` afterward for the returned
+  // result only, is what keeps this function from writing a row twice.
+  await container.events.record(events, session.day as TrainingDay, now);
+
   events.push(
     ...(await checkJobChangeProgress(
       container,
@@ -413,7 +419,6 @@ export async function completeSession(
     events,
   };
   await container.idempotency.remember(input.clientActionId, result, now);
-  await container.events.record(events, session.day as TrainingDay, now);
   return ok(result);
 }
 
