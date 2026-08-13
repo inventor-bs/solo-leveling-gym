@@ -73,6 +73,8 @@ export default async function SkillsPage() {
                     skill={skill}
                     apAvailable={view.apAvailable}
                     slotFull={slotFull}
+                    bankedSessions={view.bankedSessions}
+                    pendingCredits={view.pendingCredits}
                   />
                 ))}
             </div>
