@@ -23,7 +23,11 @@ import type { Container } from "@/server/container";
  * window or a Daily Quest failure judged during that same reset — and
  * never opens a new one: a hunter who has never trained a qualifying
  * session must never have an attempt silently started (and possibly
- * immediately failed) by a reset that ran on an ordinary day.
+ * immediately failed) by a reset that ran on an ordinary day. On an
+ * ordinary night where nothing failed or expired, the reset call must
+ * also leave a real streak untouched rather than overwrite it with the 0
+ * "no session happened" naturally computes to — only a real session's own
+ * call is allowed to write a new consecutiveCleared value.
  *
  * Persists its own events, the same discipline awardEarnedTitles and
  * revealHiddenQuests already follow: a caller that has events of its own
@@ -102,7 +106,18 @@ export async function checkJobChangeProgress(
       retryAtLevel: JOB_CHANGE_RETRY_LEVEL,
     });
   } else if (outcome.status === "in-progress") {
-    await container.skills.updateJobChangeProgress(outcome.consecutiveCleared);
+    // A zero-volume call — the reset path — has nothing new to report once
+    // failure and window-expiry are already ruled out above: it did not
+    // train, so it must not overwrite a real streak earned by an actual
+    // session with the 0 evaluateJobChangeProgress computes for "nothing
+    // happened." Only a real session's own call (plannedVolume > 0) is
+    // allowed to write a new streak value, whether that's an increment or
+    // the reset-to-0 a missed volume target on that session genuinely earns.
+    if (plannedVolume > 0) {
+      await container.skills.updateJobChangeProgress(
+        outcome.consecutiveCleared,
+      );
+    }
   } else {
     await container.skills.completeJobChangeAttempt(now);
     const stats = deriveStats(await buildStatInput(container));

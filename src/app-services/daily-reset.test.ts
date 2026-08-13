@@ -6,6 +6,8 @@ import { parseTrainingDay } from "@/core/shared/training-day";
 import { FIVE_DAY_STREAK_GOLD } from "@/core/quest/hidden-quest";
 import { seedProgram } from "@/infra/db/seed/program";
 import type { SystemVoicePort } from "@/ports/system-voice.port";
+import type { Db } from "@/infra/db/client";
+import { completeSession } from "./complete-session";
 import { ensureDailyQuest } from "./ensure-daily-quest";
 import { runDailyReset } from "./daily-reset";
 import { runGraceReset } from "./daily-reset-grace";
@@ -936,6 +938,38 @@ describe("runDailyReset — fatigue decay", () => {
 });
 
 describe("runDailyReset — Job Change window checks", () => {
+  it("CRITICAL: an ordinary reset leaves an active streak untouched — does not silently erase it", async () => {
+    await container.hunters.update({ level: 40 });
+    await container.skills.startJobChangeAttempt(yesterday, 1);
+    await container.skills.updateJobChangeProgress(2);
+    const issued = await ensureDailyQuest(container, yesterday);
+    if (!issued.ok) throw new Error("quest issuance failed");
+    // Yesterday's quest is genuinely completed, and the 7-day window is
+    // nowhere near elapsed — an entirely ordinary night with nothing to
+    // report. The reset's own zero-volume check-only call must leave the
+    // real streak this hunter already earned exactly as it found it,
+    // rather than overwrite it with the 0 "no session happened" computes.
+    await container.quests.addProgress(yesterday, {
+      pushups: issued.value.targetPushups,
+      situps: issued.value.targetSitups,
+      squats: issued.value.targetSquats,
+    });
+    await container.training.createRun({
+      id: "r-jc-ordinary",
+      day: yesterday,
+      distanceKm: issued.value.targetRunKm,
+      durationSec: 400,
+      loggedAt: 1,
+    });
+
+    const summary = await runDailyReset(container);
+    expect(summary.yesterdayStatus).toBe("completed");
+    const attempt = await container.skills.jobChangeAttempt();
+    expect(attempt?.consecutiveCleared).toBe(2);
+    expect(attempt?.failedAt).toBeNull();
+    expect(attempt?.completedAt).toBeNull();
+  });
+
   it("fails an active attempt when the reset judges yesterday's Daily Quest missed", async () => {
     await container.hunters.update({ level: 40 });
     await container.skills.startJobChangeAttempt(yesterday, 1);
@@ -1003,5 +1037,150 @@ describe("runDailyReset — Job Change window checks", () => {
 
     await runDailyReset(container);
     expect(await container.skills.jobChangeAttempt()).toBeNull();
+  });
+});
+
+describe("Job Change end-to-end — real production call pattern", () => {
+  /**
+   * A fresh container pointed at the SAME db but a new fixed clock, so a
+   * single test can walk forward day by day the way a real deployment
+   * does: completeSession and runDailyReset are called from different
+   * requests, hours or days apart, never from the same container instance.
+   * This is deliberately NOT `containerAtDay` above — that helper creates
+   * a brand-new, empty db each call, which cannot carry an attempt's
+   * progress from one simulated day to the next.
+   */
+  async function containerOn(db: Db, day: string) {
+    return buildContainer({
+      db,
+      tzOffsetMinutes: 420,
+      clock: fixedClock(`${day}T01:00:00Z`),
+    });
+  }
+
+  async function logQualifyingSession(
+    c: Container,
+    id: string,
+    day: string,
+    startedAt: number,
+  ) {
+    await c.training.createSession({
+      id,
+      day,
+      programDayId: "upper-a",
+      startedAt,
+    });
+    await c.training.upsertSetLog({
+      id: `${id}-set`,
+      sessionId: id,
+      exerciseId: "bench-press",
+      setIndex: 0,
+      reps: 13,
+      weight: 100,
+      completed: true,
+      isPr: false,
+      loggedAt: startedAt,
+    });
+    return completeSession(c, { sessionId: id, clientActionId: id });
+  }
+
+  /**
+   * Issues (if not already issued) and fully completes that day's Daily
+   * Quest, so the FOLLOWING day's reset judges it "completed" rather than
+   * "missed" — a genuinely ordinary day, not one this test accidentally
+   * makes eventful by ignoring the Daily Quest. A window-failing Daily
+   * Quest is deliberately covered by its own dedicated tests elsewhere;
+   * this flow isolates the streak-erasure bug from that separate rule.
+   */
+  async function completeDailyQuest(c: Container, day: string) {
+    const issued = await ensureDailyQuest(c, parseTrainingDay(day));
+    if (!issued.ok) throw new Error("quest issuance failed");
+    await c.quests.addProgress(day, {
+      pushups: issued.value.targetPushups,
+      situps: issued.value.targetSitups,
+      squats: issued.value.targetSquats,
+    });
+    await c.training.createRun({
+      id: `run-${day}`,
+      day,
+      distanceKm: issued.value.targetRunKm,
+      durationSec: 400,
+      loggedAt: 1,
+    });
+  }
+
+  it("CRITICAL: 3 qualifying sessions with a nightly reset interleaved between each one reach completedAt and assign a class — the exact flow that reproduced the streak-erasure bug", async () => {
+    const db = await makeTestDb();
+    await seedProgram(db);
+
+    let c = await containerOn(db, "2026-08-05");
+    await c.hunters.create({ name: "Jin-Woo", createdAt: 0 });
+    await c.hunters.update({ level: 40 });
+
+    // Eight prior sessions of 1000 volume each, so avgVolume settles at a
+    // real 1000 rather than the 0 a bare fixture would leave it at.
+    for (let i = 0; i < 8; i += 1) {
+      await c.training.createSession({
+        id: `hist-${i}`,
+        day: "2026-08-01",
+        programDayId: "upper-a",
+        startedAt: i,
+      });
+      await c.training.upsertSetLog({
+        id: `hist-set-${i}`,
+        sessionId: `hist-${i}`,
+        exerciseId: "bench-press",
+        setIndex: 0,
+        reps: 10,
+        weight: 100,
+        completed: true,
+        isPr: false,
+        loggedAt: i,
+      });
+      await c.training.completeSession(`hist-${i}`, i + 1, "C");
+    }
+
+    // This hunter also does their Daily Quest every day — an ordinary
+    // production hunter, not one who is also silently accumulating Daily
+    // Quest failures the window would (correctly) fail the attempt on.
+    await completeDailyQuest(c, "2026-08-05");
+
+    // Session 1 (day 08-05): 1300 vs a 1000 average is a 1.3 ratio, clears.
+    const r1 = await logQualifyingSession(c, "s1", "2026-08-05", 100);
+    expect(r1.ok).toBe(true);
+    expect((await c.skills.jobChangeAttempt())?.consecutiveCleared).toBe(1);
+
+    // Nightly reset, an entirely ordinary night — nothing missed, nothing
+    // expired. Before the fix this alone reset the streak back to 0.
+    c = await containerOn(db, "2026-08-06");
+    const reset1 = await runDailyReset(c);
+    expect(reset1.yesterdayStatus).toBe("completed");
+    expect((await c.skills.jobChangeAttempt())?.consecutiveCleared).toBe(1);
+
+    await completeDailyQuest(c, "2026-08-06");
+
+    // Session 2 (day 08-06).
+    const r2 = await logQualifyingSession(c, "s2", "2026-08-06", 200);
+    expect(r2.ok).toBe(true);
+    expect((await c.skills.jobChangeAttempt())?.consecutiveCleared).toBe(2);
+
+    // Another ordinary nightly reset.
+    c = await containerOn(db, "2026-08-07");
+    const reset2 = await runDailyReset(c);
+    expect(reset2.yesterdayStatus).toBe("completed");
+    expect((await c.skills.jobChangeAttempt())?.consecutiveCleared).toBe(2);
+
+    // Session 3 (day 08-07) — the third consecutive clear completes the
+    // Job Change Quest and assigns a class. Today's own quest (issued by
+    // reset2 above) is deliberately left active/unjudged here, doubling
+    // as coverage that an unjudged same-day quest does not block this.
+    const r3 = await logQualifyingSession(c, "s3", "2026-08-07", 300);
+    expect(r3.ok).toBe(true);
+    if (!r3.ok) return;
+    expect(r3.value.events.map((e) => e.type)).toContain("ClassAssigned");
+
+    const attempt = await c.skills.jobChangeAttempt();
+    expect(attempt?.completedAt).not.toBeNull();
+    expect((await c.hunters.get())?.className).not.toBeNull();
   });
 });

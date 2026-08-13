@@ -100,6 +100,21 @@ describe("checkJobChangeProgress", () => {
     expect(attempt?.failedAt).toBeNull();
   });
 
+  it("CRITICAL: an ordinary zero-volume call leaves an active streak untouched", async () => {
+    await checkJobChangeProgress(container, "2026-08-08", 120, 100); // -> 1
+    await checkJobChangeProgress(container, "2026-08-09", 120, 100); // -> 2
+    const before = await container.skills.jobChangeAttempt();
+    expect(before?.consecutiveCleared).toBe(2);
+
+    // The reset's own check-only call: no session, nothing missed, window
+    // not elapsed. It must not overwrite the real streak with the 0
+    // "nothing happened" naturally computes to.
+    const events = await checkJobChangeProgress(container, "2026-08-10", 0, 0);
+    expect(events).toEqual([]);
+    const after = await container.skills.jobChangeAttempt();
+    expect(after?.consecutiveCleared).toBe(2);
+  });
+
   it("fails the attempt when a quest in the window is stored as actually missed", async () => {
     await checkJobChangeProgress(container, "2026-08-08", 120, 100);
     await container.quests.create({
