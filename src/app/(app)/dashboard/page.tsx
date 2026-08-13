@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirectOwnerIfPenalised } from "@/server/penalty-guard";
 import { getContainer } from "@/server/container";
 import { rankForLevel } from "@/core/hunter/progression";
+import { jobChangeEligible } from "@/core/skill/job-change";
 import { toTrainingDay, isoWeekdayOf } from "@/core/shared/training-day";
 import { INSTANT_DUNGEON_KEY_COST } from "@/core/economy/pricing";
 import { getQuestView } from "@/app-services/quest-view";
@@ -38,6 +39,11 @@ export default async function DashboardPage() {
   const narrativeView = await getNarrativeView(container);
 
   const message = await getSystemMessage(container, "briefing");
+
+  const jobChangeAttempt = await container.skills.jobChangeAttempt();
+  const showJobChangeBanner =
+    jobChangeEligible(hunter.level, jobChangeAttempt) &&
+    hunter.className === null;
 
   return (
     <div className="relative min-h-screen p-6 md:p-8">
@@ -86,6 +92,17 @@ export default async function DashboardPage() {
               unlockedDay={narrativeView.unlockedToday.unlockedDay}
             />
           </div>
+        )}
+
+        {/* Sits below the System Voice message and the narrative reveal above
+            it, since either can already be reporting a penalty, a PR, or a
+            streak — this line never competes with those, only supplements
+            them once a hunter is actually eligible and still unclassed. */}
+        {showJobChangeBanner && (
+          <p className="font-mono text-xs text-gold tracking-widest">
+            ⚠ The Job Change Quest has appeared. Visit Status to view your
+            progress.
+          </p>
         )}
 
         {quest && (
