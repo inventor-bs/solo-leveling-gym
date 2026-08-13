@@ -181,4 +181,42 @@ describe("checkJobChangeProgress", () => {
     const events = await checkJobChangeProgress(container, "2026-08-10", 0, 0);
     expect(events.some((e) => e.type === "SecondAwakeningOffered")).toBe(false);
   });
+
+  it("REGRESSION: an ordinary Job Change completion does not overwrite an earned Second Awakening", async () => {
+    // Build an in-progress ordinary attempt: two qualifying sessions puts
+    // consecutiveCleared at 2, one short of the completion threshold.
+    await checkJobChangeProgress(container, "2026-08-08", 120, 100);
+    await checkJobChangeProgress(container, "2026-08-09", 120, 100);
+    const inProgress = await container.skills.jobChangeAttempt();
+    expect(inProgress?.consecutiveCleared).toBe(2);
+    expect(inProgress?.completedAt).toBeNull();
+
+    // Second Awakening fires mid-attempt — the ordinary Job Change Quest
+    // this hunter already started is still open when it happens.
+    await seedAllMuscleShadowsAtKnight(container, "2026-08-09");
+    const awakening = await checkJobChangeProgress(
+      container,
+      "2026-08-10",
+      0,
+      0,
+    );
+    expect(awakening.some((e) => e.type === "SecondAwakeningOffered")).toBe(
+      true,
+    );
+    expect((await container.hunters.get())?.className).toBe("Shadow Monarch");
+
+    // The 3rd qualifying session completes the ordinary attempt. It must
+    // still resolve normally — the one-shot quest gets consumed — but must
+    // not overwrite the class already earned through Second Awakening.
+    const completion = await checkJobChangeProgress(
+      container,
+      "2026-08-10",
+      120,
+      100,
+    );
+    expect(completion.some((e) => e.type === "ClassAssigned")).toBe(true);
+    const attempt = await container.skills.jobChangeAttempt();
+    expect(attempt?.completedAt).not.toBeNull();
+    expect((await container.hunters.get())?.className).toBe("Shadow Monarch");
+  });
 });

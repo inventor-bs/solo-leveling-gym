@@ -19,6 +19,17 @@ import type { DomainEvent } from "@/core/shared/events";
 import type { Container } from "@/server/container";
 
 /**
+ * The canonical class name for the Shadow Monarch tier, read from the same
+ * catalog `determineClass`'s result gets looked up against below — never a
+ * hardcoded literal, so a future rename of the catalog entry can't silently
+ * break either the Second Awakening gate or the completion guard that
+ * protects it.
+ */
+const SHADOW_MONARCH_CLASS_NAME = CLASS_CATALOG.find(
+  (c) => c.id === "shadow-monarch",
+)!.name;
+
+/**
  * Re-evaluates the Job Change Quest against one day's training outcome.
  *
  * Called once per completed session (with that session's real volume,
@@ -54,17 +65,21 @@ export async function checkJobChangeProgress(
   // 90. It touches none of the attempt state read and written below (no
   // call to the skills repo's attempt methods), so it cannot reopen, fail,
   // or silently overwrite a Job Change Quest streak — those only start
-  // further down, past this early return. It is a one-time, permanent
-  // reclassification: once className is "Shadow Monarch", every later
-  // call finds nothing left to check and falls straight through to the
-  // ordinary Job Change logic below.
-  if (hunter.className !== "Shadow Monarch") {
+  // further down, past this early return. It is a one-time reclassification:
+  // once className is Shadow Monarch, this branch itself has nothing left
+  // to check and is skipped for good. An ordinary Job Change attempt can
+  // still be active from before this fired, though — its own completion
+  // path further down guards separately against overwriting the class
+  // earned here.
+  if (hunter.className !== SHADOW_MONARCH_CLASS_NAME) {
     const army = await getShadowArmyView(container);
     const muscleGrades = army.shadows
       .filter((s) => s.muscle !== null && s.extracted && s.grade !== null)
       .map((s) => s.grade!);
     if (secondAwakeningEligible(muscleGrades)) {
-      await container.hunters.update({ className: "Shadow Monarch" });
+      await container.hunters.update({
+        className: SHADOW_MONARCH_CLASS_NAME,
+      });
       const now = container.clock.now();
       const events: DomainEvent[] = [{ type: "SecondAwakeningOffered" }];
       await container.events.record(events, day as TrainingDay, now);
@@ -152,7 +167,14 @@ export async function checkJobChangeProgress(
     const stats = deriveStats(await buildStatInput(container));
     const classId = determineClass(stats);
     const def = CLASS_CATALOG.find((c) => c.id === classId)!;
-    await container.hunters.update({ className: def.name });
+    // A class already earned through Second Awakening must never be
+    // overwritten by the ordinary class the training stats would
+    // otherwise produce. The attempt still resolves normally either way —
+    // completeJobChangeAttempt above already consumed its one-shot state —
+    // this only protects the stored className field itself.
+    if (hunter.className !== SHADOW_MONARCH_CLASS_NAME) {
+      await container.hunters.update({ className: def.name });
+    }
     events.push({
       type: "ClassAssigned",
       classId: def.id,
