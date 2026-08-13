@@ -31,7 +31,21 @@ export type ActionError =
   | "shadow-not-extracted"
   | "wager-not-monday"
   | "wager-already-placed"
-  | "stake-too-large";
+  | "stake-too-large"
+  | "unknown-skill"
+  | "already-learned"
+  | "insufficient-ap"
+  | "not-learned"
+  | "no-free-slot"
+  | "slots-maxed"
+  | "skill-not-equipped"
+  | "already-overridden-today"
+  | "quest-not-found-override"
+  | "already-swapped-this-week"
+  | "no-banked-sessions"
+  | "no-session-to-deposit"
+  | "not-a-surplus-session"
+  | "already-deposited";
 
 export type ActionResult<T> =
   { ok: true; value: T } | { ok: false; error: ActionError };
@@ -65,4 +79,21 @@ export const ACTION_ERROR_MESSAGE: Record<ActionError, string> = {
   "wager-not-monday": "A wager can only be placed on a Monday.",
   "wager-already-placed": "A wager is already open for this week.",
   "stake-too-large": "A stake may not exceed half the gold you hold.",
+  "unknown-skill": "The System has no record of that skill.",
+  "already-learned": "That skill is already learned.",
+  "insufficient-ap": "Not enough Ability Points for that yet.",
+  "not-learned": "That skill has not been learned yet.",
+  "no-free-slot":
+    "Every skill slot is full. Unequip one first, or buy a Rune Stone.",
+  "slots-maxed": "Skill slots are already at the maximum.",
+  "skill-not-equipped": "That skill is not equipped.",
+  "already-overridden-today":
+    "Today's Daily Quest has already been changed once.",
+  "quest-not-found-override": "That is not a valid Daily Quest field.",
+  "already-swapped-this-week": "This week's schedule has already been swapped.",
+  "no-banked-sessions": "There is no banked session to withdraw.",
+  "no-session-to-deposit": "There is no completed session to deposit.",
+  "not-a-surplus-session":
+    "Only a session outside the regular schedule can be deposited.",
+  "already-deposited": "That session has already been deposited.",
 };
