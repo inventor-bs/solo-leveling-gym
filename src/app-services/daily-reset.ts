@@ -11,6 +11,7 @@ import { epoch, gold as makeGold } from "@/core/shared/units";
 import { isChallengeType } from "@/core/economy/challenges";
 import { isPerfectWeek } from "@/core/economy/perfect-week";
 import { PERFECT_WEEK_GOLD } from "@/core/economy/pricing";
+import { effectiveScheduledWeekdays } from "@/core/skill/schedule-swap";
 import { wagerPayout, wagerWon } from "@/core/economy/wager";
 import { isQuestComplete } from "@/core/quest/daily-quest";
 import { decayFatigue } from "@/core/hunter/fatigue";
@@ -113,15 +114,21 @@ export async function runWeeklyEconomyChecks(
       !alreadyPaid && (await anyDeferredInRange(container, weekStart, weekEnd));
 
     if (!alreadyPaid && !weekHasDeferredDay) {
-      const scheduledWeekdays = new Set(
+      const baseWeekdays = new Set(
         (await container.programs.allDays()).map((d) => d.weekday),
       );
+      const swap = await container.skills.swapForWeek(weekStart);
       const scheduledDays: string[] = [];
       for (
         let cursor: TrainingDay = weekStart;
         cursor <= weekEnd;
         cursor = addDays(cursor, 1)
       ) {
+        const scheduledWeekdays = effectiveScheduledWeekdays(
+          baseWeekdays,
+          swap,
+          cursor,
+        );
         if (scheduledWeekdays.has(isoWeekdayOf(cursor))) {
           scheduledDays.push(cursor);
         }

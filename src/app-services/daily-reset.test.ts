@@ -476,6 +476,39 @@ describe("runDailyReset — Perfect Week", () => {
     const summary = await runDailyReset(container);
     expect(summary.perfectWeekAwarded).toBe(false);
   });
+
+  it("pays 500 gold for a week where a Shadow Exchange swap moved Wednesday to Sunday and the hunter trained the effective schedule", async () => {
+    // Base schedule is Mon/Wed/Fri/Sat (1,3,5,6). A swap for this week moves
+    // Wednesday (08-05) to Sunday (08-09) — the effective schedule becomes
+    // Mon/Fri/Sat/Sun, and Wednesday is no longer a training obligation.
+    const container = await containerAtDay("2026-08-10");
+    await container.skills.recordSwap("2026-08-03", 3, 7, 1);
+    await perfectPreviousWeek(container, [
+      "2026-08-03",
+      "2026-08-07",
+      "2026-08-08",
+      "2026-08-09",
+    ]);
+    const before = (await container.hunters.get())?.gold ?? 0;
+
+    const summary = await runDailyReset(container);
+    expect(summary.perfectWeekAwarded).toBe(true);
+    expect((await container.hunters.get())?.gold).toBe(
+      before + 500 + FIVE_DAY_STREAK_GOLD,
+    );
+  });
+
+  it("REGRESSION: a week with no swap is unaffected by the swap lookup", async () => {
+    const container = await containerAtDay("2026-08-10");
+    await perfectPreviousWeek(container);
+    const before = (await container.hunters.get())?.gold ?? 0;
+
+    const summary = await runDailyReset(container);
+    expect(summary.perfectWeekAwarded).toBe(true);
+    expect((await container.hunters.get())?.gold).toBe(
+      before + 500 + FIVE_DAY_STREAK_GOLD,
+    );
+  });
 });
 
 describe("runDailyReset — wager resolution", () => {
