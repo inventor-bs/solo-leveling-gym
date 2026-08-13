@@ -21,6 +21,8 @@ export type SkillsView = {
   slotsUsed: number;
   slotCapacity: number;
   skills: SkillEntry[];
+  bankedSessions: number;
+  pendingCredits: number;
 };
 
 const emptyView: SkillsView = {
@@ -30,6 +32,8 @@ const emptyView: SkillsView = {
   slotsUsed: 0,
   slotCapacity: 0,
   skills: [],
+  bankedSessions: 0,
+  pendingCredits: 0,
 };
 
 export async function getSkillsView(container: Container): Promise<SkillsView> {
@@ -58,6 +62,7 @@ export async function getSkillsView(container: Container): Promise<SkillsView> {
     .reduce((sum, s) => sum + s.apCost, 0);
   const slotsUsed = skills.filter((s) => s.equipped).length;
   const capacity = slotCapacity(await container.skills.slotsPurchased());
+  const bank = await container.skills.bank();
 
   return {
     apEarned,
@@ -66,5 +71,7 @@ export async function getSkillsView(container: Container): Promise<SkillsView> {
     slotsUsed,
     slotCapacity: capacity,
     skills,
+    bankedSessions: bank.bankedSessions,
+    pendingCredits: bank.pendingCredits,
   };
 }

@@ -45,4 +45,15 @@ describe("getSkillsView", () => {
     const untouched = view.skills.find((s) => s.id === "vital-strike");
     expect(untouched).toMatchObject({ learned: false, equipped: false });
   });
+
+  it("reports the Shadow Storage session bank's current counts", async () => {
+    const empty = await getSkillsView(container);
+    expect(empty.bankedSessions).toBe(0);
+    expect(empty.pendingCredits).toBe(0);
+
+    await container.skills.deposit("session-1", 100);
+    const afterDeposit = await getSkillsView(container);
+    expect(afterDeposit.bankedSessions).toBe(1);
+    expect(afterDeposit.pendingCredits).toBe(0);
+  });
 });
