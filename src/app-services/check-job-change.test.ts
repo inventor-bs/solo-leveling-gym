@@ -269,7 +269,10 @@ describe("checkJobChangeProgress — a still-deferred day inside the window", ()
     expect(events.some((e) => e.type === "ClassAssigned")).toBe(false);
     const attempt = await container.skills.jobChangeAttempt();
     expect(attempt?.completedAt).toBeNull();
-    expect(attempt?.consecutiveCleared).toBe(2);
+    // Persisted at the target, not left at the pre-session 2 — this is the
+    // internal "met, held" marker a later call reads to finish the attempt
+    // once nothing is deferred anymore, rather than losing this clear.
+    expect(attempt?.consecutiveCleared).toBe(3);
   });
 
   it("fails the attempt once the grace window judges the deferred day missed", async () => {
@@ -301,6 +304,24 @@ describe("checkJobChangeProgress — a still-deferred day inside the window", ()
       120,
       100,
     );
+    expect(events.some((e) => e.type === "ClassAssigned")).toBe(true);
+    const attempt = await container.skills.jobChangeAttempt();
+    expect(attempt?.completedAt).not.toBeNull();
+  });
+
+  it("CRITICAL: a held completion is not lost — the very next zero-volume reset call finishes it once the deferred day resolves to completed", async () => {
+    // The qualifying session that earned the third clear is never repeated
+    // in production — only runGraceReset's own zero-volume follow-up call
+    // (or the next 00:00 reset) ever runs again. If the held clear were
+    // discarded instead of persisted, this exact call would see the streak
+    // reset to 0 and report no completion at all.
+    await attemptAtTwoOfThree();
+    await deferDay("2026-08-06");
+    await checkJobChangeProgress(container, "2026-08-07", 120, 100); // deferred, holds at 2
+
+    await container.quests.setStatus("2026-08-06", "completed", 1);
+
+    const events = await checkJobChangeProgress(container, "2026-08-07", 0, 0);
     expect(events.some((e) => e.type === "ClassAssigned")).toBe(true);
     const attempt = await container.skills.jobChangeAttempt();
     expect(attempt?.completedAt).not.toBeNull();

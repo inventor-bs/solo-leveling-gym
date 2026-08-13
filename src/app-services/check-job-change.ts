@@ -4,6 +4,7 @@ import {
   evaluateJobChangeProgress,
   JOB_CHANGE_VOLUME_RATIO,
   JOB_CHANGE_RETRY_LEVEL,
+  JOB_CHANGE_TARGET_CLEARS,
   type JobChangeAttemptState,
 } from "@/core/skill/job-change";
 import {
@@ -129,13 +130,22 @@ export async function checkJobChangeProgress(
   const rows = await container.quests.between(startedDay, day);
   const dailyQuestFailedInWindow = rows.some((r) => r.status === "missed");
 
+  // A prior call may have already earned the third clear but held it open
+  // because a day in the window was still deferred (see the hold branch
+  // below, which persists exactly this value for exactly this reason).
+  // Treating that stored state as "met" here lets this call — even a
+  // zero-volume reset call with no session of its own — finish what the
+  // earlier call already earned, once nothing is deferred anymore.
+  const alreadyMetTarget = consecutiveCleared >= JOB_CHANGE_TARGET_CLEARS;
+
   const sessionMetTarget =
-    plannedVolume > 0 &&
-    volumeTargetMet(
-      plannedVolume,
-      avgVolume * JOB_CHANGE_VOLUME_RATIO,
-      avgVolume,
-    );
+    alreadyMetTarget ||
+    (plannedVolume > 0 &&
+      volumeTargetMet(
+        plannedVolume,
+        avgVolume * JOB_CHANGE_VOLUME_RATIO,
+        avgVolume,
+      ));
 
   const outcome = evaluateJobChangeProgress({
     consecutiveCleared,
@@ -165,13 +175,15 @@ export async function checkJobChangeProgress(
       retryAtLevel: JOB_CHANGE_RETRY_LEVEL,
     });
   } else if (completionStillDeferred) {
-    // Hold the streak exactly where it was — do not complete, do not
-    // assign a class. If the deferred day resolves to "missed", the very
+    // Do not complete, do not assign a class — but persist that the
+    // target was genuinely met, at JOB_CHANGE_TARGET_CLEARS, rather than
+    // writing nothing. If the deferred day resolves to "missed", the very
     // next call sees dailyQuestFailedInWindow flip to true above and fails
-    // the attempt correctly. If it resolves to "completed", the streak is
-    // still sitting one clear short of the target, so the hunter's next
-    // qualifying session (or a retry of this same call) finishes the count
-    // and completes for real.
+    // the attempt correctly regardless of this value. If it resolves to
+    // "completed", alreadyMetTarget above lets the very next call — even a
+    // zero-volume reset with no session of its own — finish the attempt for
+    // real, instead of losing the clear and needing an extra session.
+    await container.skills.updateJobChangeProgress(JOB_CHANGE_TARGET_CLEARS);
   } else if (outcome.status === "in-progress") {
     // A zero-volume call — the reset path — has nothing new to report once
     // failure and window-expiry are already ruled out above: it did not
