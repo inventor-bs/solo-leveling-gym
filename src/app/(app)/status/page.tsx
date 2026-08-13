@@ -1,6 +1,7 @@
 import { redirectOwnerIfPenalised } from "@/server/penalty-guard";
 import { getContainer } from "@/server/container";
 import { getStatusView } from "@/app-services/status-view";
+import { JOB_CHANGE_RETRY_LEVEL } from "@/core/skill/job-change";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { RankBadge } from "@/ui/components/primitives/RankBadge";
 import { StatRadar } from "@/ui/components/status/StatRadar";
@@ -104,6 +105,23 @@ export default async function StatusPage() {
             </div>
           </div>
         </SystemPanel>
+
+        {view.jobChange && (
+          <SystemPanel header="JOB CHANGE QUEST">
+            <div className="p-4 space-y-1">
+              <p className="font-mono text-sm text-slate-300">
+                {view.jobChange.consecutiveCleared} / {view.jobChange.target}{" "}
+                consecutive dungeons cleared
+              </p>
+              {view.jobChange.failed && (
+                <p className="font-mono text-xs text-warning">
+                  Attempt failed — eligible again at level{" "}
+                  {JOB_CHANGE_RETRY_LEVEL}.
+                </p>
+              )}
+            </div>
+          </SystemPanel>
+        )}
 
         <SystemPanel header="LIFT RECORD">
           <LiftTrendTable lifts={view.lifts} />

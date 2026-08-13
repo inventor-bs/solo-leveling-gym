@@ -6,6 +6,10 @@ import { buildContainer, type Container } from "@/server/container";
 import { fixedClock } from "@/infra/clock/system-clock";
 import { SHADOW_ROSTER } from "@/core/shadow/roster";
 import { TITLE_CATALOG } from "@/core/title/catalog";
+import {
+  JOB_CHANGE_MIN_LEVEL,
+  JOB_CHANGE_TARGET_CLEARS,
+} from "@/core/skill/job-change";
 import { getStatusView } from "./status-view";
 
 let db: Db;
@@ -51,11 +55,71 @@ describe("getStatusView", () => {
     expect(view?.armyRank).toBe("Normal"); // only Igris extracted, at Normal
   });
 
-  it("REGRESSION: class name is passed through as null until Job Change exists", async () => {
-    // Nothing in this app writes hunter.class_name yet. Inventing a class
-    // would be inventing a number the training logs cannot back.
+  it("REGRESSION: class name stays null until a Job Change Quest actually completes", async () => {
+    // Inventing a class before one is earned would be inventing a number
+    // the training logs cannot back.
     await onboarded();
     expect((await getStatusView(container))?.className).toBeNull();
+  });
+
+  it("shows the assigned class once Job Change has written one", async () => {
+    await onboarded();
+    await container.hunters.update({ className: "Shadow Monarch" });
+    expect((await getStatusView(container))?.className).toBe("Shadow Monarch");
+  });
+
+  it("has no Job Change Quest panel data below the minimum level", async () => {
+    await onboarded();
+    const view = await getStatusView(container);
+    expect(view?.level).toBeLessThan(JOB_CHANGE_MIN_LEVEL);
+    expect(view?.jobChange).toBeNull();
+  });
+
+  it("has no Job Change Quest panel data once a class has already been assigned", async () => {
+    await onboarded();
+    await container.hunters.update({
+      level: JOB_CHANGE_MIN_LEVEL,
+      className: "Shadow Monarch",
+    });
+    const view = await getStatusView(container);
+    expect(view?.jobChange).toBeNull();
+  });
+
+  it("reports an eligible, not-yet-attempted Job Change Quest", async () => {
+    await onboarded();
+    await container.hunters.update({ level: JOB_CHANGE_MIN_LEVEL });
+    const view = await getStatusView(container);
+    expect(view?.jobChange).toEqual({
+      attempted: false,
+      consecutiveCleared: 0,
+      target: JOB_CHANGE_TARGET_CLEARS,
+      failed: false,
+    });
+  });
+
+  it("reports an in-progress Job Change Quest attempt's streak", async () => {
+    await onboarded();
+    await container.hunters.update({ level: JOB_CHANGE_MIN_LEVEL });
+    await container.skills.startJobChangeAttempt("2026-08-07", 1);
+    await container.skills.updateJobChangeProgress(2);
+
+    const view = await getStatusView(container);
+    expect(view?.jobChange).toEqual({
+      attempted: true,
+      consecutiveCleared: 2,
+      target: JOB_CHANGE_TARGET_CLEARS,
+      failed: false,
+    });
+  });
+
+  it("reports a failed Job Change Quest attempt", async () => {
+    await onboarded();
+    await container.hunters.update({ level: JOB_CHANGE_MIN_LEVEL });
+    await container.skills.startJobChangeAttempt("2026-08-07", 1);
+    await container.skills.failJobChangeAttempt(2);
+
+    const view = await getStatusView(container);
+    expect(view?.jobChange?.failed).toBe(true);
   });
 
   it("lists every title with its condition and buff, earned or not", async () => {

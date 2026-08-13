@@ -7,6 +7,10 @@ import {
 import { fatigueLevel, type FatigueLevel } from "@/core/hunter/fatigue";
 import { applyPenaltyToStats } from "@/core/penalty/penalty";
 import { TITLE_CATALOG } from "@/core/title/catalog";
+import {
+  JOB_CHANGE_MIN_LEVEL,
+  JOB_CHANGE_TARGET_CLEARS,
+} from "@/core/skill/job-change";
 import type { ShadowGrade } from "@/core/shadow/grade";
 import type { Container } from "@/server/container";
 import { buildStatInput } from "./stat-input";
@@ -23,6 +27,13 @@ export type TitleViewEntry = {
   equipped: boolean;
 };
 
+export type JobChangeView = {
+  attempted: boolean;
+  consecutiveCleared: number;
+  target: number;
+  failed: boolean;
+};
+
 export type StatusView = {
   name: string;
   level: number;
@@ -30,8 +41,10 @@ export type StatusView = {
   expToNext: number;
   rank: Rank;
   gold: number;
-  /** Written at Job Change, which does not exist yet — null for now. */
+  /** Written once a Job Change Quest completes; null before that. */
   className: string | null;
+  /** Null once classed, or below the eligible level — nothing to show. */
+  jobChange: JobChangeView | null;
   fatigue: number;
   fatigueLevel: FatigueLevel;
   armyRank: ShadowGrade | null;
@@ -69,6 +82,7 @@ export async function getStatusView(
   });
 
   const army = await getShadowArmyView(container);
+  const attempt = await container.skills.jobChangeAttempt();
 
   return {
     name: hunter.name,
@@ -78,6 +92,15 @@ export async function getStatusView(
     rank: rankForLevel(hunter.level),
     gold: hunter.gold,
     className: hunter.className,
+    jobChange:
+      hunter.level >= JOB_CHANGE_MIN_LEVEL && hunter.className === null
+        ? {
+            attempted: attempt !== null,
+            consecutiveCleared: attempt?.consecutiveCleared ?? 0,
+            target: JOB_CHANGE_TARGET_CLEARS,
+            failed: attempt?.failedAt != null,
+          }
+        : null,
     fatigue: hunter.fatigue,
     fatigueLevel: fatigueLevel(hunter.fatigue),
     armyRank: army.armyRank,
