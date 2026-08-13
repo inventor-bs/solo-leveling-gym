@@ -42,6 +42,8 @@ export type ActionError =
   | "already-overridden-today"
   | "quest-not-found-override"
   | "already-swapped-this-week"
+  | "weekday-from-not-scheduled"
+  | "weekday-to-already-scheduled"
   | "no-banked-sessions"
   | "no-session-to-deposit"
   | "not-a-surplus-session"
@@ -91,6 +93,9 @@ export const ACTION_ERROR_MESSAGE: Record<ActionError, string> = {
     "Today's Daily Quest has already been changed once.",
   "quest-not-found-override": "That is not a valid Daily Quest field.",
   "already-swapped-this-week": "This week's schedule has already been swapped.",
+  "weekday-from-not-scheduled":
+    "That day is not part of your current schedule.",
+  "weekday-to-already-scheduled": "That day is already part of your schedule.",
   "no-banked-sessions": "There is no banked session to withdraw.",
   "no-session-to-deposit": "There is no completed session to deposit.",
   "not-a-surplus-session":

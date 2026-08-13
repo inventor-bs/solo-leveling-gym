@@ -5,7 +5,10 @@ import type { Container } from "@/server/container";
 export type SwapWeeklyScheduleResult = { weekStart: string };
 
 export type SwapWeeklyScheduleError =
-  { type: "skill-not-equipped" } | { type: "already-swapped-this-week" };
+  | { type: "skill-not-equipped" }
+  | { type: "already-swapped-this-week" }
+  | { type: "weekday-from-not-scheduled" }
+  | { type: "weekday-to-already-scheduled" };
 
 /**
  * Shadow Exchange: trades one of this week's scheduled weekdays for
@@ -20,6 +23,21 @@ export async function swapWeeklySchedule(
   const equippedSkills = new Set(await container.skills.equippedIds());
   if (!equippedSkills.has("shadow-exchange")) {
     return err({ type: "skill-not-equipped" });
+  }
+
+  // This is a move, not a delete: swapping a scheduled day onto another day
+  // that is already scheduled would collapse the week by one training day
+  // (effectiveScheduledWeekdays deletes weekdayFrom, then adds weekdayTo —
+  // a no-op add when weekdayTo is already present). Validating against the
+  // real base schedule also rules out swapping a day that was never
+  // scheduled in the first place.
+  const scheduled = await container.programs.allDays();
+  const baseWeekdays = new Set(scheduled.map((d) => d.weekday));
+  if (!baseWeekdays.has(weekdayFrom)) {
+    return err({ type: "weekday-from-not-scheduled" });
+  }
+  if (baseWeekdays.has(weekdayTo)) {
+    return err({ type: "weekday-to-already-scheduled" });
   }
 
   const today = toTrainingDay(container.clock.now(), container.tzOffsetMinutes);
