@@ -82,10 +82,9 @@ test.describe("Skills page", () => {
     if (await slotButton.isDisabled()) {
       // Fixture hunter's slots are already at the 8-slot ceiling — confirm
       // the disabled state itself rendered correctly rather than a 500,
-      // which is the actual regression this test exists to catch (see
-      // Phase 5's Task 37: a Server Component passing an inline closure to
-      // a "use client" component is not serializable and crashes the page
-      // for every visitor).
+      // which is the actual regression this test exists to catch: a Server
+      // Component passing an inline closure to a "use client" component is
+      // not serializable and crashes the page for every visitor.
       return;
     }
 
