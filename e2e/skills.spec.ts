@@ -101,3 +101,111 @@ test.describe("Skills page", () => {
     expect(consoleErrors).toEqual([]);
   });
 });
+
+function skillCard(page: Page, name: string) {
+  return page.locator("div.space-y-1").filter({ hasText: name });
+}
+
+/**
+ * Read-only by design: these tests never click EQUIP/UNEQUIP. The fixture
+ * hunter is a real, persistent dev database — a slot-toggle round trip that
+ * hangs partway (a slow router.refresh, a flaky assertion) would leave real
+ * equip/slot state permanently altered with no attempt at this hunter's
+ * actual training behind it, which is exactly what CLAUDE.md's Progression
+ * rule exists to prevent. Each test instead asserts against whatever the
+ * real fixture already shows, branching on it rather than forcing a path.
+ */
+test.describe("Skills page — SOVEREIGN action controls", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAsOwner(page);
+  });
+
+  test("Ruler's Authority renders correctly whether or not it is equipped, with no console error", async ({
+    page,
+  }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") consoleErrors.push(msg.text());
+    });
+
+    await page.goto("/skills");
+    const card = skillCard(page, "Ruler's Authority");
+    const equipButton = card.getByRole("button", { name: /^(EQUIP|UNEQUIP)$/ });
+    await expect(equipButton).toBeVisible();
+
+    if ((await equipButton.innerText()) === "UNEQUIP") {
+      await expect(
+        card.getByRole("button", { name: "OVERRIDE TODAY'S TARGET" }),
+      ).toBeVisible();
+    } else {
+      await expect(
+        card.getByRole("button", { name: "OVERRIDE TODAY'S TARGET" }),
+      ).toHaveCount(0);
+    }
+    expect(consoleErrors).toEqual([]);
+  });
+
+  test("Shadow Exchange renders correctly whether or not it is equipped, with no console error", async ({
+    page,
+  }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") consoleErrors.push(msg.text());
+    });
+
+    await page.goto("/skills");
+    const card = skillCard(page, "Shadow Exchange");
+    const equipButton = card.getByRole("button", { name: /^(EQUIP|UNEQUIP)$/ });
+    await expect(equipButton).toBeVisible();
+
+    if ((await equipButton.innerText()) === "UNEQUIP") {
+      await expect(
+        card.getByRole("button", { name: "SWAP THIS WEEK" }),
+      ).toBeVisible();
+    } else {
+      await expect(
+        card.getByRole("button", { name: "SWAP THIS WEEK" }),
+      ).toHaveCount(0);
+    }
+    expect(consoleErrors).toEqual([]);
+  });
+
+  test("Shadow Storage's row renders its live bank count with no console error", async ({
+    page,
+  }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") consoleErrors.push(msg.text());
+    });
+
+    await page.goto("/skills");
+    const card = skillCard(page, "Shadow Storage");
+    await expect(card).toBeVisible();
+
+    const learnButton = card.getByRole("button", { name: "LEARN" });
+    if ((await learnButton.count()) > 0) {
+      // Not learned in this fixture — confirm the row still renders
+      // cleanly now that SkillsView also threads the bank counts through
+      // on every load, learned or not.
+      await expect(learnButton).toBeVisible();
+      expect(consoleErrors).toEqual([]);
+      return;
+    }
+
+    const equipButton = card.getByRole("button", { name: /^(EQUIP|UNEQUIP)$/ });
+    if ((await equipButton.innerText()) === "UNEQUIP") {
+      await expect(card.getByText(/banked \/ .* pending credit/)).toBeVisible();
+      await expect(
+        card.getByRole("button", { name: "DEPOSIT SESSION" }),
+      ).toBeVisible();
+      await expect(
+        card.getByRole("button", { name: "WITHDRAW CREDIT" }),
+      ).toBeVisible();
+    } else {
+      await expect(card.getByText(/banked \/ .* pending credit/)).toHaveCount(
+        0,
+      );
+    }
+    expect(consoleErrors).toEqual([]);
+  });
+});
