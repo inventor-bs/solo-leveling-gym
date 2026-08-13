@@ -10,6 +10,7 @@ vi.mock("@/infra/config/env", () => ({
 
 const containerModule = await import("@/server/container");
 const { makeTestDb } = await import("@/infra/db/testing/make-test-db");
+const { seedProgram } = await import("@/infra/db/seed/program");
 const { fixedClock } = await import("@/infra/clock/system-clock");
 const { signSession, SESSION_COOKIE } = await import("@/server/auth/session");
 const { SKILL_CATALOG } = await import("@/core/skill/catalog");
@@ -40,6 +41,7 @@ beforeEach(async () => {
     tzOffsetMinutes: 420,
   });
   vi.spyOn(containerModule, "getContainer").mockReturnValue(container);
+  await seedProgram(db);
   await container.skills.seed(SKILL_CATALOG.map((s) => ({ id: s.id })));
   await container.hunters.create({ name: "Jin-Woo", createdAt: 0 });
   givenAuthenticated(true);
