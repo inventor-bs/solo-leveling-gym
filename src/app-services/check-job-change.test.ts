@@ -2,7 +2,34 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { makeTestDb } from "@/infra/db/testing/make-test-db";
 import { fixedClock } from "@/infra/clock/system-clock";
 import { buildContainer, type Container } from "@/server/container";
+import { SHADOW_ROSTER } from "@/core/shadow/roster";
 import { checkJobChangeProgress } from "./check-job-change";
+
+/**
+ * Seeds every muscle-mapped shadow (Bellion excluded — it has no grade
+ * ladder) as extracted and trained on `day`, with enough EXP to sit at
+ * Knight grade. Training them on the same day the test calls
+ * checkJobChangeProgress with keeps daysSinceTrained at 0, so none of them
+ * are weakened at read time and the raw EXP threshold is what decides the
+ * grade.
+ */
+async function seedAllMuscleShadowsAtKnight(
+  container: Container,
+  day: string,
+): Promise<void> {
+  const muscleShadows = SHADOW_ROSTER.filter((s) => s.muscle !== null);
+  await container.shadows.seed(
+    muscleShadows.map((s) => ({
+      id: s.id,
+      name: s.name,
+      muscle: s.muscle,
+      extractedAt: 1,
+    })),
+  );
+  for (const s of muscleShadows) {
+    await container.shadows.addExp(s.id, 15_000, day);
+  }
+}
 
 describe("checkJobChangeProgress", () => {
   let container: Container;
@@ -137,5 +164,21 @@ describe("checkJobChangeProgress", () => {
     expect(events.map((e) => e.type)).toContain("JobChangeFailed");
     const attempt = await container.skills.jobChangeAttempt();
     expect(attempt?.failedAt).not.toBeNull();
+  });
+
+  it("offers Second Awakening once all 8 muscle-mapped shadows reach Knight, independent of level", async () => {
+    await container.hunters.update({ level: 30, className: "Berserker" }); // already classed below 40
+    await seedAllMuscleShadowsAtKnight(container, "2026-08-10");
+    const events = await checkJobChangeProgress(container, "2026-08-10", 0, 0);
+    expect(events.some((e) => e.type === "SecondAwakeningOffered")).toBe(true);
+    expect((await container.hunters.get())?.className).toBe("Shadow Monarch");
+  });
+
+  it("does not re-offer Second Awakening once already reclassed through it", async () => {
+    await container.hunters.update({ level: 30, className: "Berserker" });
+    await seedAllMuscleShadowsAtKnight(container, "2026-08-10");
+    await checkJobChangeProgress(container, "2026-08-10", 0, 0);
+    const events = await checkJobChangeProgress(container, "2026-08-10", 0, 0);
+    expect(events.some((e) => e.type === "SecondAwakeningOffered")).toBe(false);
   });
 });

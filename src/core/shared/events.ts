@@ -68,7 +68,8 @@ export type DomainEvent =
   | { type: "FatigueDecayed"; day: string }
   | { type: "JobChangeQuestStarted"; day: string }
   | { type: "JobChangeFailed"; retryAtLevel: number }
-  | { type: "ClassAssigned"; classId: string; className: string };
+  | { type: "ClassAssigned"; classId: string; className: string }
+  | { type: "SecondAwakeningOffered" };
 
 export type DomainEventOfType<T extends DomainEvent["type"]> = Extract<
   DomainEvent,

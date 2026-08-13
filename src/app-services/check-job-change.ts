@@ -6,10 +6,15 @@ import {
   JOB_CHANGE_RETRY_LEVEL,
   type JobChangeAttemptState,
 } from "@/core/skill/job-change";
-import { determineClass, CLASS_CATALOG } from "@/core/skill/class";
+import {
+  determineClass,
+  CLASS_CATALOG,
+  secondAwakeningEligible,
+} from "@/core/skill/class";
 import { volumeTargetMet } from "@/core/economy/challenges";
 import { buildStatInput } from "./stat-input";
 import { deriveStats } from "@/core/hunter/stats";
+import { getShadowArmyView } from "./shadow-view";
 import type { DomainEvent } from "@/core/shared/events";
 import type { Container } from "@/server/container";
 
@@ -42,6 +47,30 @@ export async function checkJobChangeProgress(
 ): Promise<DomainEvent[]> {
   const hunter = await container.hunters.get();
   if (!hunter) return [];
+
+  // Second Awakening is independent of level and of the ordinary Job
+  // Change Quest entirely — it fires the moment all 8 muscle-mapped
+  // shadows reach Knight grade, whether that happens at level 30, 60, or
+  // 90. It touches none of the attempt state read and written below (no
+  // call to the skills repo's attempt methods), so it cannot reopen, fail,
+  // or silently overwrite a Job Change Quest streak — those only start
+  // further down, past this early return. It is a one-time, permanent
+  // reclassification: once className is "Shadow Monarch", every later
+  // call finds nothing left to check and falls straight through to the
+  // ordinary Job Change logic below.
+  if (hunter.className !== "Shadow Monarch") {
+    const army = await getShadowArmyView(container);
+    const muscleGrades = army.shadows
+      .filter((s) => s.muscle !== null && s.extracted && s.grade !== null)
+      .map((s) => s.grade!);
+    if (secondAwakeningEligible(muscleGrades)) {
+      await container.hunters.update({ className: "Shadow Monarch" });
+      const now = container.clock.now();
+      const events: DomainEvent[] = [{ type: "SecondAwakeningOffered" }];
+      await container.events.record(events, day as TrainingDay, now);
+      return events;
+    }
+  }
 
   const existing = await container.skills.jobChangeAttempt();
   const attemptState: JobChangeAttemptState | null = existing && {
