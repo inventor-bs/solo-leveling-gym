@@ -87,10 +87,19 @@ export async function logSet(
       const shadowId = shadowForMuscle(exercise.muscle as MuscleGroup);
       const shadow = await container.shadows.byId(shadowId);
       // A main-lift PR always extracts. An accessory-lift PR only extracts
-      // once Shadow Extraction+ has been learned and equipped.
+      // once Shadow Extraction+ has been learned and equipped — unless the
+      // muscle group has no main lift in the catalog at all, in which case
+      // requiring that skill would make its shadow permanently
+      // unextractable without it.
       const equippedSkills = new Set(await container.skills.equippedIds());
+      const allExercises = await container.exercises.all();
+      const muscleHasMainLift = allExercises.some(
+        (e) => e.muscle === exercise.muscle && e.isMainLift,
+      );
       const canExtract =
-        exercise.isMainLift || equippedSkills.has("shadow-extraction-plus");
+        exercise.isMainLift ||
+        !muscleHasMainLift ||
+        equippedSkills.has("shadow-extraction-plus");
       if (shadow && shadow.extractedAt === null && canExtract) {
         await container.shadows.extract(shadowId, now);
         events.push({

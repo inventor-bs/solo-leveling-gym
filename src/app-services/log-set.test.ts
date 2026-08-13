@@ -311,12 +311,12 @@ describe("logSet — shadow extraction", () => {
   });
 
   it("a PR on an accessory exercise does NOT extract a shadow without Shadow Extraction+", async () => {
-    // db-curl is an accessory exercise mapped to muscle "arms" -> shadow
-    // "jima", also seeded not-yet-extracted.
+    // lat-pulldown is an accessory exercise mapped to muscle "back", which
+    // also has a main lift (barbell-row) — so the gate applies.
     const container = await containerWithActiveSessionAndShadows();
     const accessoryPrInput = {
       sessionId: "session-1",
-      exerciseId: "db-curl",
+      exerciseId: "lat-pulldown",
       setIndex: 0,
       reps: 10,
       weight: 15,
@@ -342,7 +342,7 @@ describe("logSet — shadow extraction", () => {
 
     const accessoryPrInput = {
       sessionId: "session-1",
-      exerciseId: "db-curl",
+      exerciseId: "lat-pulldown",
       setIndex: 0,
       reps: 10,
       weight: 15,
@@ -351,6 +351,31 @@ describe("logSet — shadow extraction", () => {
     const result = await logSet(container, {
       ...accessoryPrInput,
       clientActionId: "acc-2",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.events.some((e) => e.type === "ShadowArisen")).toBe(
+        true,
+      );
+    }
+  });
+
+  it("a PR on an accessory exercise for a muscle group with no main lift extracts without Shadow Extraction+", async () => {
+    // db-curl is mapped to muscle "arms", which has no isMainLift exercise
+    // in the catalog at all — Shadow Extraction+ can never be required
+    // here, or Jima could never reach Knight+ without that one skill.
+    const container = await containerWithActiveSessionAndShadows();
+    const accessoryPrInput = {
+      sessionId: "session-1",
+      exerciseId: "db-curl",
+      setIndex: 0,
+      reps: 10,
+      weight: 15,
+      completed: true,
+    };
+    const result = await logSet(container, {
+      ...accessoryPrInput,
+      clientActionId: "acc-3",
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
