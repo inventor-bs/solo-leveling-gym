@@ -22,6 +22,12 @@ const eslintConfig = [
       "src/infra/db/migrations/**",
       "src/infra/db/local.db",
       "next-env.d.ts",
+      // Sibling git worktrees live under .claude/worktrees/ and are full,
+      // separate checkouts with their own .next/node_modules/next-env.d.ts
+      // — the patterns above only match at the repo root, so without this
+      // a plain lint run from the main repo picks up every build artifact
+      // in any worktree that happens to exist alongside it.
+      ".claude/worktrees/**",
     ],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
