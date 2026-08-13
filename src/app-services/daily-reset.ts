@@ -19,6 +19,7 @@ import { fatigueDecayMultiplier } from "@/core/skill/buffs";
 import type { QuestStatus } from "@/infra/db/schema/quest";
 import type { Container } from "@/server/container";
 import { checkJobChangeProgress } from "./check-job-change";
+import { anyDeferredInRange } from "./deferred-day";
 import { ensureDailyQuest } from "./ensure-daily-quest";
 import { ensureNarrativeUnlocks } from "./ensure-narrative";
 import { enterPenalty } from "./enter-penalty";
@@ -44,42 +45,13 @@ export type DailyResetSummary = {
 };
 
 /**
- * Whether `day`'s Daily Quest judgment is still deferred to the 04:00 grace
- * window — an Hourglass was bought for it, and the quest row is still
- * `active` because runGraceReset has not gotten to it yet.
- *
- * A day in this state must never be read as "not completed": the hunter may
- * have actually finished it, and the true answer will only exist once the
- * grace window judges it.
- */
-async function isDayDeferred(
-  container: Container,
-  day: TrainingDay,
-): Promise<boolean> {
-  const grace = await container.mitigation.graceForDay(day);
-  if (grace === null) return false;
-  const quest = await container.quests.byDay(day);
-  return quest !== null && quest.status === "active";
-}
-
-async function anyDeferredInRange(
-  container: Container,
-  from: TrainingDay,
-  to: TrainingDay,
-): Promise<boolean> {
-  for (let cursor = from; cursor <= to; cursor = addDays(cursor, 1)) {
-    if (await isDayDeferred(container, cursor)) return true;
-  }
-  return false;
-}
-
-/**
  * Perfect Week and wager resolution, the two checks that read a whole
  * week's worth of Daily Quest outcomes at once.
  *
  * Shared between the 00:00 reset and the 04:00 grace reset so a week that
  * is skipped here because one of its days is still deferred (see
- * isDayDeferred) gets a second chance once that day's grace window closes.
+ * isDayDeferred in ./deferred-day) gets a second chance once that day's
+ * grace window closes.
  * Neither check consumes anything by being skipped: Perfect Week's
  * idempotency guard is "was a PerfectWeek event already recorded for this
  * week", and a skipped wager is simply left `active` for `activeBefore` to

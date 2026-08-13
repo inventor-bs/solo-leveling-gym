@@ -3,6 +3,7 @@ import { fixedClock } from "@/infra/clock/system-clock";
 import { makeTestDb } from "@/infra/db/testing/make-test-db";
 import { seedProgram } from "@/infra/db/seed/program";
 import { buildContainer, type Container } from "@/server/container";
+import { checkJobChangeProgress } from "./check-job-change";
 import { runGraceReset } from "./daily-reset-grace";
 
 async function containerAt(day: string): Promise<Container> {
@@ -126,5 +127,31 @@ describe("runGraceReset", () => {
     const summary = await runGraceReset(container);
     expect(summary.penaltyOpened).toBe(true);
     expect(await container.penalties.countAll()).toBe(1);
+  });
+});
+
+describe("runGraceReset — resolves a Job Change Quest deferred by the day it just judged", () => {
+  it("fails a Job Change attempt in the very same grace-reset call once the deferred day it depended on is judged missed", async () => {
+    const container = await containerAt("2026-08-08");
+    await container.hunters.update({ level: 40 });
+
+    // Two prior qualifying sessions, sitting at 2 of the 3 needed.
+    await checkJobChangeProgress(container, "2026-08-05", 120, 100);
+    await checkJobChangeProgress(container, "2026-08-06", 120, 100);
+
+    // Day D (08-07) carries an Hourglass — its Daily Quest is still active,
+    // deferring judgment to this same grace window.
+    await graceDayWithActiveQuest(container, "2026-08-07");
+    // The hunter never actually finished it — the grace window will judge
+    // it missed.
+
+    const summary = await runGraceReset(container);
+    expect(summary.judged).toEqual([{ day: "2026-08-07", status: "missed" }]);
+    // Without the grace reset also re-checking Job Change progress, this
+    // would only be caught by the following day's 00:00 reset instead of
+    // resolving immediately here.
+    expect(summary.events.map((e) => e.type)).toContain("JobChangeFailed");
+    const attempt = await container.skills.jobChangeAttempt();
+    expect(attempt?.failedAt).not.toBeNull();
   });
 });

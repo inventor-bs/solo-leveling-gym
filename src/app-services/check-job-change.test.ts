@@ -220,3 +220,89 @@ describe("checkJobChangeProgress", () => {
     expect((await container.hunters.get())?.className).toBe("Shadow Monarch");
   });
 });
+
+describe("checkJobChangeProgress — a still-deferred day inside the window", () => {
+  let container: Container;
+
+  beforeEach(async () => {
+    const db = await makeTestDb();
+    container = buildContainer({
+      db,
+      tzOffsetMinutes: 420,
+      clock: fixedClock("2026-08-10T00:00:00Z"),
+    });
+    await container.hunters.create({ name: "Jin-Woo", createdAt: 0 });
+    await container.hunters.update({ level: 40, rank: "A" });
+  });
+
+  /** Two prior clears, sitting at 2 of the 3 needed. */
+  async function attemptAtTwoOfThree() {
+    await checkJobChangeProgress(container, "2026-08-04", 120, 100); // -> 1
+    await checkJobChangeProgress(container, "2026-08-05", 120, 100); // -> 2
+  }
+
+  /** Day D carries an Hourglass — its Daily Quest is still "active". */
+  async function deferDay(day: string) {
+    await container.quests.create({
+      id: `q-${day}`,
+      day,
+      rank: "A",
+      targetPushups: 60,
+      targetSitups: 60,
+      targetSquats: 60,
+      targetRunKm: 5,
+      createdAt: 0,
+    });
+    await container.mitigation.grantGrace(day, 1);
+  }
+
+  it("CRITICAL: a qualifying session does not complete the attempt while an earlier day in the window is still deferred", async () => {
+    await attemptAtTwoOfThree();
+    await deferDay("2026-08-06");
+
+    const events = await checkJobChangeProgress(
+      container,
+      "2026-08-07",
+      120,
+      100,
+    );
+    expect(events.some((e) => e.type === "ClassAssigned")).toBe(false);
+    const attempt = await container.skills.jobChangeAttempt();
+    expect(attempt?.completedAt).toBeNull();
+    expect(attempt?.consecutiveCleared).toBe(2);
+  });
+
+  it("fails the attempt once the grace window judges the deferred day missed", async () => {
+    await attemptAtTwoOfThree();
+    await deferDay("2026-08-06");
+    await checkJobChangeProgress(container, "2026-08-07", 120, 100); // deferred, holds at 2
+
+    // The grace cron judges day D as missed.
+    await container.quests.setStatus("2026-08-06", "missed", 1);
+    const events = await checkJobChangeProgress(container, "2026-08-07", 0, 0);
+    expect(events.map((e) => e.type)).toContain("JobChangeFailed");
+    const attempt = await container.skills.jobChangeAttempt();
+    expect(attempt?.failedAt).not.toBeNull();
+  });
+
+  it("completes the attempt on the next qualifying call once the grace window judges the deferred day completed", async () => {
+    await attemptAtTwoOfThree();
+    await deferDay("2026-08-06");
+    await checkJobChangeProgress(container, "2026-08-07", 120, 100); // deferred, holds at 2
+
+    // The grace cron judges day D as completed — the hunter really did
+    // finish it inside the grace window.
+    await container.quests.setStatus("2026-08-06", "completed", 1);
+
+    // No longer deferred, so the same qualifying call now goes through.
+    const events = await checkJobChangeProgress(
+      container,
+      "2026-08-07",
+      120,
+      100,
+    );
+    expect(events.some((e) => e.type === "ClassAssigned")).toBe(true);
+    const attempt = await container.skills.jobChangeAttempt();
+    expect(attempt?.completedAt).not.toBeNull();
+  });
+});

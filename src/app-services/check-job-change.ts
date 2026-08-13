@@ -14,6 +14,7 @@ import {
 import { volumeTargetMet } from "@/core/economy/challenges";
 import { buildStatInput } from "./stat-input";
 import { deriveStats } from "@/core/hunter/stats";
+import { anyDeferredInRange } from "./deferred-day";
 import { getShadowArmyView } from "./shadow-view";
 import type { DomainEvent } from "@/core/shared/events";
 import type { Container } from "@/server/container";
@@ -143,12 +144,34 @@ export async function checkJobChangeProgress(
     dailyQuestFailedInWindow,
   });
 
+  // A "completed" outcome can only be trusted once every day inside the
+  // window has a final judgment. A day still deferred to the 04:00 grace
+  // window might yet be judged missed, and the completion below is
+  // one-shot — assigning a class now and having the grace window fail the
+  // attempt a moment later would leave a class awarded for an attempt that
+  // never actually finished.
+  const completionStillDeferred =
+    outcome.status === "completed" &&
+    (await anyDeferredInRange(
+      container,
+      startedDay as TrainingDay,
+      day as TrainingDay,
+    ));
+
   if (outcome.status === "failed") {
     await container.skills.failJobChangeAttempt(now);
     events.push({
       type: "JobChangeFailed",
       retryAtLevel: JOB_CHANGE_RETRY_LEVEL,
     });
+  } else if (completionStillDeferred) {
+    // Hold the streak exactly where it was — do not complete, do not
+    // assign a class. If the deferred day resolves to "missed", the very
+    // next call sees dailyQuestFailedInWindow flip to true above and fails
+    // the attempt correctly. If it resolves to "completed", the streak is
+    // still sitting one clear short of the target, so the hunter's next
+    // qualifying session (or a retry of this same call) finishes the count
+    // and completes for real.
   } else if (outcome.status === "in-progress") {
     // A zero-volume call — the reset path — has nothing new to report once
     // failure and window-expiry are already ruled out above: it did not

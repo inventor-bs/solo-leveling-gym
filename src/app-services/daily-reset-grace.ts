@@ -3,8 +3,9 @@ import { parseTrainingDay, toTrainingDay } from "@/core/shared/training-day";
 import { isQuestComplete } from "@/core/quest/daily-quest";
 import type { QuestStatus } from "@/infra/db/schema/quest";
 import type { Container } from "@/server/container";
-import { enterPenalty } from "./enter-penalty";
+import { checkJobChangeProgress } from "./check-job-change";
 import { runWeeklyEconomyChecks } from "./daily-reset";
+import { enterPenalty } from "./enter-penalty";
 
 export type GraceResetSummary = {
   today: string;
@@ -101,6 +102,13 @@ export async function runGraceReset(
   // place rather than count as "not completed".
   const weekly = await runWeeklyEconomyChecks(container, today);
   events.push(...weekly.events);
+
+  // Same reasoning: a Job Change Quest whose completion or failure was
+  // held back by the day just judged above no longer needs to wait for
+  // tomorrow's 00:00 reset to notice — checkJobChangeProgress persists its
+  // own events, folded in here rather than recorded a second time.
+  const jobChangeEvents = await checkJobChangeProgress(container, today, 0, 0);
+  events.push(...jobChangeEvents);
 
   return { today, judged, penaltyOpened, events };
 }
