@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { redirectOwnerIfPenalised } from "@/server/penalty-guard";
 import { getContainer } from "@/server/container";
 import { rankForLevel } from "@/core/hunter/progression";
+import { auraVisualTier } from "@/core/cosmetic/aura";
 import { jobChangeEligible } from "@/core/skill/job-change";
 import { toTrainingDay, isoWeekdayOf } from "@/core/shared/training-day";
 import { INSTANT_DUNGEON_KEY_COST } from "@/core/economy/pricing";
@@ -16,6 +17,7 @@ import { getNarrativeView } from "@/app-services/narrative-view";
 import { getSystemMessage } from "@/app-services/system-voice-view";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { RankBadge } from "@/ui/components/primitives/RankBadge";
+import { AuraGlow } from "@/ui/components/primitives/AuraGlow";
 import { RunLogForm } from "@/ui/components/dungeon/RunLogForm";
 import { InstantDungeonKeyButton } from "@/ui/components/dungeon/InstantDungeonKeyButton";
 import { FragmentCard } from "@/ui/components/narrative/FragmentCard";
@@ -169,7 +171,9 @@ export default async function DashboardPage() {
               <span className="text-system-blue">{hunter.name}</span>
             </h1>
           </div>
-          <RankBadge rank={rankForLevel(hunter.level)} size="md" />
+          <AuraGlow tier={auraVisualTier(hunter.auraLevel)}>
+            <RankBadge rank={rankForLevel(hunter.level)} size="md" />
+          </AuraGlow>
         </div>
 
         {message && (

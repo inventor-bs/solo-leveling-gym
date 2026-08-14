@@ -5,6 +5,7 @@ import { getCosmeticView } from "@/app-services/cosmetic-view";
 import { JOB_CHANGE_RETRY_LEVEL } from "@/core/skill/job-change";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { RankBadge } from "@/ui/components/primitives/RankBadge";
+import { AuraGlow } from "@/ui/components/primitives/AuraGlow";
 import { StatRadar } from "@/ui/components/status/StatRadar";
 import { LiftTrendTable } from "@/ui/components/status/LiftTrendTable";
 import { TitleShelf } from "@/ui/components/status/TitleShelf";
@@ -56,7 +57,9 @@ export default async function StatusPage() {
               gold
             </p>
           </div>
-          <RankBadge rank={view.rank} size="md" />
+          <AuraGlow tier={cosmetic?.aura.visualTier ?? 0}>
+            <RankBadge rank={view.rank} size="md" />
+          </AuraGlow>
         </div>
 
         <SystemPanel header="STATS">
