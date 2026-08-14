@@ -47,7 +47,9 @@ export type ActionError =
   | "no-banked-sessions"
   | "no-session-to-deposit"
   | "not-a-surplus-session"
-  | "already-deposited";
+  | "already-deposited"
+  | "unknown-cosmetic"
+  | "cosmetic-not-owned";
 
 export type ActionResult<T> =
   { ok: true; value: T } | { ok: false; error: ActionError };
@@ -101,4 +103,6 @@ export const ACTION_ERROR_MESSAGE: Record<ActionError, string> = {
   "not-a-surplus-session":
     "Only a session outside the regular schedule can be deposited.",
   "already-deposited": "That session has already been deposited.",
+  "unknown-cosmetic": "The System has no record of that cosmetic.",
+  "cosmetic-not-owned": "That has not been bought yet.",
 };
