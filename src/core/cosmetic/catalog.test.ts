@@ -59,7 +59,9 @@ describe("unlock keys", () => {
   it("builds a shadow-skin key from the PAIR, so one shadow's skin is not another's", () => {
     expect(shadowSkinKey("void", "igris")).toBe("shadow-skin:void:igris");
     expect(shadowSkinKey("void", "tank")).toBe("shadow-skin:void:tank");
-    expect(shadowSkinKey("void", "igris")).not.toBe(shadowSkinKey("void", "tank"));
+    expect(shadowSkinKey("void", "igris")).not.toBe(
+      shadowSkinKey("void", "tank"),
+    );
   });
 
   it("builds a title-frame key and a fixed dashboard-layout key", () => {

@@ -112,10 +112,7 @@ export function titleFrameKey(frameId: string): string {
  * so it is not draggable either and renders after this block.
  */
 export type DashboardPanelId =
-  | "daily-quest"
-  | "todays-gate"
-  | "run-log"
-  | "instant-dungeon-key";
+  "daily-quest" | "todays-gate" | "run-log" | "instant-dungeon-key";
 
 export const DEFAULT_DASHBOARD_ORDER: readonly DashboardPanelId[] = [
   "daily-quest",
