@@ -69,6 +69,13 @@ const eslintConfig = [
               message:
                 "ports/ only contains interfaces. infra/ implements them, not the other way around.",
             },
+            {
+              target: "./src/core/cosmetic",
+              from: "./src/core",
+              except: ["./economy", "./cosmetic"],
+              message:
+                "core/cosmetic/ may only read the pricing constants. A cosmetic that reaches any further into core/ has entered a real number's calculation.",
+            },
           ],
         },
       ],
