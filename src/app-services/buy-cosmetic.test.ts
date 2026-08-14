@@ -69,6 +69,9 @@ describe("buyCosmetic — dashboard layout", () => {
     expect(await container.store.isUnlocked(DASHBOARD_LAYOUT_UNLOCK_KEY)).toBe(
       false,
     );
+    expect((await container.hunters.get())?.gold).toBe(
+      DASHBOARD_LAYOUT_COST - 1,
+    );
   });
 
   it("records a GoldSpent event naming the cosmetic that took the gold", async () => {
@@ -133,6 +136,7 @@ describe("buyCosmetic — shadow skin", () => {
       shadowId: "not-a-shadow",
     });
     expect(result).toEqual({ ok: false, error: { type: "shadow-not-found" } });
+    expect((await container.hunters.get())?.gold).toBe(5_000);
   });
 
   it("refuses a skin id that is not in the catalog", async () => {
@@ -169,5 +173,6 @@ describe("buyCosmetic — title frame", () => {
       frameId: "bronze",
     });
     expect(result).toEqual({ ok: false, error: { type: "unknown-cosmetic" } });
+    expect((await container.hunters.get())?.gold).toBe(5_000);
   });
 });
