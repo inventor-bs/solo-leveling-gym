@@ -31,6 +31,16 @@ export async function equipShadowSkin(
 ): Promise<Result<EquipShadowSkinResult, EquipShadowSkinError>> {
   const shadow = await container.shadows.byId(shadowId);
   if (!shadow) return err({ type: "shadow-not-found" });
+
+  // Cheap input-shape validation before the more specific state check below:
+  // a skin id that isn't even in the catalog is a more fundamental problem
+  // than this particular shadow's extraction state, so it must be reported
+  // first when both are true. Only applies to the non-null path — removing
+  // a skin (skinId === null) was never gated on catalog validity.
+  if (skinId !== null && !isShadowSkinId(skinId)) {
+    return err({ type: "unknown-cosmetic" });
+  }
+
   if (shadow.extractedAt === null) {
     return err({ type: "shadow-not-extracted" });
   }
@@ -39,8 +49,6 @@ export async function equipShadowSkin(
     await container.shadows.equipSkin(shadowId, null);
     return ok({ shadowId, equippedSkinId: null });
   }
-
-  if (!isShadowSkinId(skinId)) return err({ type: "unknown-cosmetic" });
 
   const owned = await container.store.isUnlocked(
     shadowSkinKey(skinId, shadowId),

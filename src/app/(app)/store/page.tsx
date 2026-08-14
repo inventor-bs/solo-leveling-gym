@@ -16,8 +16,8 @@ import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { LockedFeature } from "@/ui/components/primitives/LockedFeature";
 import { BuyButton } from "@/ui/components/store/BuyButton";
 
-/** Index 0 is "no aura yet"; the five tiers follow. */
-const AURA_TIER_LABEL = ["—", "I", "II", "III", "IV", "V"];
+/** Index 0 is unused — tier 0 ("no aura yet") renders no suffix at all. */
+const AURA_TIER_LABEL = ["", "I", "II", "III", "IV", "V"];
 
 export default async function StorePage() {
   await redirectOwnerIfPenalised();
@@ -48,7 +48,7 @@ export default async function StorePage() {
             {view.gold.toLocaleString()} G
           </p>
           <p className="font-mono text-xs text-slate-500 mt-1">
-            Nothing here buys progress. Everything here buys a harder session.
+            Nothing here buys progress.
           </p>
         </div>
 
@@ -268,8 +268,9 @@ export default async function StorePage() {
               <div className="space-y-1">
                 <div className="flex justify-between font-mono text-sm">
                   <span className="text-slate-300">
-                    Aura of the Monarch{" "}
-                    {AURA_TIER_LABEL[cosmetic.aura.visualTier]}
+                    Aura of the Monarch
+                    {cosmetic.aura.visualTier > 0 &&
+                      ` ${AURA_TIER_LABEL[cosmetic.aura.visualTier]}`}
                   </span>
                   <span className="text-gold">
                     {cosmetic.aura.nextCost.toLocaleString()} G

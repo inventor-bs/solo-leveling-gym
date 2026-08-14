@@ -38,20 +38,30 @@ export function ShadowCard({
     <div
       className={`rounded-lg border p-4 text-center ${
         shadow.weakened
-          ? "border-danger/40 bg-danger/5 grayscale"
+          ? "border-danger/40 bg-danger/5"
           : (skinStyle ?? "border-system-blue/30 bg-shadow-dark")
       }`}
     >
-      <div className="text-2xl mb-1">◈</div>
-      <p className="font-cinzel text-sm text-white font-bold">{shadow.name}</p>
-      {shadow.grade !== null && (
-        <p className="font-mono text-xs text-system-blue/70">{shadow.grade}</p>
-      )}
-      {shadow.weakened && (
-        <p className="font-mono text-xs text-danger mt-1">
-          {shadow.daysSinceTrained} days without training
+      {/* grayscale is scoped to the shadow's own visuals, not the whole
+          card: ShadowSkinSelector renders outside this wrapper so its
+          gold/system-blue "which skin is equipped" signal stays legible
+          while weakened. */}
+      <div className={shadow.weakened ? "grayscale" : ""}>
+        <div className="text-2xl mb-1">◈</div>
+        <p className="font-cinzel text-sm text-white font-bold">
+          {shadow.name}
         </p>
-      )}
+        {shadow.grade !== null && (
+          <p className="font-mono text-xs text-system-blue/70">
+            {shadow.grade}
+          </p>
+        )}
+        {shadow.weakened && (
+          <p className="font-mono text-xs text-danger mt-1">
+            {shadow.daysSinceTrained} days without training
+          </p>
+        )}
+      </div>
       {skin && (
         <ShadowSkinSelector
           shadowId={shadow.id}

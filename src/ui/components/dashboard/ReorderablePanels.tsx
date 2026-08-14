@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { Reorder } from "framer-motion";
 import { saveDashboardOrderAction } from "@/server/actions/cosmetic.actions";
 import type { ActionError } from "@/server/actions/action-result";
@@ -31,6 +32,7 @@ export function ReorderablePanels({
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<ActionError | null>(null);
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   if (!editable) {
     return (
@@ -49,8 +51,21 @@ export function ReorderablePanels({
     }
     setError(null);
     startTransition(async () => {
-      const result = await saveDashboardOrderAction({ order: items });
-      if (!result.ok) setError(result.error);
+      // `items` is only today's visible panels, reordered. Splicing them
+      // back into their original slots in `order` — rather than submitting
+      // `items` alone — keeps every panel absent from today's render at the
+      // position it already held, instead of letting the server's
+      // append-missing-ids-at-the-tail fallback silently evict it there.
+      let n = 0;
+      const merged = order.map((id) =>
+        present.includes(id) ? items[n++]! : id,
+      );
+      const result = await saveDashboardOrderAction({ order: merged });
+      if (result.ok) {
+        router.refresh();
+      } else {
+        setError(result.error);
+      }
       setEditing(false);
     });
   }
