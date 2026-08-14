@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { logRunAction } from "@/server/actions/training.actions";
 import type { ActionError } from "@/server/actions/action-result";
 import { ActionErrorNotice } from "@/ui/components/primitives/ActionErrorNotice";
@@ -11,6 +12,7 @@ export function RunLogForm({ day }: { day: string }) {
   const [done, setDone] = useState(false);
   const [error, setError] = useState<ActionError | null>(null);
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   function submit() {
     const distanceKm = Number(km);
@@ -21,6 +23,10 @@ export function RunLogForm({ day }: { day: string }) {
       const result = await logRunAction({ day, distanceKm, durationSec });
       if (result.ok) {
         setDone(true);
+        // Its only remaining caller (QuestTracker) shows this form right
+        // next to a progress bar computed from the same logged-km total —
+        // without a refresh that bar would sit stale after a successful log.
+        router.refresh();
       } else {
         setError(result.error);
       }

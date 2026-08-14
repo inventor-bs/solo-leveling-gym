@@ -2,10 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { logQuestProgressAction } from "@/server/actions/quest.actions";
 import type { ActionError } from "@/server/actions/action-result";
 import { ActionErrorNotice } from "@/ui/components/primitives/ActionErrorNotice";
+import { RunLogForm } from "@/ui/components/dungeon/RunLogForm";
 
 type Requirement = {
   key: "pushups" | "situps" | "squats";
@@ -99,12 +99,9 @@ export function QuestTracker({
             }}
           />
         </div>
-        <p className="font-mono text-xs text-slate-500 pt-1">
-          Distance is read from your logged runs.{" "}
-          <Link href="/dashboard" className="text-system-blue hover:underline">
-            Log a run →
-          </Link>
-        </p>
+        <div className="pt-2">
+          <RunLogForm day={day} />
+        </div>
       </div>
 
       {error && <ActionErrorNotice error={error} />}

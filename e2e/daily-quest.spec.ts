@@ -27,22 +27,30 @@ test("the daily quest is issued and progress persists", async ({ page }) => {
   await expect(page.getByText(/10 \/ \d+/).first()).toBeVisible();
 });
 
-test("the run-log panel is reachable on the Dashboard on any weekday", async ({
+test("a run can be logged from the Quests page on any weekday", async ({
   page,
 }) => {
   // Deliberately anonymous: reads stay public in this app (CLAUDE.md), and
   // the owner's own session gets redirected to /penalty whenever a penalty
   // is active — a real, current fixture-DB state this test must not force
   // its way past by ending the hunter's actual penalty. An anonymous visit
-  // reaches the Dashboard's real content regardless of penalty state.
+  // reaches real page content regardless of penalty state.
   //
   // dailyQuestTargets() has no weekday parameter — the run-km target is
   // active every day, with no exception — so the only reachable way to
-  // satisfy it, this Dashboard panel, must be visible regardless of what
-  // weekday this test happens to run on.
+  // satisfy it, this form, must be visible regardless of what weekday
+  // this test happens to run on. It lives here, next to the push-up/sit-up/
+  // squat trackers, rather than on the Dashboard behind a Tuesday/Thursday
+  // gate — the same always-on pattern the other three targets already used.
+  const response = await page.goto("/quests");
+  expect(response?.status()).toBeLessThan(400);
+  await expect(page.getByRole("button", { name: "LOG RUN" })).toBeVisible();
+});
+
+test("the run-log panel no longer lives on the Dashboard", async ({ page }) => {
   const response = await page.goto("/dashboard");
   expect(response?.status()).toBeLessThan(400);
   await expect(
     page.getByRole("heading", { name: /endurance training/i }),
-  ).toBeVisible();
+  ).toHaveCount(0);
 });
