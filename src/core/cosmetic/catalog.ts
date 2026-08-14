@@ -7,7 +7,7 @@ import {
 
 /**
  * The cosmetic catalog is constants, not data: three skins, three frames
- * and four panel ids, none of which any hunter can ever add to. There is no
+ * and three panel ids, none of which any hunter can ever add to. There is no
  * cosmetic table anywhere in this phase — ownership lives in `store_unlock`
  * and what is worn lives on the row it decorates.
  *
@@ -110,13 +110,16 @@ export function titleFrameKey(frameId: string): string {
  * priority, and a drag must not be able to reorder a penalty warning below
  * a purchase button. "TODAY — REST" is information rather than an action,
  * so it is not draggable either and renders after this block.
+ *
+ * "run-log" is deliberately absent: logging a run moved to the Quests page,
+ * since it satisfies the Daily Quest's always-on baseline, not a panel tied
+ * to which day the lifting schedule opens a gate.
  */
 export type DashboardPanelId =
-  "daily-quest" | "todays-gate" | "run-log" | "instant-dungeon-key";
+  "daily-quest" | "todays-gate" | "instant-dungeon-key";
 
 export const DEFAULT_DASHBOARD_ORDER: readonly DashboardPanelId[] = [
   "daily-quest",
   "todays-gate",
-  "run-log",
   "instant-dungeon-key",
 ];

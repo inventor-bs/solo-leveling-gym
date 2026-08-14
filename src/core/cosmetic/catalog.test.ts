@@ -71,11 +71,13 @@ describe("unlock keys", () => {
 });
 
 describe("DEFAULT_DASHBOARD_ORDER", () => {
-  it("is the four draggable action panels, in the order they render today", () => {
+  it("is the three draggable action panels, in the order they render today", () => {
+    // run-log moved to the Quests page (it logs the Daily Quest's always-on
+    // baseline, not a day tied to the lifting schedule) and is no longer a
+    // Dashboard panel at all — it must not appear here.
     expect(DEFAULT_DASHBOARD_ORDER).toEqual([
       "daily-quest",
       "todays-gate",
-      "run-log",
       "instant-dungeon-key",
     ]);
   });

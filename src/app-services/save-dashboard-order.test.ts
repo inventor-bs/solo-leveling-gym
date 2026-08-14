@@ -21,7 +21,7 @@ describe("saveDashboardOrder", () => {
   it("refuses when the layout has not been bought, and writes nothing", async () => {
     const container = await containerWithHunter(false);
     const result = await saveDashboardOrder(container, [
-      "run-log",
+      "instant-dungeon-key",
       "daily-quest",
     ]);
     expect(result).toEqual({
@@ -33,12 +33,7 @@ describe("saveDashboardOrder", () => {
 
   it("stores a full reordering exactly as given", async () => {
     const container = await containerWithHunter(true);
-    const order = [
-      "instant-dungeon-key",
-      "run-log",
-      "todays-gate",
-      "daily-quest",
-    ];
+    const order = ["instant-dungeon-key", "todays-gate", "daily-quest"];
     const result = await saveDashboardOrder(container, order);
     expect(result).toEqual({ ok: true, value: { order } });
     expect((await container.hunters.get())?.dashboardOrder).toBe(
@@ -48,15 +43,18 @@ describe("saveDashboardOrder", () => {
 
   it("normalizes before storing, so a bad client can never persist junk", async () => {
     const container = await containerWithHunter(true);
+    // "daily-quest" duplicated (keeps its first position) and "not-a-panel"
+    // (unrecognized, dropped) exercise both normalization rules at once;
+    // "todays-gate"/"instant-dungeon-key", omitted from the input, land
+    // appended at the end in default order.
     const result = await saveDashboardOrder(container, [
-      "run-log",
+      "daily-quest",
       "not-a-panel",
-      "run-log",
+      "daily-quest",
     ]);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.order).toEqual([
-      "run-log",
       "daily-quest",
       "todays-gate",
       "instant-dungeon-key",
@@ -72,7 +70,6 @@ describe("saveDashboardOrder", () => {
     expect(result.ok && result.value.order).toEqual([
       "daily-quest",
       "todays-gate",
-      "run-log",
       "instant-dungeon-key",
     ]);
   });
