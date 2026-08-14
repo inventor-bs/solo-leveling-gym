@@ -65,3 +65,29 @@ describe("ShadowRepo", () => {
     expect(tank?.extractedAt).toBe(500);
   });
 });
+
+describe("ShadowRepo.equipSkin", () => {
+  it("writes and clears the equipped skin without touching exp", async () => {
+    await shadows.seed([
+      { id: "igris", name: "Igris", muscle: "chest", extractedAt: 0 },
+    ]);
+    await shadows.addExp("igris", 500, "2026-08-14");
+
+    await shadows.equipSkin("igris", "void");
+    expect((await shadows.byId("igris"))?.equippedSkinId).toBe("void");
+    expect((await shadows.byId("igris"))?.exp).toBe(500);
+
+    await shadows.equipSkin("igris", null);
+    expect((await shadows.byId("igris"))?.equippedSkinId).toBeNull();
+    expect((await shadows.byId("igris"))?.exp).toBe(500);
+  });
+
+  it("touches only the shadow it names", async () => {
+    await shadows.seed([
+      { id: "igris", name: "Igris", muscle: "chest", extractedAt: 0 },
+      { id: "tank", name: "Tank", muscle: "back", extractedAt: 0 },
+    ]);
+    await shadows.equipSkin("igris", "ember");
+    expect((await shadows.byId("tank"))?.equippedSkinId).toBeNull();
+  });
+});

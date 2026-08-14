@@ -53,4 +53,16 @@ export class ShadowRepo {
       .set({ extractedAt: at })
       .where(sql`${shadow.id} = ${id} AND ${isNull(shadow.extractedAt)}`);
   }
+
+  /**
+   * Purely decorative, and narrow on purpose: this class has no generic
+   * patch method, because the table it owns also holds the EXP that only
+   * real volume is allowed to move. Null takes the skin off.
+   */
+  async equipSkin(id: string, skinId: string | null): Promise<void> {
+    await this.db
+      .update(shadow)
+      .set({ equippedSkinId: skinId })
+      .where(eq(shadow.id, id));
+  }
 }
