@@ -141,6 +141,13 @@
       "when": 1786443104841,
       "tag": "0019_plain_namora",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1786691862215,
+      "tag": "0020_lying_wendell_rand",
+      "breakpoints": true
     }
   ]
 }

@@ -19,6 +19,12 @@ export const shadow = sqliteTable("shadow", {
   extractedAt: integer("extracted_at"),
   /** TrainingDay (YYYY-MM-DD). Null until the shadow's muscle group is first trained. */
   lastTrainedDay: text("last_trained_day"),
+  /**
+   * Purely cosmetic, and nothing outside the render path ever reads it:
+   * not exp, not weakening, not Army Rank. Null is the state, matching
+   * extractedAt / lastTrainedDay above.
+   */
+  equippedSkinId: text("equipped_skin_id"),
 });
 
 export type ShadowRow = typeof shadow.$inferSelect;

@@ -17,6 +17,20 @@ export const hunter = sqliteTable("hunter", {
   rank: text("rank").notNull().default("E"),
   title: text("title"),
   className: text("class_name"),
+  /**
+   * Which decorative frame is drawn around the worn title, or null. One
+   * column for the same reason `title` is one column: only one can be worn,
+   * so there is no way to represent wearing two.
+   */
+  titleFrame: text("title_frame"),
+  /** JSON array of dashboard panel ids. Null means the default order. */
+  dashboardOrder: text("dashboard_order"),
+  /**
+   * How many times gold has been traded for aura. It multiplies nothing and
+   * feeds no other number — it only picks a glow intensity, and stops
+   * changing the glow past the visual cap while still costing gold.
+   */
+  auraLevel: integer("aura_level").notNull().default(0),
 
   strength: real("strength").notNull().default(0),
   agility: real("agility").notNull().default(0),
