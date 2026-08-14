@@ -136,3 +136,39 @@ export const HOURGLASS_MAX_PER_WEEK = 1;
 export const SHADOW_FEED_COST = 600;
 /** Days added to a shadow's reference day, delaying weakening at read time. */
 export const SHADOW_FEED_DAYS = 3;
+
+// -------------------------------------------------------------- cosmetic
+
+/**
+ * Nothing in this section changes a number. Not one of these prices buys a
+ * buff, a multiplier, or a threshold — they buy appearance and nothing
+ * else. Gold may never touch a measured value and may never multiply a
+ * progression value; a multiplier is only ever legitimate here when it was
+ * earned by training, which none of these were.
+ */
+export const DASHBOARD_LAYOUT_COST = 500;
+
+/** Priced per shadow: buying a skin for one shadow does not unlock it on another. */
+export const SHADOW_SKIN_COST = {
+  ember: 300,
+  frost: 600,
+  void: 1_000,
+} as const;
+export type ShadowSkinId = keyof typeof SHADOW_SKIN_COST;
+
+export const TITLE_FRAME_COST = {
+  system: 500,
+  monarch: 1_200,
+  sovereign: 2_500,
+} as const;
+export type TitleFrameId = keyof typeof TITLE_FRAME_COST;
+
+export const AURA_BASE_COST = 3_000;
+/** Each purchase multiplies the next one's price by this. */
+export const AURA_COST_GROWTH = 1.5;
+/**
+ * The glow stops changing here. Purchases beyond this level still cost
+ * escalating gold and still increment the stored level, on purpose: the
+ * economy needs one sink with no ceiling, and the visual budget has one.
+ */
+export const AURA_VISUAL_MAX_LEVEL = 5;

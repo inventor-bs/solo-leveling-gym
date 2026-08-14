@@ -34,6 +34,12 @@ import {
   HOURGLASS_MAX_PER_WEEK,
   SHADOW_FEED_COST,
   SHADOW_FEED_DAYS,
+  DASHBOARD_LAYOUT_COST,
+  SHADOW_SKIN_COST,
+  TITLE_FRAME_COST,
+  AURA_BASE_COST,
+  AURA_COST_GROWTH,
+  AURA_VISUAL_MAX_LEVEL,
 } from "./pricing";
 
 describe("income pricing", () => {
@@ -153,5 +159,32 @@ describe("penalty mitigation pricing", () => {
   it("prices the Shadow Feed at 600 gold for 3 days", () => {
     expect(SHADOW_FEED_COST).toBe(600);
     expect(SHADOW_FEED_DAYS).toBe(3);
+  });
+});
+
+describe("cosmetic pricing", () => {
+  it("prices the three skins and three frames on the ladder the Store lists", () => {
+    expect(SHADOW_SKIN_COST).toEqual({ ember: 300, frost: 600, void: 1_000 });
+    expect(TITLE_FRAME_COST).toEqual({
+      system: 500,
+      monarch: 1_200,
+      sovereign: 2_500,
+    });
+    expect(DASHBOARD_LAYOUT_COST).toBe(500);
+  });
+
+  it("the fixed catalog — everything except the aura — totals 21,800 G", () => {
+    // Nine shadows can each own each skin, and each frame is bought once.
+    // This number is the whole finite side of the cosmetic sink; if a price
+    // moves, this assertion is the one place that says so out loud.
+    const skins = Object.values(SHADOW_SKIN_COST).reduce((a, b) => a + b, 0);
+    const frames = Object.values(TITLE_FRAME_COST).reduce((a, b) => a + b, 0);
+    expect(DASHBOARD_LAYOUT_COST + skins * 9 + frames).toBe(21_800);
+  });
+
+  it("the aura escalates by half again per purchase and saturates visually at five", () => {
+    expect(AURA_BASE_COST).toBe(3_000);
+    expect(AURA_COST_GROWTH).toBe(1.5);
+    expect(AURA_VISUAL_MAX_LEVEL).toBe(5);
   });
 });
