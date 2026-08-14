@@ -131,15 +131,19 @@ export default async function DashboardPage() {
     );
   }
 
-  if (isRunDay) {
-    panels["run-log"] = (
-      <SystemPanel header="TODAY — ENDURANCE TRAINING">
-        <div className="p-4">
-          <RunLogForm day={today} />
-        </div>
-      </SystemPanel>
-    );
-  }
+  // Unconditional: the Daily Quest's run-km target applies every day with
+  // no weekday exception (dailyQuestTargets has no weekday parameter), and
+  // this panel is the only reachable way to log one. Gating it to Tue/Thu
+  // made the target unsatisfiable 5 days a week — an unfair Penalty Zone
+  // entry the spec's own "a penalty is only fair if always avoidable"
+  // principle exists to rule out.
+  panels["run-log"] = (
+    <SystemPanel header="TODAY — ENDURANCE TRAINING">
+      <div className="p-4">
+        <RunLogForm day={today} />
+      </div>
+    </SystemPanel>
+  );
 
   if (canBuyKey && offScheduleDay) {
     panels["instant-dungeon-key"] = (
