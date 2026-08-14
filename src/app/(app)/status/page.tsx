@@ -1,12 +1,15 @@
 import { redirectOwnerIfPenalised } from "@/server/penalty-guard";
 import { getContainer } from "@/server/container";
 import { getStatusView } from "@/app-services/status-view";
+import { getCosmeticView } from "@/app-services/cosmetic-view";
 import { JOB_CHANGE_RETRY_LEVEL } from "@/core/skill/job-change";
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { RankBadge } from "@/ui/components/primitives/RankBadge";
 import { StatRadar } from "@/ui/components/status/StatRadar";
 import { LiftTrendTable } from "@/ui/components/status/LiftTrendTable";
 import { TitleShelf } from "@/ui/components/status/TitleShelf";
+import { TitleBadge } from "@/ui/components/status/TitleBadge";
+import { TitleFrameSelector } from "@/ui/components/status/TitleFrameSelector";
 
 const STAT_ROWS = [
   { key: "strength", label: "STR" },
@@ -19,7 +22,9 @@ const STAT_ROWS = [
 
 export default async function StatusPage() {
   await redirectOwnerIfPenalised();
-  const view = await getStatusView(getContainer());
+  const container = getContainer();
+  const view = await getStatusView(container);
+  const cosmetic = await getCosmeticView(container);
 
   if (!view) {
     return (
@@ -100,7 +105,10 @@ export default async function StatusPage() {
             <div className="flex justify-between">
               <span className="text-slate-400">Title</span>
               <span className="text-white">
-                {view.titles.find((t) => t.equipped)?.name ?? "—"}
+                <TitleBadge
+                  name={view.titles.find((t) => t.equipped)?.name ?? null}
+                  frameId={cosmetic?.equippedFrameId ?? null}
+                />
               </span>
             </div>
           </div>
@@ -129,6 +137,12 @@ export default async function StatusPage() {
 
         <SystemPanel header="TITLES">
           <TitleShelf titles={view.titles} />
+          <TitleFrameSelector
+            frames={(cosmetic?.frames ?? [])
+              .filter((f) => f.owned)
+              .map((f) => ({ id: f.frameId, name: f.name }))}
+            equippedFrameId={cosmetic?.equippedFrameId ?? null}
+          />
         </SystemPanel>
       </div>
     </div>
