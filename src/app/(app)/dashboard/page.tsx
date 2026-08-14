@@ -1,10 +1,16 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { redirectOwnerIfPenalised } from "@/server/penalty-guard";
 import { getContainer } from "@/server/container";
 import { rankForLevel } from "@/core/hunter/progression";
 import { jobChangeEligible } from "@/core/skill/job-change";
 import { toTrainingDay, isoWeekdayOf } from "@/core/shared/training-day";
 import { INSTANT_DUNGEON_KEY_COST } from "@/core/economy/pricing";
+import { normalizeDashboardOrder } from "@/core/cosmetic/dashboard-order";
+import {
+  DASHBOARD_LAYOUT_UNLOCK_KEY,
+  DEFAULT_DASHBOARD_ORDER,
+} from "@/core/cosmetic/catalog";
 import { getQuestView } from "@/app-services/quest-view";
 import { getNarrativeView } from "@/app-services/narrative-view";
 import { getSystemMessage } from "@/app-services/system-voice-view";
@@ -13,6 +19,7 @@ import { RankBadge } from "@/ui/components/primitives/RankBadge";
 import { RunLogForm } from "@/ui/components/dungeon/RunLogForm";
 import { InstantDungeonKeyButton } from "@/ui/components/dungeon/InstantDungeonKeyButton";
 import { FragmentCard } from "@/ui/components/narrative/FragmentCard";
+import { ReorderablePanels } from "@/ui/components/dashboard/ReorderablePanels";
 
 export default async function DashboardPage() {
   await redirectOwnerIfPenalised();
@@ -44,6 +51,110 @@ export default async function DashboardPage() {
   const showJobChangeBanner =
     jobChangeEligible(hunter.level, jobChangeAttempt) &&
     hunter.className === null;
+
+  // Read directly rather than through getCosmeticView: this needs one
+  // primary-key lookup and one array derived from the hunter row already in
+  // hand, and the Dashboard is the hottest page in the app.
+  const layoutUnlocked = await container.store.isUnlocked(
+    DASHBOARD_LAYOUT_UNLOCK_KEY,
+  );
+  const panelOrder = normalizeDashboardOrder(
+    hunter.dashboardOrder,
+    DEFAULT_DASHBOARD_ORDER,
+  );
+
+  const panels: Record<string, ReactNode> = {};
+
+  if (quest) {
+    panels["daily-quest"] = (
+      <SystemPanel header="DAILY QUEST">
+        <div className="p-4 space-y-3">
+          <div className="flex justify-between font-mono text-sm">
+            <span
+              className={quest.complete ? "text-success" : "text-slate-300"}
+            >
+              {quest.complete ? "✓ Cleared" : "Incomplete"}
+            </span>
+            <span className="text-system-blue/60">{quest.percent}%</span>
+          </div>
+          <div className="h-1.5 bg-shadow-mid rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-system-blue to-monarch-purple rounded-full"
+              style={{ width: `${quest.percent}%` }}
+            />
+          </div>
+          {quest.streak > 0 && (
+            <p className="font-mono text-xs text-warning">
+              🔥 {quest.streak} day streak
+            </p>
+          )}
+          <Link
+            href="/quests"
+            className="block text-center bg-system-blue/10 border border-system-blue/40 text-system-blue
+              font-mono text-sm tracking-widest py-2 rounded hover:bg-system-blue/20 transition-colors"
+          >
+            ▸ OPEN QUEST LOG
+          </Link>
+        </div>
+      </SystemPanel>
+    );
+  }
+
+  if (program && !isRestDay) {
+    panels["todays-gate"] = (
+      <SystemPanel
+        header={`${program.programDay.name.toUpperCase()} — TODAY'S GATE`}
+      >
+        <div className="p-4 space-y-3">
+          <ul className="space-y-1">
+            {program.exercises.map(({ exercise, slot }) => (
+              <li
+                key={exercise.id}
+                className="font-mono text-sm text-slate-400"
+              >
+                {exercise.name} — {slot.targetSets} × {slot.repMin}-
+                {slot.repMax}
+              </li>
+            ))}
+          </ul>
+          <Link
+            href={`/dungeon?programDayId=${program.programDay.id}`}
+            className="block text-center bg-system-blue/10 border border-system-blue/40 text-system-blue
+              font-mono text-sm tracking-widest py-3 rounded hover:bg-system-blue/20 transition-colors"
+          >
+            ▸ ENTER DUNGEON
+          </Link>
+        </div>
+      </SystemPanel>
+    );
+  }
+
+  if (isRunDay) {
+    panels["run-log"] = (
+      <SystemPanel header="TODAY — ENDURANCE TRAINING">
+        <div className="p-4">
+          <RunLogForm day={today} />
+        </div>
+      </SystemPanel>
+    );
+  }
+
+  if (canBuyKey && offScheduleDay) {
+    panels["instant-dungeon-key"] = (
+      <SystemPanel header="INSTANT DUNGEON KEY">
+        <div className="p-4 space-y-2">
+          <p className="font-mono text-xs text-slate-500">
+            No gate is scheduled today. One can be opened anyway.
+          </p>
+          <InstantDungeonKeyButton
+            programDayId={offScheduleDay.id}
+            programDayName={offScheduleDay.name}
+            cost={INSTANT_DUNGEON_KEY_COST}
+          />
+        </div>
+      </SystemPanel>
+    );
+  }
 
   return (
     <div className="relative min-h-screen p-6 md:p-8">
@@ -105,94 +216,21 @@ export default async function DashboardPage() {
           </p>
         )}
 
-        {quest && (
-          <SystemPanel header="DAILY QUEST">
-            <div className="p-4 space-y-3">
-              <div className="flex justify-between font-mono text-sm">
-                <span
-                  className={quest.complete ? "text-success" : "text-slate-300"}
-                >
-                  {quest.complete ? "✓ Cleared" : "Incomplete"}
-                </span>
-                <span className="text-system-blue/60">{quest.percent}%</span>
-              </div>
-              <div className="h-1.5 bg-shadow-mid rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-system-blue to-monarch-purple rounded-full"
-                  style={{ width: `${quest.percent}%` }}
-                />
-              </div>
-              {quest.streak > 0 && (
-                <p className="font-mono text-xs text-warning">
-                  🔥 {quest.streak} day streak
-                </p>
-              )}
-              <Link
-                href="/quests"
-                className="block text-center bg-system-blue/10 border border-system-blue/40 text-system-blue
-                  font-mono text-sm tracking-widest py-2 rounded hover:bg-system-blue/20 transition-colors"
-              >
-                ▸ OPEN QUEST LOG
-              </Link>
-            </div>
-          </SystemPanel>
-        )}
-
-        {program && !isRestDay && (
-          <SystemPanel
-            header={`${program.programDay.name.toUpperCase()} — TODAY'S GATE`}
-          >
-            <div className="p-4 space-y-3">
-              <ul className="space-y-1">
-                {program.exercises.map(({ exercise, slot }) => (
-                  <li
-                    key={exercise.id}
-                    className="font-mono text-sm text-slate-400"
-                  >
-                    {exercise.name} — {slot.targetSets} × {slot.repMin}-
-                    {slot.repMax}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href={`/dungeon?programDayId=${program.programDay.id}`}
-                className="block text-center bg-system-blue/10 border border-system-blue/40 text-system-blue
-                  font-mono text-sm tracking-widest py-3 rounded hover:bg-system-blue/20 transition-colors"
-              >
-                ▸ ENTER DUNGEON
-              </Link>
-            </div>
-          </SystemPanel>
-        )}
-
-        {isRunDay && (
-          <SystemPanel header="TODAY — ENDURANCE TRAINING">
-            <div className="p-4">
-              <RunLogForm day={today} />
-            </div>
-          </SystemPanel>
-        )}
+        {/* key on the stored order so a saved reorder re-seeds the client
+            component's state after router.refresh() instead of leaving it
+            showing the pre-save order. */}
+        <ReorderablePanels
+          key={panelOrder.join("|")}
+          order={panelOrder}
+          panels={panels}
+          editable={layoutUnlocked}
+        />
 
         {isRestDay && (
           <SystemPanel header="TODAY — REST">
             <p className="p-4 font-mono text-sm text-slate-400">
               No dungeon is scheduled. Recovery is part of the training.
             </p>
-          </SystemPanel>
-        )}
-
-        {canBuyKey && offScheduleDay && (
-          <SystemPanel header="INSTANT DUNGEON KEY">
-            <div className="p-4 space-y-2">
-              <p className="font-mono text-xs text-slate-500">
-                No gate is scheduled today. One can be opened anyway.
-              </p>
-              <InstantDungeonKeyButton
-                programDayId={offScheduleDay.id}
-                programDayName={offScheduleDay.name}
-                cost={INSTANT_DUNGEON_KEY_COST}
-              />
-            </div>
           </SystemPanel>
         )}
       </div>
