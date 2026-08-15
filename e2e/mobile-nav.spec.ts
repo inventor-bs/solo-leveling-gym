@@ -31,6 +31,34 @@ test.describe("Mobile navigation", () => {
     await expect(page.getByRole("link", { name: /Shadow Army/i })).toBeHidden();
   });
 
+  test("the System Menu overlay is actually opaque, not just on top", async ({
+    page,
+  }) => {
+    // A Tailwind opacity modifier outside the default scale (e.g. /98,
+    // when the scale only defines ...90, 95, 100) silently produces no CSS
+    // rule at all — the class name survives in the markup but has zero
+    // effect, and the element falls back to a transparent background.
+    // Asserting on the class string would miss exactly that failure mode,
+    // so this checks the real computed style instead.
+    await page.goto("/dashboard");
+    await page.getByRole("button", { name: /open system menu/i }).click();
+
+    // The CLOSE button is a direct child of the overlay itself (the header
+    // text sits inside a nested wrapper div one level further down), so its
+    // immediate parent is the element that actually carries the background.
+    const overlay = page
+      .getByRole("button", { name: /close system menu/i })
+      .locator("..");
+    const alpha = await overlay.evaluate((el) => {
+      const bg = getComputedStyle(el).backgroundColor;
+      const match = bg.match(/rgba\(([^)]+)\)/);
+      if (!match) return 1; // "rgb(...)" with no alpha channel at all
+      const parts = match[1]!.split(",").map((n) => parseFloat(n));
+      return parts[3] ?? 1;
+    });
+    expect(alpha).toBeGreaterThan(0.9);
+  });
+
   test("the System Menu closes without navigating when dismissed", async ({
     page,
   }) => {

@@ -151,7 +151,7 @@ export function Sidebar({
             animate={{ y: 0 }}
             exit={{ y: "-100%" }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="md:hidden fixed inset-0 z-40 bg-void/98 flex flex-col"
+            className="md:hidden fixed inset-0 z-40 bg-void/95 flex flex-col"
           >
             <div className="p-5 border-b border-system-blue/20">
               <span className="text-system-blue font-mono text-xs tracking-widest uppercase animate-glow-pulse">
