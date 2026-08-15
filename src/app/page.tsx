@@ -10,7 +10,7 @@ export default function LandingPage() {
 
       {/* Background radial glow */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(123,47,190,0.15)_0%,transparent_70%)] pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-system-blue/3 blur-[120px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-system-blue/5 blur-[120px] pointer-events-none" />
 
       {/* System boot lines */}
       <motion.div
