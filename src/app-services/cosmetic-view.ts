@@ -1,6 +1,7 @@
 import {
   AURA_VISUAL_MAX_LEVEL,
   DASHBOARD_LAYOUT_COST,
+  VOICE_OF_THE_RULER_COST,
   type ShadowSkinId,
   type TitleFrameId,
 } from "@/core/economy/pricing";
@@ -13,6 +14,13 @@ import {
   shadowSkinKey,
   titleFrameKey,
 } from "@/core/cosmetic/catalog";
+import {
+  COLD_VOICE,
+  VOICE_OF_THE_RULER_UNLOCK_KEY,
+  VOICE_TONE_CATALOG,
+  type VoiceToneId,
+} from "@/core/system-voice/tone";
+import { resolveVoiceTone } from "./active-voice-tone";
 import type { Container } from "@/server/container";
 
 export type CosmeticUnlockOffer = {
@@ -70,6 +78,26 @@ export type CosmeticShadowSkinState = {
   ownedSkinIds: ShadowSkinId[];
 };
 
+export type CosmeticVoiceToneOption = {
+  /** null is Cold — the default voice, which is not for sale. */
+  toneId: VoiceToneId | null;
+  name: string;
+  description: string;
+  /** One line in this voice, shown before AND after the purchase. */
+  sample: string;
+  active: boolean;
+};
+
+export type CosmeticVoiceToneView = {
+  owned: boolean;
+  cost: number;
+  affordable: boolean;
+  available: boolean;
+  active: VoiceToneId | null;
+  /** Four entries: Cold, then the three the one purchase unlocks. */
+  options: CosmeticVoiceToneOption[];
+};
+
 export type CosmeticView = {
   gold: number;
   dashboardLayout: CosmeticUnlockOffer;
@@ -79,6 +107,7 @@ export type CosmeticView = {
   /** Feeds the per-shadow selector on the Shadow Army page. */
   shadowSkins: CosmeticShadowSkinState[];
   equippedFrameId: TitleFrameId | null;
+  voiceTone: CosmeticVoiceToneView;
 };
 
 /**
@@ -155,6 +184,13 @@ export async function getCosmeticView(
 
   const nextCost = auraCost(hunter.auraLevel);
 
+  // Asked of the one resolver rather than read off the row: there must be a
+  // single definition of which voice is live, or the Store will eventually
+  // show one selected that the System is not using.
+  const activeTone = await resolveVoiceTone(container);
+  const voiceOwned = unlocked.has(VOICE_OF_THE_RULER_UNLOCK_KEY);
+  const voiceAffordable = hunter.gold >= VOICE_OF_THE_RULER_COST;
+
   return {
     gold: hunter.gold,
     dashboardLayout: {
@@ -183,5 +219,28 @@ export async function getCosmeticView(
       ).map((skin) => skin.id),
     })),
     equippedFrameId: wornFrame,
+    voiceTone: {
+      owned: voiceOwned,
+      cost: VOICE_OF_THE_RULER_COST,
+      affordable: voiceAffordable,
+      available: !voiceOwned && voiceAffordable,
+      active: activeTone,
+      options: [
+        {
+          toneId: null,
+          name: COLD_VOICE.name,
+          description: COLD_VOICE.description,
+          sample: COLD_VOICE.sample,
+          active: activeTone === null,
+        },
+        ...VOICE_TONE_CATALOG.map((tone) => ({
+          toneId: tone.id,
+          name: tone.name,
+          description: tone.description,
+          sample: tone.sample,
+          active: activeTone === tone.id,
+        })),
+      ],
+    },
   };
 }

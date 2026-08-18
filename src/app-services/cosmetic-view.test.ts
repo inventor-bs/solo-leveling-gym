@@ -3,12 +3,16 @@ import { fixedClock } from "@/infra/clock/system-clock";
 import { makeTestDb } from "@/infra/db/testing/make-test-db";
 import { buildContainer, type Container } from "@/server/container";
 import { SHADOW_ROSTER } from "@/core/shadow/roster";
-import { AURA_VISUAL_MAX_LEVEL } from "@/core/economy/pricing";
+import {
+  AURA_VISUAL_MAX_LEVEL,
+  VOICE_OF_THE_RULER_COST,
+} from "@/core/economy/pricing";
 import {
   DASHBOARD_LAYOUT_UNLOCK_KEY,
   shadowSkinKey,
   titleFrameKey,
 } from "@/core/cosmetic/catalog";
+import { VOICE_OF_THE_RULER_UNLOCK_KEY } from "@/core/system-voice/tone";
 import { getCosmeticView } from "./cosmetic-view";
 
 async function containerWith(gold: number, auraLevel = 0): Promise<Container> {
@@ -154,5 +158,84 @@ describe("getCosmeticView", () => {
     );
     expect(atCap?.aura.visualTier).toBe(AURA_VISUAL_MAX_LEVEL);
     expect(atCap?.aura.saturated).toBe(true);
+  });
+});
+
+describe("getCosmeticView — voice of the ruler", () => {
+  it("offers the bundle at one price when it is affordable and unbought", async () => {
+    const view = await getCosmeticView(await containerWith(5_000));
+    expect(view?.voiceTone).toMatchObject({
+      owned: false,
+      cost: VOICE_OF_THE_RULER_COST,
+      affordable: true,
+      available: true,
+      active: null,
+    });
+  });
+
+  it("is unaffordable rather than available when the gold is short", async () => {
+    const view = await getCosmeticView(
+      await containerWith(VOICE_OF_THE_RULER_COST - 1),
+    );
+    expect(view?.voiceTone.affordable).toBe(false);
+    expect(view?.voiceTone.available).toBe(false);
+  });
+
+  it("marks an owned bundle unavailable rather than merely unaffordable", async () => {
+    const container = await containerWith(50_000);
+    await container.store.unlock(VOICE_OF_THE_RULER_UNLOCK_KEY, 0);
+    const view = await getCosmeticView(container);
+    expect(view?.voiceTone.owned).toBe(true);
+    expect(view?.voiceTone.available).toBe(false);
+  });
+
+  it("lists four options — Cold first, then the three that are bought", async () => {
+    const view = await getCosmeticView(await containerWith(5_000));
+    expect(view?.voiceTone.options.map((o) => o.toneId)).toEqual([
+      null,
+      "mocking",
+      "ancient",
+      "merciless",
+    ]);
+    expect(view?.voiceTone.options[0]?.name).toBe("Cold");
+  });
+
+  it("shows a sample line for every option, bought or not, so the price is an informed choice", async () => {
+    const view = await getCosmeticView(await containerWith(0));
+    expect(view?.voiceTone.owned).toBe(false);
+    for (const option of view?.voiceTone.options ?? []) {
+      expect(option.sample.length).toBeGreaterThan(0);
+      expect(option.description.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("marks Cold active until something else is chosen and owned", async () => {
+    const view = await getCosmeticView(await containerWith(5_000));
+    expect(view?.voiceTone.options.find((o) => o.active)?.toneId).toBeNull();
+  });
+
+  it("marks the chosen tone active once it is both chosen and owned", async () => {
+    const container = await containerWith(5_000);
+    await container.store.unlock(VOICE_OF_THE_RULER_UNLOCK_KEY, 0);
+    await container.hunters.update({ voiceTone: "ancient" });
+
+    const view = await getCosmeticView(container);
+    expect(view?.voiceTone.active).toBe("ancient");
+    expect(view?.voiceTone.options.filter((o) => o.active)).toHaveLength(1);
+    expect(view?.voiceTone.options.find((o) => o.active)?.toneId).toBe(
+      "ancient",
+    );
+  });
+
+  it("REGRESSION: reports Cold as active when the tone is chosen but the unlock is gone", async () => {
+    // The Store must never show a voice as selected that the System is not
+    // actually speaking in — which is why this view asks the one resolver
+    // rather than reading the column itself.
+    const container = await containerWith(5_000);
+    await container.hunters.update({ voiceTone: "ancient" });
+
+    const view = await getCosmeticView(container);
+    expect(view?.voiceTone.active).toBeNull();
+    expect(view?.voiceTone.options.find((o) => o.active)?.toneId).toBeNull();
   });
 });
