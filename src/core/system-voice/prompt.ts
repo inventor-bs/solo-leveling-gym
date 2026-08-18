@@ -1,5 +1,6 @@
 import type { VoiceRequest } from "@/ports/system-voice.port";
 import type { SystemContext, VoiceMessageKind } from "./types";
+import type { VoiceToneId } from "./tone";
 
 /** Everything one generation attempt needs, prompt and gate alike. */
 export type VoicePlan = {
@@ -10,7 +11,13 @@ export type VoicePlan = {
   readonly forbiddenText: readonly string[];
 };
 
-const VOICE_RULES = [
+/**
+ * The eight rules every voice obeys: safety, structure, and limits. They
+ * are identical in all four tones and no tone may loosen any of them —
+ * least of all the ban on comfort. The four voices differ in the KIND of
+ * cold they are, not in how warm they are permitted to be.
+ */
+const VOICE_RULES_BASE = [
   "You are The System: a cold evaluation program that speaks to one person.",
   'Address the reader as "Hunter". You do not know their name and must never guess one.',
   "State a fact first, then issue a demand. Do not explain yourself and do not ask permission.",
@@ -19,8 +26,65 @@ const VOICE_RULES = [
   "No emoji. At most one exclamation mark in total.",
   "Use ONLY numbers that appear in the FACTS block. Never invent a number, a date, or a weight.",
   "Do not repeat an observation that appears in RECENTLY SAID.",
-  'Reply with JSON only: {"body": string, "severity": "info" | "warning" | "critical", "title": string | null}',
-].join("\n");
+] as const;
+
+/** The output contract. Always last, so it is the final thing read. */
+const OUTPUT_FORMAT_RULE =
+  'Reply with JSON only: {"body": string, "severity": "info" | "warning" | "critical", "title": string | null}';
+
+/**
+ * The only part of the prompt a tone changes.
+ *
+ * Cold has no entry on purpose: it is already fully described by the first
+ * base rule ("a cold evaluation program") and the fourth (no comfort of any
+ * kind), and a block restating that would only dilute both.
+ *
+ * One line in each voice, reporting the same record, as the standard these
+ * blocks are aiming at:
+ *
+ *   Cold      Hunter. Bench Press: 82.5 kg. A new record. Do not let this
+ *             be the last time.
+ *   Mocking   A personal record. Predictable, eventually. Do it again
+ *             before you start believing it means something.
+ *   Ancient   Hunter. Thy strength hath grown by a measure none shall
+ *             dispute. Rest not upon it — the Gate awaits thy return.
+ *   Merciless New maximum. Noted. The next one will not come from standing
+ *             still.
+ */
+const VOICE_STYLE: Record<VoiceToneId, readonly string[]> = {
+  mocking: [
+    "STYLE: contemptuous and challenging. Treat what the Hunter has done as the least they could have done.",
+    "A rhetorical question is permitted, and counts toward the sentence limit.",
+    "Keep the contempt light: mock the effort, never the person. No insults, no cruelty.",
+    "The message still ends in a concrete demand.",
+  ],
+  ancient: [
+    "STYLE: formal and ceremonial, as an old power addressing a subject it has judged.",
+    "Archaic phrasing is permitted and encouraged: thee, thy, thou, hath, shall.",
+    "Use no contractions.",
+    "Gravity is not warmth. This voice still gives no praise and no comfort, and still ends in a concrete demand.",
+  ],
+  merciless: [
+    "STYLE: maximum brevity. Sentence fragments are preferred over complete sentences.",
+    "Never soften a failure and never qualify one.",
+    "No warmth, no wit, no flourish.",
+    "The shortest line that states the fact and issues the demand is the correct one.",
+  ],
+};
+
+/**
+ * The system prompt for one voice.
+ *
+ * The style block is inserted BETWEEN the base rules and the format rule,
+ * never appended after it — the JSON instruction has to be the last thing
+ * the model reads, exactly as it is today. With no tone the result is
+ * character-for-character the prompt that shipped before tones existed, and
+ * a test holds that line.
+ */
+export function voiceRulesFor(tone: VoiceToneId | null): string {
+  const style = tone === null ? [] : VOICE_STYLE[tone];
+  return [...VOICE_RULES_BASE, ...style, OUTPUT_FORMAT_RULE].join("\n");
+}
 
 const KIND_INSTRUCTION: Record<VoiceMessageKind, string> = {
   briefing:
@@ -125,6 +189,7 @@ function factsBlock(context: SystemContext): string {
 export function buildVoicePlan(
   kind: VoiceMessageKind,
   context: SystemContext,
+  tone: VoiceToneId | null,
 ): VoicePlan {
   const recentlySaid =
     context.lastMessages.length === 0
@@ -142,7 +207,7 @@ export function buildVoicePlan(
   ].join("\n");
 
   return {
-    request: { kind, systemPrompt: VOICE_RULES, userPrompt },
+    request: { kind, systemPrompt: voiceRulesFor(tone), userPrompt },
     allowedNumbers: contextNumbers(context),
     // The hunter's name never enters a prompt, and is refused at the gate
     // too — a model that produced it could only have got it from a source

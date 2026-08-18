@@ -12,6 +12,7 @@ import {
   DAILY_REQUEST_LIMIT,
   FAILURE_THRESHOLD,
 } from "@/core/system-voice/quota";
+import { VOICE_OF_THE_RULER_UNLOCK_KEY } from "@/core/system-voice/tone";
 import { generateVoicePool } from "./generate-voice-pool";
 import { runDailyReset } from "./daily-reset";
 
@@ -195,5 +196,74 @@ describe("generateVoicePool", () => {
       voice: voiceReturning({}),
     });
     expect((await generateVoicePool(container)).attempted).toBe(0);
+  });
+});
+
+describe("generateVoicePool speaks in the active tone", () => {
+  function recordingVoice(): {
+    port: SystemVoicePort;
+    prompts: string[];
+  } {
+    const prompts: string[] = [];
+    return {
+      prompts,
+      port: {
+        generate: async (request) => {
+          prompts.push(request.systemPrompt);
+          return { body: "Hunter. Continue.", severity: "info", title: null };
+        },
+      },
+    };
+  }
+
+  it("sends the Cold rules when nothing has been bought", async () => {
+    const spy = recordingVoice();
+    const container = await makeContainer(spy.port);
+    await generateVoicePool(container);
+    expect(spy.prompts.length).toBeGreaterThan(0);
+    for (const prompt of spy.prompts) {
+      expect(prompt).not.toContain("STYLE:");
+    }
+  });
+
+  it("sends the owned tone's style block to the provider", async () => {
+    const spy = recordingVoice();
+    const container = await makeContainer(spy.port);
+    await container.store.unlock(VOICE_OF_THE_RULER_UNLOCK_KEY, 0);
+    await container.hunters.update({ voiceTone: "merciless" });
+
+    await generateVoicePool(container);
+
+    expect(spy.prompts.length).toBeGreaterThan(0);
+    for (const prompt of spy.prompts) {
+      expect(prompt).toContain("STYLE: maximum brevity.");
+    }
+  });
+
+  it("REGRESSION: a chosen tone with no unlock still sends the Cold rules", async () => {
+    const spy = recordingVoice();
+    const container = await makeContainer(spy.port);
+    await container.hunters.update({ voiceTone: "merciless" });
+
+    await generateVoicePool(container);
+
+    for (const prompt of spy.prompts) {
+      expect(prompt).not.toContain("STYLE:");
+    }
+  });
+
+  it("REGRESSION: generates exactly as many requests as before the tone existed", async () => {
+    // A tone chooses which strings go out. It must not cause an extra call,
+    // an extra slot, or an extra unit of quota.
+    const spy = recordingVoice();
+    const container = await makeContainer(spy.port);
+    await container.store.unlock(VOICE_OF_THE_RULER_UNLOCK_KEY, 0);
+    await container.hunters.update({ voiceTone: "mocking" });
+
+    const summary = await generateVoicePool(container);
+
+    expect(summary.attempted).toBe(2);
+    expect(spy.prompts).toHaveLength(2);
+    expect((await container.voiceQuota.forDay(TODAY)).requests).toBe(2);
   });
 });

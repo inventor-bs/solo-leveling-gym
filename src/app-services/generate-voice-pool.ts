@@ -9,6 +9,7 @@ import {
 } from "@/core/system-voice/quota";
 import { VOICE_POOL_KINDS } from "@/core/system-voice/types";
 import type { Container } from "@/server/container";
+import { resolveVoiceTone } from "./active-voice-tone";
 import { buildSystemContext } from "./system-context";
 
 export type VoicePoolSummary = {
@@ -54,6 +55,10 @@ export async function generateVoicePool(
   const context = await buildSystemContext(container);
   if (!context) return summary;
 
+  // Resolved once per run, not per message: the voice cannot change
+  // between two slots of the same reset.
+  const tone = await resolveVoiceTone(container);
+
   let quota: QuotaState = await container.voiceQuota.forDay(today);
 
   for (const kind of VOICE_POOL_KINDS) {
@@ -63,7 +68,7 @@ export async function generateVoicePool(
     if (await container.systemMessages.byDayAndKind(today, kind)) continue;
 
     summary.attempted += 1;
-    const plan = buildVoicePlan(kind, context);
+    const plan = buildVoicePlan(kind, context, tone);
 
     try {
       const draft = await voice.generate(plan.request);
