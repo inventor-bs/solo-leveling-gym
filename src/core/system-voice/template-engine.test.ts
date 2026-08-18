@@ -5,6 +5,7 @@ import {
   type SystemContext,
   COLD_COPY,
   MOCKING_COPY,
+  ANCIENT_COPY,
   VOICE_BRANCHES,
   type ToneCopy,
 } from "./template-engine";
@@ -472,6 +473,70 @@ describe("MOCKING_COPY", () => {
 
   it("does not pluralize a one-day streak", () => {
     const single = MOCKING_COPY.observation(
+      baseContext({ streakDays: 1 }),
+      "streak",
+    );
+    expect(single).toContain("1 day.");
+    expect(single).not.toContain("1 days");
+  });
+});
+
+describe("ANCIENT_COPY", () => {
+  it("covers every branch and holds the template discipline", () => {
+    assertToneDiscipline(ANCIENT_COPY);
+  });
+
+  it("offers four openings, like every other voice", () => {
+    expect(ANCIENT_COPY.openings).toHaveLength(4);
+  });
+
+  it("reads the same numbers as Cold, in ceremonial words", () => {
+    const context = richContext();
+    const observation = ANCIENT_COPY.observation(context, "pr");
+    expect(observation).toContain("Bench Press");
+    expect(observation).toContain("82.5");
+    expect(observation).toContain("hath grown");
+    expect(ANCIENT_COPY.demand("pr")).toBe(
+      "Rest not upon it — the Gate awaits thy return.",
+    );
+  });
+
+  it("REGRESSION: uses no contractions anywhere, which is the one rule this voice adds", () => {
+    const context = richContext();
+    for (const branch of VOICE_BRANCHES) {
+      const line = `${ANCIENT_COPY.observation(context, branch)} ${ANCIENT_COPY.demand(branch)}`;
+      // An apostrophe followed by a letter is a contraction; this voice has
+      // no legitimate use for one.
+      expect(line).not.toMatch(/'\p{Letter}/u);
+    }
+    for (const opening of ANCIENT_COPY.openings) {
+      expect(opening).not.toMatch(/'\p{Letter}/u);
+    }
+  });
+
+  it("REGRESSION: still passes judgment rather than offering comfort", () => {
+    // The place this voice is most likely to slip: archaic language pulls
+    // hard toward benediction, and a stately consolation in the Penalty
+    // Zone would be the same failure as praise.
+    const context = richContext();
+    expect(ANCIENT_COPY.observation(context, "penalty")).toContain(
+      "Penalty Zone",
+    );
+    expect(ANCIENT_COPY.demand("penalty")).toContain("Survival Quest");
+    expect(ANCIENT_COPY.observation(context, "shadow")).toContain("Iron");
+    expect(ANCIENT_COPY.observation(context, "shadow")).toContain("11");
+    expect(ANCIENT_COPY.observation(context, "lift-down")).toContain("Squat");
+    expect(ANCIENT_COPY.observation(context, "lift-down")).toContain("7.5");
+  });
+
+  it("still addresses the reader as Hunter, which is a form of address and not a style choice", () => {
+    for (const opening of ANCIENT_COPY.openings) {
+      expect(opening).toContain("Hunter");
+    }
+  });
+
+  it("does not pluralize a one-day streak", () => {
+    const single = ANCIENT_COPY.observation(
       baseContext({ streakDays: 1 }),
       "streak",
     );

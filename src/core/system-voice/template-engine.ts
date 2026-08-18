@@ -215,6 +215,73 @@ export const MOCKING_COPY: ToneCopy = {
   },
 };
 
+/**
+ * Formal and ceremonial: an old power addressing a subject it has already
+ * judged. Archaic phrasing is welcome; contractions are not. Gravity is not
+ * warmth — this voice gives no praise and no comfort, and the pull toward
+ * benediction that old language carries is exactly what it must resist.
+ */
+export const ANCIENT_COPY: ToneCopy = {
+  openings: [
+    "Hunter.",
+    "Hear the System, Hunter.",
+    "The record is opened, Hunter.",
+    "Thou art measured, Hunter.",
+  ],
+  observation(context, branch) {
+    switch (branch) {
+      case "penalty":
+        return "Thou standest within the Penalty Zone. The judgment is already written.";
+      case "shadow": {
+        const s = context.weakestShadow!;
+        return `${s.name} hath weakened. ${s.daysSinceTrained} days hast thou left it untended.`;
+      }
+      case "lift-down": {
+        const worst = steepestFall(context)!;
+        return `${worst.name} hath fallen ${Math.abs(worst.deltaKg)} kg from thy peak.`;
+      }
+      case "quest":
+        return "The Daily Quest standeth unfinished.";
+      case "streak": {
+        const unit = context.streakDays === 1 ? "day" : "days";
+        return `Daily Quest cleared. Thy streak standeth at ${context.streakDays} ${unit}.`;
+      }
+      case "pr": {
+        const pr = context.recentPr!;
+        return `${pr.exerciseName}: ${pr.newE1rmKg} kg. Thy strength hath grown by a measure none shall dispute.`;
+      }
+      case "program":
+        return `Thy gate this day: ${context.todayProgramName}.`;
+      case "rest":
+        return "No gate opens for thee this day.";
+      case "run":
+        return "The long road is set before thee this day.";
+    }
+  },
+  demand(branch) {
+    switch (branch) {
+      case "penalty":
+        return "Clear the Survival Quest. There is no other door.";
+      case "shadow":
+        return "Return to the work that raised it, ere it fades.";
+      case "lift-down":
+        return "Reclaim what thou hast let slip.";
+      case "quest":
+        return "Complete it ere the day is closed.";
+      case "streak":
+        return "Let it not break upon this day.";
+      case "pr":
+        return "Rest not upon it — the Gate awaits thy return.";
+      case "program":
+        return "Enter, and do not tarry.";
+      case "rest":
+        return "Recover. The next shall not be gentler.";
+      case "run":
+        return "Record the distance when thou hast run it.";
+    }
+  },
+};
+
 /** Picks an opening deterministically from the given RNG. */
 function pickOpening(rng: RngPort): string {
   const index = rng.int(0, OPENINGS.length);
