@@ -1,0 +1,1 @@
+ALTER TABLE `hunter` ADD `voice_tone` text;

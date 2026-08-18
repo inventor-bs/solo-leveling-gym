@@ -23,6 +23,13 @@ export const hunter = sqliteTable("hunter", {
    * so there is no way to represent wearing two.
    */
   titleFrame: text("title_frame"),
+  /**
+   * Which purchased voice tone the System speaks in, or null for Cold — the
+   * default voice, which is not for sale and needs no unlock. One column for
+   * the same reason `title_frame` is one column: only one tone can be active,
+   * so there is no way to represent two.
+   */
+  voiceTone: text("voice_tone"),
   /** JSON array of dashboard panel ids. Null means the default order. */
   dashboardOrder: text("dashboard_order"),
   /**
