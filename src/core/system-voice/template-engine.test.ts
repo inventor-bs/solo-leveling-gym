@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import type { RngPort } from "@/ports/rng.port";
-import { buildSystemMessage, type SystemContext } from "./template-engine";
+import {
+  buildSystemMessage,
+  type SystemContext,
+  COLD_COPY,
+  MOCKING_COPY,
+  VOICE_BRANCHES,
+  type ToneCopy,
+} from "./template-engine";
 import { VOICE_POOL_KINDS } from "./types";
 
 /**
@@ -357,5 +364,118 @@ describe("severity", () => {
     expect(msg.body).toBe("");
     expect(msg.severity).toBe("critical");
     expect(msg.source).toBe("template");
+  });
+});
+
+/**
+ * A context with one distinctive number per interpolation slot, so a test
+ * can tell an interpolated number from a hard-coded one.
+ */
+function richContext(): SystemContext {
+  return baseContext({
+    streakDays: 6,
+    weakestShadow: { name: "Iron", daysSinceTrained: 11 },
+    liftsDown: [{ name: "Squat", deltaKg: -7.5 }],
+    recentPr: { exerciseName: "Bench Press", newE1rmKg: 82.5 },
+    todayProgramName: "Upper A",
+  });
+}
+
+const ALLOWED_NUMBERS = [6, 11, 7.5, 82.5];
+
+function assertToneDiscipline(copy: ToneCopy): void {
+  const context = richContext();
+  for (const branch of VOICE_BRANCHES) {
+    const observation = copy.observation(context, branch);
+    const demand = copy.demand(branch);
+    expect(observation.length).toBeGreaterThan(0);
+    expect(demand.length).toBeGreaterThan(0);
+
+    for (const opening of copy.openings) {
+      const line = `${opening} ${observation} ${demand}`;
+      expect(line).not.toMatch(/\p{Extended_Pictographic}/u);
+      expect(line.split("!").length - 1).toBeLessThanOrEqual(1);
+      expect(line.split(/\s+/).length).toBeLessThanOrEqual(45);
+      for (const found of line.match(/\d+(?:\.\d+)?/g) ?? []) {
+        expect(ALLOWED_NUMBERS).toContain(Number(found));
+      }
+    }
+  }
+}
+
+describe("the tone copy tables", () => {
+  it("names all nine branches, in the engine's own priority order", () => {
+    expect([...VOICE_BRANCHES]).toEqual([
+      "penalty",
+      "shadow",
+      "lift-down",
+      "quest",
+      "streak",
+      "pr",
+      "program",
+      "rest",
+      "run",
+    ]);
+  });
+
+  it("REGRESSION: COLD_COPY still produces the exact strings shipping today", () => {
+    // The Cold column is not being rewritten by this phase; a column is
+    // being added beside it.
+    const context = richContext();
+    expect(COLD_COPY.observation(context, "pr")).toBe(
+      "Bench Press: 82.5 kg. A new record.",
+    );
+    expect(COLD_COPY.demand("pr")).toBe("Do not let this be the last time.");
+    expect(COLD_COPY.observation(context, "penalty")).toBe(
+      "You are in the Penalty Zone.",
+    );
+    expect([...COLD_COPY.openings]).toEqual([
+      "Hunter.",
+      "System notice.",
+      "Attention, Hunter.",
+      "The System is watching.",
+    ]);
+  });
+});
+
+describe("MOCKING_COPY", () => {
+  it("covers every branch and holds the template discipline", () => {
+    assertToneDiscipline(MOCKING_COPY);
+  });
+
+  it("offers four openings, like every other voice", () => {
+    expect(MOCKING_COPY.openings).toHaveLength(4);
+  });
+
+  it("reads the same numbers as Cold, and mocks only the words around them", () => {
+    const context = richContext();
+    const observation = MOCKING_COPY.observation(context, "pr");
+    expect(observation).toContain("Bench Press");
+    expect(observation).toContain("82.5");
+    expect(observation).toContain("Predictable, eventually.");
+    expect(MOCKING_COPY.demand("pr")).toBe(
+      "Do it again before you start believing it means something.",
+    );
+  });
+
+  it("REGRESSION: does not go soft on the branches that must not soften", () => {
+    const context = richContext();
+    expect(MOCKING_COPY.observation(context, "penalty")).toContain(
+      "Penalty Zone",
+    );
+    expect(MOCKING_COPY.demand("penalty")).toContain("Survival Quest");
+    expect(MOCKING_COPY.observation(context, "shadow")).toContain("Iron");
+    expect(MOCKING_COPY.observation(context, "shadow")).toContain("11");
+    expect(MOCKING_COPY.observation(context, "lift-down")).toContain("Squat");
+    expect(MOCKING_COPY.observation(context, "lift-down")).toContain("7.5");
+  });
+
+  it("does not pluralize a one-day streak", () => {
+    const single = MOCKING_COPY.observation(
+      baseContext({ streakDays: 1 }),
+      "streak",
+    );
+    expect(single).toContain("1 day.");
+    expect(single).not.toContain("1 days");
   });
 });

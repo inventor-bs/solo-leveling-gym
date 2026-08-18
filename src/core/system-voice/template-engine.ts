@@ -22,19 +22,27 @@ const OPENINGS = [
   "The System is watching.",
 ] as const;
 
-/** Which branch fired. Keeps observation, demand, and severity in lockstep. */
-type Branch =
-  | "penalty"
-  | "shadow"
-  | "lift-down"
-  | "quest"
-  | "streak"
-  | "pr"
-  | "program"
-  | "rest"
-  | "run";
+/**
+ * Every branch, in the priority order `branchFor` walks. The array is the
+ * source of truth and the type is derived from it, so a branch can never be
+ * in one and missing from the other.
+ */
+export const VOICE_BRANCHES = [
+  "penalty",
+  "shadow",
+  "lift-down",
+  "quest",
+  "streak",
+  "pr",
+  "program",
+  "rest",
+  "run",
+] as const;
 
-function branchFor(context: SystemContext): Branch {
+/** Which branch fired. Keeps observation, demand, and severity in lockstep. */
+export type VoiceBranch = (typeof VOICE_BRANCHES)[number];
+
+function branchFor(context: SystemContext): VoiceBranch {
   if (context.penaltyActive) return "penalty";
   if (context.weakestShadow) return "shadow";
   if (context.liftsDown.length > 0) return "lift-down";
@@ -57,7 +65,7 @@ function steepestFall(
   return worst;
 }
 
-function observation(context: SystemContext, branch: Branch): string {
+function observation(context: SystemContext, branch: VoiceBranch): string {
   switch (branch) {
     case "penalty":
       return "You are in the Penalty Zone.";
@@ -88,7 +96,7 @@ function observation(context: SystemContext, branch: Branch): string {
   }
 }
 
-function demand(branch: Branch): string {
+function demand(branch: VoiceBranch): string {
   switch (branch) {
     case "penalty":
       return "Clear the Survival Quest to leave it.";
@@ -111,13 +119,101 @@ function demand(branch: Branch): string {
   }
 }
 
-function severityFor(branch: Branch): VoiceSeverity {
+function severityFor(branch: VoiceBranch): VoiceSeverity {
   if (branch === "penalty") return "critical";
   if (branch === "shadow" || branch === "lift-down" || branch === "quest") {
     return "warning";
   }
   return "info";
 }
+
+/**
+ * One voice's entire vocabulary: four openings, and one observation and one
+ * demand for each branch.
+ *
+ * A voice is a lookup, not a calculation. Nothing here receives or produces
+ * a number that did not come out of the context, and nothing here decides
+ * which branch fired or how severe it is.
+ */
+export type ToneCopy = {
+  readonly openings: readonly string[];
+  readonly observation: (context: SystemContext, branch: VoiceBranch) => string;
+  readonly demand: (branch: VoiceBranch) => string;
+};
+
+/**
+ * The default voice, wrapped in the shared shape without a single string
+ * being retyped: it points straight at the openings and the two functions
+ * that have been running in production since this engine was written.
+ */
+export const COLD_COPY: ToneCopy = { openings: OPENINGS, observation, demand };
+
+/**
+ * Contemptuous and challenging: what the Hunter did is treated as the least
+ * they could have done. The contempt stays on the effort and never reaches
+ * the person, and it never needs an exclamation mark to land — "Predictable,
+ * eventually." carries it with punctuation to spare.
+ */
+export const MOCKING_COPY: ToneCopy = {
+  openings: [
+    "Still here, Hunter.",
+    "Back again, Hunter.",
+    "The System was not holding its breath.",
+    "Something to report, Hunter?",
+  ],
+  observation(context, branch) {
+    switch (branch) {
+      case "penalty":
+        return "You are in the Penalty Zone. Nobody put you here.";
+      case "shadow": {
+        const s = context.weakestShadow!;
+        return `${s.name} has weakened. ${s.daysSinceTrained} days, and you noticed nothing.`;
+      }
+      case "lift-down": {
+        const worst = steepestFall(context)!;
+        return `${worst.name} has fallen ${Math.abs(worst.deltaKg)} kg. Impressive, in its way.`;
+      }
+      case "quest":
+        return "The Daily Quest is still open. Since morning.";
+      case "streak": {
+        const unit = context.streakDays === 1 ? "day" : "days";
+        return `Daily Quest cleared. Streak: ${context.streakDays} ${unit}. A start.`;
+      }
+      case "pr": {
+        const pr = context.recentPr!;
+        return `${pr.exerciseName}: ${pr.newE1rmKg} kg. Predictable, eventually.`;
+      }
+      case "program":
+        return `Today's gate: ${context.todayProgramName}. It has been waiting.`;
+      case "rest":
+        return "No dungeon today. How convenient.";
+      case "run":
+        return "Endurance work is scheduled. The part everyone skips.";
+    }
+  },
+  demand(branch) {
+    switch (branch) {
+      case "penalty":
+        return "Clear the Survival Quest, unless you like it here.";
+      case "shadow":
+        return "Train what made it, before there is nothing left.";
+      case "lift-down":
+        return "Take it back, or stop calling it your lift.";
+      case "quest":
+        return "Finish it before the day does.";
+      case "streak":
+        return "Do not break it now that it counts.";
+      case "pr":
+        return "Do it again before you start believing it means something.";
+      case "program":
+        return "Enter it, or find something easier.";
+      case "rest":
+        return "Recover, since you have nothing else planned.";
+      case "run":
+        return "Log the distance, and no rounding up.";
+    }
+  },
+};
 
 /** Picks an opening deterministically from the given RNG. */
 function pickOpening(rng: RngPort): string {
