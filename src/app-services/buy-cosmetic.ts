@@ -5,6 +5,7 @@ import {
   DASHBOARD_LAYOUT_COST,
   SHADOW_SKIN_COST,
   TITLE_FRAME_COST,
+  VOICE_OF_THE_RULER_COST,
 } from "@/core/economy/pricing";
 import {
   DASHBOARD_LAYOUT_UNLOCK_KEY,
@@ -13,13 +14,15 @@ import {
   shadowSkinKey,
   titleFrameKey,
 } from "@/core/cosmetic/catalog";
+import { VOICE_OF_THE_RULER_UNLOCK_KEY } from "@/core/system-voice/tone";
 import type { Container } from "@/server/container";
 import { spendGold } from "./spend-gold";
 
 export type BuyCosmeticInput =
   | { kind: "dashboard-layout" }
   | { kind: "shadow-skin"; skinId: string; shadowId: string }
-  | { kind: "title-frame"; frameId: string };
+  | { kind: "title-frame"; frameId: string }
+  | { kind: "voice-ruler" };
 
 export type BuyCosmeticResult = {
   key: string;
@@ -116,5 +119,14 @@ async function resolve(
         source: "cosmetic:title-frame",
       });
     }
+
+    case "voice-ruler":
+      // One key for all three tones. There is no per-tone key, and no
+      // charge for switching between them afterwards.
+      return ok({
+        key: VOICE_OF_THE_RULER_UNLOCK_KEY,
+        cost: VOICE_OF_THE_RULER_COST,
+        source: "cosmetic:voice-ruler",
+      });
   }
 }

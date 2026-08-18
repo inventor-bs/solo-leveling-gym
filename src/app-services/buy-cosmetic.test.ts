@@ -8,12 +8,14 @@ import {
   DASHBOARD_LAYOUT_COST,
   SHADOW_SKIN_COST,
   TITLE_FRAME_COST,
+  VOICE_OF_THE_RULER_COST,
 } from "@/core/economy/pricing";
 import {
   DASHBOARD_LAYOUT_UNLOCK_KEY,
   shadowSkinKey,
   titleFrameKey,
 } from "@/core/cosmetic/catalog";
+import { VOICE_OF_THE_RULER_UNLOCK_KEY } from "@/core/system-voice/tone";
 import { buyCosmetic } from "./buy-cosmetic";
 
 async function containerWith(gold: number): Promise<Container> {
@@ -174,5 +176,65 @@ describe("buyCosmetic — title frame", () => {
     });
     expect(result).toEqual({ ok: false, error: { type: "unknown-cosmetic" } });
     expect((await container.hunters.get())?.gold).toBe(5_000);
+  });
+});
+
+describe("buyCosmetic — voice of the ruler", () => {
+  it("charges 4,000 gold once and records the single bundle unlock", async () => {
+    const container = await containerWith(5_000);
+    const result = await buyCosmetic(container, { kind: "voice-ruler" });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.key).toBe(VOICE_OF_THE_RULER_UNLOCK_KEY);
+    expect(result.value.cost).toBe(VOICE_OF_THE_RULER_COST);
+    expect(result.value.goldRemaining).toBe(5_000 - VOICE_OF_THE_RULER_COST);
+    expect(
+      await container.store.isUnlocked(VOICE_OF_THE_RULER_UNLOCK_KEY),
+    ).toBe(true);
+  });
+
+  it("REGRESSION: refuses a second purchase and takes no gold for it", async () => {
+    const container = await containerWith(20_000);
+    await buyCosmetic(container, { kind: "voice-ruler" });
+    const before = (await container.hunters.get())?.gold;
+
+    const result = await buyCosmetic(container, { kind: "voice-ruler" });
+    expect(result).toEqual({ ok: false, error: { type: "already-unlocked" } });
+    expect((await container.hunters.get())?.gold).toBe(before);
+  });
+
+  it("refuses when gold is short, and unlocks nothing", async () => {
+    const container = await containerWith(VOICE_OF_THE_RULER_COST - 1);
+    const result = await buyCosmetic(container, { kind: "voice-ruler" });
+    expect(result).toEqual({ ok: false, error: { type: "insufficient-gold" } });
+    expect(
+      await container.store.isUnlocked(VOICE_OF_THE_RULER_UNLOCK_KEY),
+    ).toBe(false);
+  });
+
+  it("records a GoldSpent event naming the voice as the sink", async () => {
+    const container = await containerWith(5_000);
+    await buyCosmetic(container, { kind: "voice-ruler" });
+
+    const rows = await container.events.between(
+      "2026-08-14" as TrainingDay,
+      "2026-08-14" as TrainingDay,
+    );
+    const spent = rows.filter((r) => r.type === "GoldSpent");
+    expect(spent).toHaveLength(1);
+    expect(JSON.parse(spent[0]?.payload ?? "")).toEqual({
+      amount: VOICE_OF_THE_RULER_COST,
+      source: "cosmetic:voice-ruler",
+    });
+  });
+
+  it("REGRESSION: buying the bundle equips nothing on its own", async () => {
+    // Ownership and what is worn are separate facts, exactly as they are
+    // for a title frame. The purchase grants the right to choose; it does
+    // not choose.
+    const container = await containerWith(5_000);
+    await buyCosmetic(container, { kind: "voice-ruler" });
+    expect((await container.hunters.get())?.voiceTone).toBeNull();
   });
 });
