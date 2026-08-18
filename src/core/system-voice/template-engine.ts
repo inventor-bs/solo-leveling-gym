@@ -1,5 +1,6 @@
 import type { RngPort } from "@/ports/rng.port";
 import type { SystemContext, SystemMessage, VoiceSeverity } from "./types";
+import type { VoiceToneId } from "./tone";
 
 /**
  * [OPENING] + [OBSERVATION] + [DEMAND].
@@ -349,29 +350,48 @@ export const MERCILESS_COPY: ToneCopy = {
   },
 };
 
+/**
+ * Total by construction: the compiler refuses this object if a tone is ever
+ * added without its copy, which is the failure that would otherwise show up
+ * as `undefined` on screen on somebody's worst day.
+ */
+const TONE_COPY: Record<VoiceToneId, ToneCopy> = {
+  mocking: MOCKING_COPY,
+  ancient: ANCIENT_COPY,
+  merciless: MERCILESS_COPY,
+};
+
+export function toneCopy(tone: VoiceToneId | null): ToneCopy {
+  return tone === null ? COLD_COPY : TONE_COPY[tone];
+}
+
 /** Picks an opening deterministically from the given RNG. */
-function pickOpening(rng: RngPort): string {
-  const index = rng.int(0, OPENINGS.length);
-  return OPENINGS[index] ?? OPENINGS[0];
+function pickOpening(rng: RngPort, openings: readonly string[]): string {
+  const index = rng.int(0, openings.length);
+  return openings[index] ?? openings[0]!;
 }
 
 export function buildSystemMessage(
   context: SystemContext,
   rng: RngPort,
+  tone: VoiceToneId | null = null,
 ): SystemMessage {
   const branch = branchFor(context);
   const severity = severityFor(branch);
 
   // Silence is a state, not an absent message: the caller still needs to
   // know how bad things are in order to render the empty panel correctly.
+  // It is also decided before any string table is consulted, because going
+  // quiet is a mechanism and no voice may talk over it.
   if (context.penaltySilent) {
     return { body: "", severity, source: "template" };
   }
 
+  const copy = toneCopy(tone);
   const parts = [
-    pickOpening(rng),
-    observation(context, branch),
-    demand(branch),
+    pickOpening(rng, copy.openings),
+    copy.observation(context, branch),
+    copy.demand(branch),
   ];
   return { body: parts.join(" "), severity, source: "template" };
 }

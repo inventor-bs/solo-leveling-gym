@@ -9,8 +9,10 @@ import {
   MERCILESS_COPY,
   VOICE_BRANCHES,
   type ToneCopy,
+  toneCopy,
 } from "./template-engine";
 import { VOICE_POOL_KINDS } from "./types";
+import { VOICE_TONE_CATALOG } from "./tone";
 
 /**
  * A tiny local RngPort fake — deliberately NOT `@/infra/rng/seeded-rng`.
@@ -612,5 +614,124 @@ describe("MERCILESS_COPY", () => {
     );
     expect(single).toContain("1 day.");
     expect(single).not.toContain("1 days");
+  });
+});
+
+const ALL_TONES = [null, ...VOICE_TONE_CATALOG.map((t) => t.id)] as const;
+
+describe("buildSystemMessage across tones", () => {
+  it("maps each tone to its own table, and null to Cold", () => {
+    expect(toneCopy(null)).toBe(COLD_COPY);
+    expect(toneCopy("mocking")).toBe(MOCKING_COPY);
+    expect(toneCopy("ancient")).toBe(ANCIENT_COPY);
+    expect(toneCopy("merciless")).toBe(MERCILESS_COPY);
+  });
+
+  it("REGRESSION: an omitted tone is the Cold message, byte for byte", () => {
+    // Every call site that predates this phase means Cold, and must keep
+    // producing exactly what it produced before.
+    const context = richContext();
+    expect(buildSystemMessage(context, fakeRng(7)).body).toBe(
+      buildSystemMessage(context, fakeRng(7), null).body,
+    );
+  });
+
+  it("says something in all four voices, on all nine branches", () => {
+    // Nine contexts, one per branch, each chosen so branchFor lands on it.
+    const contexts: SystemContext[] = [
+      baseContext({ penaltyActive: true }),
+      baseContext({ weakestShadow: { name: "Iron", daysSinceTrained: 11 } }),
+      baseContext({ liftsDown: [{ name: "Squat", deltaKg: -7.5 }] }),
+      baseContext({ dailyQuestDone: false }),
+      baseContext({ streakDays: 6 }),
+      baseContext({
+        recentPr: { exerciseName: "Bench Press", newE1rmKg: 82.5 },
+      }),
+      baseContext({ todayProgramName: "Upper A" }),
+      baseContext({ todayProgramName: null, isRestDay: true }),
+      baseContext({ todayProgramName: null, isRestDay: false }),
+    ];
+
+    for (const tone of ALL_TONES) {
+      for (const context of contexts) {
+        const msg = buildSystemMessage(context, fakeRng(3), tone);
+        expect(msg.body.length).toBeGreaterThan(0);
+        expect(msg.body).not.toContain("undefined");
+        expect(msg.source).toBe("template");
+      }
+    }
+  });
+
+  it("REGRESSION: the branch and the severity are identical in all four voices", () => {
+    // A voice changes how something is said, never what deserves saying
+    // first or how bad it is. A Penalty Zone is critical in every voice.
+    const contexts: SystemContext[] = [
+      baseContext({ penaltyActive: true }),
+      baseContext({ weakestShadow: { name: "Iron", daysSinceTrained: 11 } }),
+      baseContext({ dailyQuestDone: false }),
+      baseContext({ streakDays: 6 }),
+      baseContext(),
+    ];
+    for (const context of contexts) {
+      const cold = buildSystemMessage(context, fakeRng(1), null);
+      for (const tone of VOICE_TONE_CATALOG) {
+        expect(buildSystemMessage(context, fakeRng(1), tone.id).severity).toBe(
+          cold.severity,
+        );
+      }
+    }
+  });
+
+  it("REGRESSION: a penalty still outranks a record in every voice", () => {
+    for (const tone of ALL_TONES) {
+      const msg = buildSystemMessage(
+        baseContext({
+          penaltyActive: true,
+          recentPr: { exerciseName: "Bench Press", newE1rmKg: 90 },
+        }),
+        fakeRng(1),
+        tone,
+      );
+      expect(msg.body).not.toContain("Bench Press");
+    }
+  });
+
+  it("REGRESSION: silence beats every voice, including a bought one", () => {
+    // Going quiet from day seven of the Penalty Zone is a mechanism, not a
+    // way of speaking, and 4,000 gold does not buy the right to break it.
+    for (const tone of ALL_TONES) {
+      const msg = buildSystemMessage(
+        baseContext({ penaltyActive: true, penaltySilent: true }),
+        fakeRng(2),
+        tone,
+      );
+      expect(msg.body).toBe("");
+      expect(msg.severity).toBe("critical");
+    }
+  });
+
+  it("REGRESSION: invents no number in any voice when the context holds none", () => {
+    for (const tone of ALL_TONES) {
+      for (let seed = 0; seed < 20; seed++) {
+        const msg = buildSystemMessage(
+          baseContext({ recentPr: null }),
+          fakeRng(seed),
+          tone,
+        );
+        expect(msg.body).not.toMatch(/\d+(\.\d+)?\s*kg/);
+      }
+    }
+  });
+
+  it("picks from that voice's own openings, and only those", () => {
+    for (const tone of ALL_TONES) {
+      const openings = toneCopy(tone).openings;
+      for (let seed = 0; seed < 20; seed++) {
+        const msg = buildSystemMessage(baseContext(), fakeRng(seed), tone);
+        expect(openings.some((opening) => msg.body.startsWith(opening))).toBe(
+          true,
+        );
+      }
+    }
   });
 });
