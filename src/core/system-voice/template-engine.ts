@@ -210,7 +210,7 @@ export const MOCKING_COPY: ToneCopy = {
       case "rest":
         return "Recover, since you have nothing else planned.";
       case "run":
-        return "Log the distance, and no rounding up.";
+        return "Log the distance, since most skip it entirely.";
     }
   },
 };
