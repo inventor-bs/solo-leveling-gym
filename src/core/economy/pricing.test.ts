@@ -40,6 +40,7 @@ import {
   AURA_BASE_COST,
   AURA_COST_GROWTH,
   AURA_VISUAL_MAX_LEVEL,
+  VOICE_OF_THE_RULER_COST,
 } from "./pricing";
 
 describe("income pricing", () => {
@@ -186,5 +187,19 @@ describe("cosmetic pricing", () => {
     expect(AURA_BASE_COST).toBe(3_000);
     expect(AURA_COST_GROWTH).toBe(1.5);
     expect(AURA_VISUAL_MAX_LEVEL).toBe(5);
+  });
+});
+
+describe("voice of the ruler pricing", () => {
+  it("is one price for one purchase that unlocks all three tones", () => {
+    expect(VOICE_OF_THE_RULER_COST).toBe(4_000);
+  });
+
+  it("is the second most expensive cosmetic, behind only the aura's first step", () => {
+    // The only cosmetic a hunter reads every single day, priced accordingly:
+    // roughly three months of the cosmetic slice of a steady training budget.
+    expect(VOICE_OF_THE_RULER_COST).toBeGreaterThan(TITLE_FRAME_COST.sovereign);
+    expect(VOICE_OF_THE_RULER_COST).toBeGreaterThan(DASHBOARD_LAYOUT_COST);
+    expect(VOICE_OF_THE_RULER_COST).toBeGreaterThan(AURA_BASE_COST);
   });
 });

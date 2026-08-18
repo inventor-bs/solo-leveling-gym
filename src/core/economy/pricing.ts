@@ -172,3 +172,10 @@ export const AURA_COST_GROWTH = 1.5;
  * economy needs one sink with no ceiling, and the visual budget has one.
  */
 export const AURA_VISUAL_MAX_LEVEL = 5;
+
+/**
+ * One purchase unlocks all three non-default tones. Cold is not in this
+ * catalog and is not for sale: it is the voice every hunter already has.
+ * Switching between tones afterwards is free and unlimited.
+ */
+export const VOICE_OF_THE_RULER_COST = 4_000;
