@@ -6,6 +6,7 @@ import {
   COLD_COPY,
   MOCKING_COPY,
   ANCIENT_COPY,
+  MERCILESS_COPY,
   VOICE_BRANCHES,
   type ToneCopy,
 } from "./template-engine";
@@ -537,6 +538,75 @@ describe("ANCIENT_COPY", () => {
 
   it("does not pluralize a one-day streak", () => {
     const single = ANCIENT_COPY.observation(
+      baseContext({ streakDays: 1 }),
+      "streak",
+    );
+    expect(single).toContain("1 day.");
+    expect(single).not.toContain("1 days");
+  });
+});
+
+describe("MERCILESS_COPY", () => {
+  it("covers every branch and holds the template discipline", () => {
+    assertToneDiscipline(MERCILESS_COPY);
+  });
+
+  it("offers four openings, like every other voice", () => {
+    expect(MERCILESS_COPY.openings).toHaveLength(4);
+  });
+
+  it("reads the same numbers as Cold, with everything else stripped out", () => {
+    const context = richContext();
+    const observation = MERCILESS_COPY.observation(context, "pr");
+    expect(observation).toContain("Bench Press");
+    expect(observation).toContain("82.5");
+    expect(observation).toContain("New maximum. Noted.");
+    expect(MERCILESS_COPY.demand("pr")).toBe(
+      "The next one will not come from standing still.",
+    );
+  });
+
+  it("REGRESSION: stays inside the anchor Cold set — at most 20 words composed", () => {
+    // The whole point of this voice. Cold composes to 12-20 words, and that
+    // is the anchor every voice is measured against; if a Merciless branch
+    // ever drifts past it, the copy has stopped being what was bought.
+    // Eight of the nine branches are strictly shorter than Cold's; the `pr`
+    // branch is not, because its demand line is fixed copy that predates
+    // this test and is not up for shortening.
+    const context = richContext();
+    for (const branch of VOICE_BRANCHES) {
+      for (const opening of MERCILESS_COPY.openings) {
+        const line = `${opening} ${MERCILESS_COPY.observation(context, branch)} ${MERCILESS_COPY.demand(branch)}`;
+        expect(line.split(/\s+/).length).toBeLessThanOrEqual(20);
+      }
+    }
+  });
+
+  it("is shorter than Cold on every branch except the one whose demand is fixed copy", () => {
+    const context = richContext();
+    const shorter = VOICE_BRANCHES.filter((branch) => {
+      const merciless = `${MERCILESS_COPY.observation(context, branch)} ${MERCILESS_COPY.demand(branch)}`;
+      const cold = `${COLD_COPY.observation(context, branch)} ${COLD_COPY.demand(branch)}`;
+      return merciless.split(/\s+/).length < cold.split(/\s+/).length;
+    });
+    expect(shorter).not.toContain("pr");
+    expect(shorter).toHaveLength(VOICE_BRANCHES.length - 1);
+  });
+
+  it("REGRESSION: never softens or qualifies a failure", () => {
+    const context = richContext();
+    expect(MERCILESS_COPY.observation(context, "penalty")).toContain(
+      "Penalty Zone",
+    );
+    expect(MERCILESS_COPY.demand("penalty")).toContain("Survival Quest");
+    expect(MERCILESS_COPY.observation(context, "shadow")).toContain("Iron");
+    expect(MERCILESS_COPY.observation(context, "shadow")).toContain("11");
+    expect(MERCILESS_COPY.observation(context, "lift-down")).toContain("Squat");
+    expect(MERCILESS_COPY.observation(context, "lift-down")).toContain("7.5");
+  });
+
+  it("does not pluralize a one-day streak", () => {
+    const single = MERCILESS_COPY.observation(
       baseContext({ streakDays: 1 }),
       "streak",
     );

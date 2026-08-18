@@ -282,6 +282,73 @@ export const ANCIENT_COPY: ToneCopy = {
   },
 };
 
+/**
+ * Maximum brevity: fragments over sentences, nothing softened, nothing
+ * qualified, no warmth and no wit. The shortest line that states the fact
+ * and issues the demand is the correct one, which is why every branch here
+ * is at or under the length of the Cold line it replaces.
+ */
+export const MERCILESS_COPY: ToneCopy = {
+  openings: [
+    "Hunter.",
+    "Report, Hunter.",
+    "Status, Hunter.",
+    "Logged, Hunter.",
+  ],
+  observation(context, branch) {
+    switch (branch) {
+      case "penalty":
+        return "Penalty Zone. Active.";
+      case "shadow": {
+        const s = context.weakestShadow!;
+        return `${s.name}. Weakened. ${s.daysSinceTrained} days untrained.`;
+      }
+      case "lift-down": {
+        const worst = steepestFall(context)!;
+        return `${worst.name}. Down ${Math.abs(worst.deltaKg)} kg.`;
+      }
+      case "quest":
+        return "Daily Quest. Incomplete.";
+      case "streak": {
+        const unit = context.streakDays === 1 ? "day" : "days";
+        return `Daily Quest cleared. Streak ${context.streakDays} ${unit}.`;
+      }
+      case "pr": {
+        const pr = context.recentPr!;
+        return `${pr.exerciseName}: ${pr.newE1rmKg} kg. New maximum. Noted.`;
+      }
+      case "program":
+        return `Gate: ${context.todayProgramName}.`;
+      case "rest":
+        return "No gate today.";
+      case "run":
+        return "Endurance scheduled.";
+    }
+  },
+  demand(branch) {
+    switch (branch) {
+      case "penalty":
+        return "Clear the Survival Quest.";
+      case "shadow":
+        return "Train it back.";
+      case "lift-down":
+        return "Correct it.";
+      case "quest":
+        return "Finish it today.";
+      case "streak":
+        return "Hold it.";
+      case "pr":
+        return "The next one will not come from standing still.";
+      case "program":
+        return "Enter it.";
+      case "rest":
+        return "Recover. Nothing else.";
+      case "run":
+        return "Run it. Log it.";
+    }
+  },
+};
+
 /** Picks an opening deterministically from the given RNG. */
 function pickOpening(rng: RngPort): string {
   const index = rng.int(0, OPENINGS.length);
