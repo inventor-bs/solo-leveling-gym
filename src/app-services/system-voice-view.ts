@@ -9,6 +9,7 @@ import type {
 import { seededRng } from "@/infra/rng/seeded-rng";
 import type { Container } from "@/server/container";
 import { buildSystemContext } from "./system-context";
+import { resolveVoiceTone } from "./active-voice-tone";
 
 /**
  * What The System says right now, from whichever source can answer.
@@ -36,7 +37,8 @@ export async function getSystemMessage(
     (acc, ch) => (acc * 31 + ch.charCodeAt(0)) >>> 0,
     7,
   );
-  const fallback = buildSystemMessage(context, seededRng(seed));
+  const tone = await resolveVoiceTone(container);
+  const fallback = buildSystemMessage(context, seededRng(seed), tone);
 
   if (context.penaltySilent) return fallback;
 
