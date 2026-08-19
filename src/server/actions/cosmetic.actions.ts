@@ -138,7 +138,9 @@ export async function saveDashboardOrderAction(
  * path — so there is no growing catalog here to keep in step. null is the
  * Cold voice and is always accepted.
  */
-const equipVoiceToneSchema = z.object({
+// Exported so a test can bind this enum to VOICE_TONE_CATALOG and catch the
+// two ever drifting apart.
+export const equipVoiceToneSchema = z.object({
   toneId: z.enum(["mocking", "ancient", "merciless"]).nullable(),
 });
 

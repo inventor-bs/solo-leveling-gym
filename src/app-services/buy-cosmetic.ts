@@ -42,9 +42,9 @@ export type BuyCosmeticError =
 type ResolvedPurchase = { key: string; cost: number; source: string };
 
 /**
- * Buys any of the three one-time cosmetics.
+ * Buys any of the four one-time cosmetics.
  *
- * All three are "owned once, never consumed", which is exactly the shape
+ * All four are "owned once, never consumed", which is exactly the shape
  * store_unlock was built for — the row's existence IS the ownership, so no
  * new table and no new repo method are needed for any of them.
  *
