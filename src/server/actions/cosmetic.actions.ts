@@ -25,6 +25,7 @@ import {
   type EquipVoiceToneResult,
 } from "@/app-services/equip-voice-tone";
 import type { ActionResult } from "./action-result";
+import { equipVoiceToneSchema } from "./cosmetic.schemas";
 
 /**
  * Every action here returns its failure as data. A thrown domain error
@@ -130,19 +131,6 @@ export async function saveDashboardOrderAction(
   if (!result.ok) return { ok: false, error: result.error.type };
   return { ok: true, value: result.value };
 }
-
-/**
- * Unlike the id-shaped schemas above, this one enumerates the tones. The
- * union is closed by design — there is no fifth voice and no user-authored
- * one, because free text reaching a system prompt is an open injection
- * path — so there is no growing catalog here to keep in step. null is the
- * Cold voice and is always accepted.
- */
-// Exported so a test can bind this enum to VOICE_TONE_CATALOG and catch the
-// two ever drifting apart.
-export const equipVoiceToneSchema = z.object({
-  toneId: z.enum(["mocking", "ancient", "merciless"]).nullable(),
-});
 
 export async function equipVoiceToneAction(
   input: unknown,
