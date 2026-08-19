@@ -49,7 +49,9 @@ export type ActionError =
   | "not-a-surplus-session"
   | "already-deposited"
   | "unknown-cosmetic"
-  | "cosmetic-not-owned";
+  | "cosmetic-not-owned"
+  | "unknown-tone"
+  | "tone-not-owned";
 
 export type ActionResult<T> =
   { ok: true; value: T } | { ok: false; error: ActionError };
@@ -105,4 +107,6 @@ export const ACTION_ERROR_MESSAGE: Record<ActionError, string> = {
   "already-deposited": "That session has already been deposited.",
   "unknown-cosmetic": "The System has no record of that cosmetic.",
   "cosmetic-not-owned": "That has not been bought yet.",
+  "unknown-tone": "The System has no record of that voice.",
+  "tone-not-owned": "That voice has not been unlocked yet.",
 };

@@ -20,6 +20,10 @@ import {
   saveDashboardOrder,
   type SaveDashboardOrderResult,
 } from "@/app-services/save-dashboard-order";
+import {
+  equipVoiceTone,
+  type EquipVoiceToneResult,
+} from "@/app-services/equip-voice-tone";
 import type { ActionResult } from "./action-result";
 
 /**
@@ -45,6 +49,7 @@ const buyCosmeticSchema = z.discriminatedUnion("kind", [
     kind: z.literal("title-frame"),
     frameId: z.string().min(1).max(32),
   }),
+  z.object({ kind: z.literal("voice-ruler") }),
 ]);
 
 export async function buyCosmeticAction(
@@ -122,6 +127,30 @@ export async function saveDashboardOrderAction(
   if (!parsed.success) return { ok: false, error: "invalid-input" };
 
   const result = await saveDashboardOrder(getContainer(), parsed.data.order);
+  if (!result.ok) return { ok: false, error: result.error.type };
+  return { ok: true, value: result.value };
+}
+
+/**
+ * Unlike the id-shaped schemas above, this one enumerates the tones. The
+ * union is closed by design — there is no fifth voice and no user-authored
+ * one, because free text reaching a system prompt is an open injection
+ * path — so there is no growing catalog here to keep in step. null is the
+ * Cold voice and is always accepted.
+ */
+const equipVoiceToneSchema = z.object({
+  toneId: z.enum(["mocking", "ancient", "merciless"]).nullable(),
+});
+
+export async function equipVoiceToneAction(
+  input: unknown,
+): Promise<ActionResult<EquipVoiceToneResult>> {
+  if (!(await hasWriteAccess())) return { ok: false, error: "unauthorized" };
+
+  const parsed = equipVoiceToneSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid-input" };
+
+  const result = await equipVoiceTone(getContainer(), parsed.data.toneId);
   if (!result.ok) return { ok: false, error: result.error.type };
   return { ok: true, value: result.value };
 }
