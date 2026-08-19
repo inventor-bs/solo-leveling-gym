@@ -15,6 +15,7 @@ import {
 import { SystemPanel } from "@/ui/components/primitives/SystemPanel";
 import { LockedFeature } from "@/ui/components/primitives/LockedFeature";
 import { BuyButton } from "@/ui/components/store/BuyButton";
+import { VoiceToneSelector } from "@/ui/components/store/VoiceToneSelector";
 
 /** Index 0 is unused — tier 0 ("no aura yet") renders no suffix at all. */
 const AURA_TIER_LABEL = ["", "I", "II", "III", "IV", "V"];
@@ -289,6 +290,57 @@ export default async function StorePage() {
                   disabled={!cosmetic.aura.affordable}
                   onBuy={buyAuraAction}
                 />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between font-mono text-sm">
+                  <span
+                    className={
+                      cosmetic.voiceTone.owned
+                        ? "text-success"
+                        : "text-slate-300"
+                    }
+                  >
+                    {cosmetic.voiceTone.owned ? "✓ " : ""}Voice of the Ruler
+                  </span>
+                  <span className="text-gold">
+                    {cosmetic.voiceTone.cost.toLocaleString()} G
+                  </span>
+                </div>
+                <p className="font-mono text-xs text-slate-500">
+                  {cosmetic.voiceTone.owned
+                    ? "Three more voices for the System. Switching between them is free, and Cold is always available."
+                    : "Unlocks three more voices for the System. Cold stays free either way."}
+                </p>
+                {/* The only item in the Store no description can convey.
+                    The four lines below are the same fact in four voices,
+                    shown before the purchase as well as after it. */}
+                {cosmetic.voiceTone.options.map((option) => (
+                  <p
+                    key={option.toneId ?? "cold"}
+                    className="font-mono text-xs text-slate-600"
+                  >
+                    <span className="text-system-blue">{option.name}</span> —{" "}
+                    {option.sample}
+                  </p>
+                ))}
+                {cosmetic.voiceTone.owned ? (
+                  <VoiceToneSelector
+                    options={cosmetic.voiceTone.options.map((option) => ({
+                      id: option.toneId,
+                      name: option.name,
+                    }))}
+                    activeToneId={cosmetic.voiceTone.active}
+                  />
+                ) : (
+                  <BuyButton
+                    label="UNLOCK"
+                    disabled={!cosmetic.voiceTone.available}
+                    onBuy={buyCosmeticAction.bind(null, {
+                      kind: "voice-ruler",
+                    })}
+                  />
+                )}
               </div>
             </div>
           </SystemPanel>
